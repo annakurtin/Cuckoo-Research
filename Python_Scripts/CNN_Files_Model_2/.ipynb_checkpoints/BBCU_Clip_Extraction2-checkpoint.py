@@ -3,7 +3,7 @@ Clip Extraction Code
 This is a script to extract top scoring clips from each site. The output will give you the scripts to run the listening_notebook code on to annotate the clips for cuckoo presence. 
 
 Copied from script of same name from model 1.0 files 1/11/2024
-Last edited 1/26/2024
+Last edited 2/19/2024
 '''
 
 from opensoundscape.audio import Audio
@@ -20,11 +20,14 @@ import numpy as np
 #Warning.filterwarnings("ignore", category=UserWarning)
 
 # Establish which dataset you're working on and where the metadata is
-year = '2023' # Format YYYY
-collab = 'FWPR6' # Format UMBEL or FWPR#
+year = '2022' # Format YYYY
+collab = 'UMBEL' # Format UMBEL or FWPR#
 # Establish the file path for the metadata folder
 metad_path = 'C:/Users/ak201255/Documents/Cuckoo-Research/Data/Metadata/Outputs/'
-metad_file = '2023_ARUDeployment_MetadataFull_Cleaned10-24.csv'
+metad_file = '2022_ARUDeployment_Retrieval_Metadata_UMBEL_Cleaned1-22.csv'
+# 2021: '2021_ARUDeployment_Retrieval_Metadata_UMBEL_Cleaned1-22.csv'
+# 2022 FWP:'2022_ARUDeployment_Retrieval_Metadata_FWPALL_Cleaned1-22.csv'
+# 2023 Data:'2023_ARUDeployment_MetadataFull_Cleaned10-24.csv'
 # SHOULDN'T HAVE TO EDIT BELOW THIS LINE
 
 
@@ -69,7 +72,9 @@ sf['date'] = pd.to_numeric(sf['date'])
 # print(sf.dtypes['date']) # This is now a number
 # Filter out only the dates that fall within the time period
 # transform to numeric, pick out only the files that are greater than 20230601 and less than 20230815
-sf = sf.loc[(sf['date'] >= 20230601) & (sf['date'] <= 20230815)]
+first_date = int(f'{year}0601')
+last_date = int(f'{year}0815')
+sf = sf.loc[(sf['date'] >= first_date) & (sf['date'] <= last_date)]
 #print(max(sf['date']))
 #print(min(sf['date'])) # This looks like it's working fine
 
@@ -211,14 +216,3 @@ dataset_df = dataset_df.sort_values(by=['point_id','date','time_period']).reset_
 # save the csv for this dataset after iterating through all points
 dataset_df.to_csv(big_folder + '/' + dataset + '_topclips_perSiteperPeriod.csv', index = False)
 
-
-
-
-'''
-CODE GRAVEYARD
-    # other chatgpt code
-    # Sort the DataFrame by 'point_id'
-    # reshaped_df = reshaped_df.sort_values(by='point_id').reset_index(drop=True)
-    #print('keep_df in long form:')
-    #print(keep_df)
-'''
