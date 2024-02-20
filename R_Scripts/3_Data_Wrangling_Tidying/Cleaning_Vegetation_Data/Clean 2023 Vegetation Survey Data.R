@@ -48,6 +48,7 @@ veg <- veg %>% mutate(point_id = str_replace(point_id, " NEW", ""))
 veg[75,2] <- "MAN-2"
 # Fix the JDD-1 duplication
 veg[37,2] <- "JDD-2"
+veg$point_id == "YELL-032"
 
 # write the cleaned data
 write.csv(veg,"./Data/Vegetation_Data/Outputs/2023_VegSurveyData_Cleaned1-15.csv", row.names = FALSE)
