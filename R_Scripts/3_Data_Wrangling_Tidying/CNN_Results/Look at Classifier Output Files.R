@@ -51,6 +51,10 @@ cnnv2_R623 <- fread("F:/CNN_Classifier_Files/Model_2.0/Model_Scores/predictions_
 cnnv2_R723 <- fread("F:/CNN_Classifier_Files/Model_2.0/Model_Scores/predictions_epoch-10_opso-0-10-1-2023_FWPR7_Audio.csv")
 cnnv2_UMBEL <- fread("F:/CNN_Classifier_Files/Model_2.0/Model_Scores/predictions_epoch-10_opso-0-10-1-2023_UMBEL_Audio.csv")
 
+cnnv2_R522 <- fread("F:/CNN_Classifier_Files/Model_2.0/Model_Scores/predictions_epoch-10_opso-0-10-1-2022_FWPR5_Audio.csv")
+cnnv2_R522[,c("path","point","file_id") := tstrsplit(file,'\\',fixed = TRUE)]
+cnnv2_R522[,c("point_id","date","time_ext") := tstrsplit(file_id,'_',fixed = TRUE)]
+unique(cnnv2_R522$point_id)
 
 #### ARCHIVE : Moved to fixing scores from missed 2023 files######
 # Combine new scores file
