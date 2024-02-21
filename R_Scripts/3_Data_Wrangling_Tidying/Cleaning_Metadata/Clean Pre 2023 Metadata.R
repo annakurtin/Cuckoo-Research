@@ -33,6 +33,8 @@ arus_R7 <- arus %>% filter(aru_owner == "FWPR7") %>% select(aru_id,aru_model)
 #### 2021 Data #####
 UMBEL_2021_raw <- read.csv('./Data/Metadata/Raw_Data/2021_ARUDeployment_Metadata_UMBEL.csv') %>% clean_names()
 
+# Change the error that says that 84-1 wasn't deployed
+UMBEL_2021_raw[44,2] <- 'y'
 # Filter out the ones that weren't deployed
 UMBEL_2021 <- UMBEL_2021_raw %>% filter(deployed == 'y')
 # Rename lat and long
@@ -105,7 +107,7 @@ UMBEL_2021_final <- UMBEL_2021 %>% select(point_id,
 
 
 # Write the new, cleaned data to ouputs
-write.csv(UMBEL_2021_final,"./Data/Metadata/Outputs/2021_ARUDeployment_Retrieval_Metadata_UMBEL_Cleaned1-22.csv", row.names = FALSE)
+write.csv(UMBEL_2021_final,"./Data/Metadata/Outputs/2021_ARUDeployment_Retrieval_Metadata_UMBEL_Cleaned2-21.csv", row.names = FALSE)
 
 
 
