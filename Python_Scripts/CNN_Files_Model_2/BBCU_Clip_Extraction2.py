@@ -20,11 +20,12 @@ import numpy as np
 #Warning.filterwarnings("ignore", category=UserWarning)
 
 # Establish which dataset you're working on and where the metadata is
-year = '2022' # Format YYYY
+year = '2021' # Format YYYY
 collab = 'UMBEL' # Format UMBEL or FWPR#
 # Establish the file path for the metadata folder
 metad_path = 'C:/Users/ak201255/Documents/Cuckoo-Research/Data/Metadata/Outputs/'
-metad_file = '2022_ARUDeployment_Retrieval_Metadata_UMBEL_Cleaned1-22.csv'
+metad_file = '2021_ARUDeployment_Retrieval_Metadata_UMBEL_Cleaned2-21.csv'
+# 2022 UMBEL:'2022_ARUDeployment_Retrieval_Metadata_UMBEL_Cleaned1-22.csv'
 # 2021: '2021_ARUDeployment_Retrieval_Metadata_UMBEL_Cleaned1-22.csv'
 # 2022 FWP:'2022_ARUDeployment_Retrieval_Metadata_FWPALL_Cleaned1-22.csv'
 # 2023 Data:'2023_ARUDeployment_MetadataFull_Cleaned10-24.csv'
@@ -104,7 +105,7 @@ sf = sf[['file',
          'rattle']]
 # make a clean index column
 sf = sf.reset_index(drop=True)
-
+#print(sf.head())
 # Make a folder for the clips to go into
 big_folder = clips_path+dataset+'_topclip_perperiod'
 # Check if this folder exists and if not, make it
@@ -127,7 +128,8 @@ for point in point_list:
     # Check if the location from the file is included in the list of locations of the acoustic data, and if not, nothing happens
     if point not in locs_list:
         # place for future code if the location is not in the list
-        warnings.warn('point ID from scores file not in list from acoustic metadata', UserWarning)
+        #Warning.warn('point ID from scores file not in list from acoustic metadata', UserWarning)
+        print('WARNING:',point,'is not in metadata __________________')
     else:
         # Check if the folder already exists, and if not, create the folder
         if not os.path.exists(folder):
@@ -196,7 +198,7 @@ for point in point_list:
     
         # Test ####
         #keep_df.to_csv(folder + '/' + point + '_testkeep_df.csv', index = False)
-        
+               
         # save the audio files from the top scoring rows you pulled
         for i in range(len(keep_df)):
             # specify the specific audiofile to load, specify which clip you want to isolate
@@ -208,7 +210,7 @@ for point in point_list:
             audio = Audio.from_file(filename, offset=int(keep_df['start_time'].iat[i]), duration=5)
             # save the new clip to the clip name you specified previously
             audio.save(keep_df['clip'].iat[i])
-        
+               
         # Append the top clips to keep_df
         dataset_df = dataset_df._append(keep_df, ignore_index = True) 
              
