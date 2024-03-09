@@ -4,7 +4,7 @@
 
 # Created 8/23/2023
 
-# Last modified: 11/21/2023
+# Last modified: 3/8/2023
 
 
 # What I need to go through and look at
@@ -18,7 +18,6 @@ source("./R_Scripts/6_Function_Scripts/Install_Load_Packages.R")
 load_packages(packages)
 
 
-##################### 2023 Data #############################
 
 
 #### METADATA #####
@@ -30,6 +29,23 @@ fwp_mo <- read.csv("./Data/Playback_Results/2023/Raw_Data/2023_PlaybackSurveyMet
 fwp_bs <- read.csv("./Data/Playback_Results/2023/Raw_Data/2023_PlaybackSurveyMetadata_BRS.csv") %>% clean_names()
 umbel <- read.csv("./Data/Playback_Results/2023/Raw_Data/2023_PlaybackSurveyMetadata_UMBEL.csv") %>% clean_names()
 
+# Bind them all together
+pb23_meta <- rbind(fwp_ak, fwp_dj, fwp_mo, fwp_bs, umbel)
+# Remove mosquitoes columns
+pb23_meta <- pb23_meta %>% select(-c(mosquitoes_start, mosquitoes_end, mosquitoes_scale))
+# Remove the rows of problematic surveys from Region 5
+pb23_meta <- pb23_meta %>% filter(!survey_id %in% c("YWM#1.5", "GMW#1"))
+# Remove other surveyors 
+pb23_meta <- pb23_meta %>% filter(!observer %in% c("MIV","AES"))
+#Check if there are any that are missing
+test1 <- pb23_meta %>% separate(survey_id, into = c("site","survey_num"))# %>% arrange(site) 
+test2 <- test1 %>% group_by(site) %>% summarize(n=n())
+# This looks good
+# Write this to a csv
+write.csv(pb23_meta, "./Data/Playback_Results/2023/Outputs/2023_PlaybackMetadata_NoCoords_3-8-24.csv", row.names = FALSE)
+
+
+  
 ##### DONE Get the number of playback surveys conducted by UMBEL ####
 pb_nwenergy <- umbel %>% filter(!observer %in% c("MIV","AES"))
 nwenergy_surveys <- unique(pb_nwenergy$survey_id)
@@ -90,24 +106,14 @@ points_avg <- pb23_wcoord %>% separate(col = point_id, into = c("site","id"), se
 # Total number of surveys 
 282 + 2 # 284
 
-#### Create output: combine average coordinates for site with detection/nondetection at the site ####
-pb23_pointcoord <- read.csv("./Data/Playback_Results/2023/Outputs/2023_PlaybackSiteLocations_All_11-28.csv")
-pb23_avgsitecoord <- read.csv("./Data/Playback_Results/2023/Outputs/2023_PlaybackSiteLocationsAvg_All_11-28.csv")
-# combine the playback locations with averaged coordinates 
-test <- left_join(pb_all,pb23_wcoord, by = )
-# Combine this with detection data
-# COME BACK TO THIS LATER ________________________________
 
 
 
-
-
-#### PLAYBACK DATA ##############################################
+#### CLEAN PLAYBACK DATA ##############################################
 # Manually cleaned up csv's to remove spaces 11/21/23
 
-#### Clean playback data itself ####
 # Other data from UMBEL sites 
-an_umbel <- read.csv("./Data/Playback_Results/2023/Raw_Data/MMR2023_CuckooPlaybackData_v3clean_akmanuallyedited.csv") %>% clean_names()
+an_umbel <- read.csv("./Data/Playback_Results/2023/Raw_Data/MMR2023_CuckooPlaybackData_v4clean_akmanuallyedited.csv") %>% clean_names()
 # remove some unnecessary columns
 an_umbel <- an_umbel %>% select(-c("entry_order","entry_person","how2")) 
 an_umbel <- an_umbel %>% rename(obs=observer, 
@@ -116,6 +122,17 @@ an_umbel <- an_umbel %>% rename(obs=observer,
                                 start_time = time_format)
 # Need to work out the last couple columns, change to visual and call from how1________________________________
 # V is visual C is calling (S is singing)
+an_umbel <- an_umbel %>% mutate(visual = case_when(how1 == "V" ~ "Y",
+                                                   how1 == "C" ~ "N",
+                                                   how1 == "S"~ "N",
+                                                   how1 == NA ~ NA),
+                                call = case_when(how1 == "V" ~ "N",
+                                                 how1 == "C" ~ "Y",
+                                                 how1 == "S" ~ "Y",
+                                                 how1 == NA ~ NA))
+
+
+# 3-8 manually added passive listening intervals - raw data version v3 archive, v4 is current
 
 # My data from UMBEL sites
 ak_umbel <- read.csv("./Data/Playback_Results/2023/Raw_Data/2023_PlaybackPtCtSurveyData_UMBEL.csv") %>% clean_names() %>% filter(species %in% c("BBCU","YBCU","NOBI"))
@@ -135,19 +152,22 @@ pb23_all <- pb23_all %>% mutate(bbcu_detection = ifelse(species == "BBCU", 1, 0)
 # Remove the colon from the time
 pb23_all$start_time <- str_replace(pb23_all$start_time,":", "")
 
-
-# Condensing this down
-# We want to condense across each survey ID 
-## Include date, survey_id, start_time (take the minimum), max of bbcu_detection, max of ybcu_detection, average of distance, visual Y if there was a Y in it, call Y if there was a Y in it (maybe transform these to 1's first?), max of cluster
-## Does it matter if some playbacks were stopped/started by a minute or so? I don't think so
-# Pick up here again __________________________________________
-cuckoo_summed <- all_cuckoo %>% group_by(survey_id) %>% summarize(detection_hist_bbcu = max(bbcu_detection),detection_hist_ybcu = max(ybcu_detection)) %>% arrange()
+# Write this output
+#write.csv(pb23_all, "./Data/Playback_Results/2023/Outputs/2023_PlaybackData_3-8-24.csv", row.names = FALSE)
 
 
-# From Daniel's playback data: figure out a way to apply the start time across 1-5 as well as PB1-PB5
 
 
-### CODE GRAVEYARD #####
+
+
+
+
+### CODE GRAVEYARD ####
+
+
+# Remove duplicates
+#pb23_meta <- pb23_meta %>% distinct()
+
 # remove certain lines - already manually cleaned
 #pb_all <- pb_all %>% filter(!survey_id %in% c("84#2b","84#3b","203-1_2","^change this to 203_2"))
 
@@ -168,3 +188,20 @@ cuckoo_summed <- all_cuckoo %>% group_by(survey_id) %>% summarize(detection_hist
 #condense1_23 <- rbind(ak_umbel,ak_r6,daniel)
 # Pull out only NOBI, BBCU or YBCU from my data (UMBEL and FWPR6)
 #condense1_23 <- condense1_23 %>% filter(species %in% c("BBCU","YBCU","NOBI")) # use this in conjunction with the other data
+
+#an_umbel <- an_umbel %>% mutate(visual = ifelse(how1 == "V", "Y", "N"),
+#                                call = ifelse(how1 %in% c("C","S"),"Y","N"))
+
+
+
+#### Condensing this down  ######
+
+pb_data <- read.csv("./Data/Playback_Results/2023/Outputs/2023_PlaybackData_3-8-24.csv")
+# Read in metadata that has the coordinates
+
+# Include detection data for each survey ID __________________________________________________________
+# We want to condense across each survey ID 
+## Include date, survey_id, start_time (take the minimum), max of bbcu_detection, max of ybcu_detection, average of distance, visual Y if there was a Y in it, call Y if there was a Y in it (maybe transform these to 1's first?), max of cluster
+## Does it matter if some playbacks were stopped/started by a minute or so? I don't think so
+# Pick up here again __________________________________________
+cuckoo_summed <- all_cuckoo %>% group_by(survey_id) %>% summarize(detection_hist_bbcu = max(bbcu_detection),detection_hist_ybcu = max(ybcu_detection)) %>% arrange()
