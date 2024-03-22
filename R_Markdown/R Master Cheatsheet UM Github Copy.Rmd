@@ -3189,13 +3189,13 @@ Often used for simulating survival data and occupancy
 
 Use the binomial distribution function `rbinom()`
 
-Arguments to rbonim()
+Arguments to rbonim() [explanation here](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/Binomial)
 
-1. n - the number of data points you want to create
+1. n - the number of observations/ data points you want to create
 
 2. size - the number of trails in a binomial distribution. For a Bernoulli, this is always 1. 
 
-3. prob - the probability of success
+3. prob - the probability of success on each trial
 
 To visualize bernoulli data, plot it with bar chart 
 
@@ -3239,6 +3239,9 @@ trout_length <- cbind(cutthroat_length, brown_length)
 
 trout <- as.data.frame(trout_length)
 
+# Generating data with rbinom 
+#Ex: 85 total habitat points, 18 with detections, 21% naive occupancy 
+bbcu_pres <- rbinom(n = 85,size = 1,prob = .21)
 
 # Other simulation data
 
