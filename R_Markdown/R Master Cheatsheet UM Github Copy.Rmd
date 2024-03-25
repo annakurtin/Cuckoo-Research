@@ -1135,6 +1135,8 @@ Dplyr functions never modifies the input dataframe, so any new dataframe you cre
 
 ! is "not"
 
+[Useful resource on removing rows, including removing duplicates](https://favtutor.com/blogs/remove-row-in-r)
+
 ```{r, Data Transformation}
 library(tidyverse)
 library(dplyr)

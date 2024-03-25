@@ -8,6 +8,7 @@
 # STATUS need to run the UMBEL part of the code again with the completed monitoring_points data
 # NEED TO ADD ON A COLUMN FOR NUM OBSERVERS FOR DETECTION
 # NEED TO GO AND FIX THE TIME COLUMN
+# Need to create datasheets that match the 2023 datasheets
 
 # Created 10/6/2023
 
@@ -17,150 +18,11 @@
 packages <- c("stringr","tidyverse","janitor","lubridate")
 source("./R_Scripts/6_Function_Scripts/Install_Load_Packages.R")
 load_packages(packages)
+# Load custom cleaning functions
+source("./R_Scripts/6_Function_Scripts/Create_Functions_For_Cleaning_Playback_Data.R")
 
 
-#### Functions ######
-
-# Create a new column for BBCU detections and YBCU detections
-create_binary_cuckoo <- function(dataframe){
-  updated_dataframe <- dataframe %>%
-    mutate(
-      bbcu = ifelse(species == "BBCU", 1,
-                    ifelse(species %in% c("NOBI", "YBCU"), 0, NA))) %>%
-    mutate(
-      ybcu = ifelse(species == "YBCU", 1,
-                    ifelse(species %in% c("NOBI", "BBCU"), 0, NA)))
-  # make bbcu and ybcu a factor????
-  return(updated_dataframe)
-}
-
-
-# Clean interval column
-# Change 1-5 in interval column to M1 etc
-# Logic behind this is to make it the same data type as PB1 etc
-clean_intervals <- function(dataframe){
-  updated_dataframe <- dataframe %>% mutate(interval = case_when(
-    interval == "1" ~ "M1",
-    interval == "2" ~ "M2",
-    interval == "3" ~ "M3",
-    interval == "4" ~ "M4",
-    interval == "5" ~ "M5",
-    interval == "M1" ~ "M1",
-    interval == "M2" ~ "M2",
-    interval == "M3" ~ "M3",
-    interval == "M4" ~ "M4",
-    interval == "M5" ~ "M5",
-    interval == "PB1" ~ "PB1",
-    interval == "PB2" ~ "PB2",
-    interval == "PB3" ~ "PB3",
-    interval == "PB4" ~ "PB4",
-    interval == "PB5" ~ "PB5"))
-  return(updated_dataframe)
-}
-
-# clean the ARU ID in the region 6 data
-clean_aru_r622 <- function(r6_22_data){
-  r6_data_new <- r6_22_data %>% mutate(aru_id = case_when(
-    aru_point == "05169_1" ~ "SMM05169",
-    aru_point == "05169_2" ~ "SMM05222",
-    aru_point == "05169_3" ~ "SMM05075",
-    aru_point == "FWP_R6_001_C4" ~ "FWPR6001",
-    aru_point == "FWP_R6_002_C5" ~ "FWPR6002",
-    aru_point == "FWP_R6_003_C6" ~ "FWPR6003",
-    aru_point == "FWP_R6_004_C7" ~ "FWPR6004",
-    aru_point == "FWP_R6_005_C8" ~ "FWPR6005",
-    aru_point == "FWP_R6_006_C9" ~ "FWPR6006")) 
-  r6_data_new <- r6_data_new %>% select(-aru_point)
-  return(r6_data_new)
-}
-
-# Clean ARUs r5 or R7 2022
-clean_arus <- function(dataframe){
-  dataframe$aru_id <- str_replace(dataframe$aru_id,"AMU", "AM")
-  dataframe$aru_id <- str_replace(dataframe$aru_id," ", "")
-  return(dataframe)
-}
-
-# Edit the time column to remove the colon
-## Also potentially in the future change it to 24 hour time?
-clean_time <- function(dataframe){
-  dataframe$time <- str_replace(dataframe$time, ":", "")
-  return(dataframe)
-}
-
-# convert the date column into a date format
-make_date_format <- function(dataframe){
-  dataframe$date <- as.Date(dataframe$date, format = "%m/%d/%Y")
-  # may need to edit this if different dataframes have different formats
-  return(dataframe)
-}
-
-# rename the long and lat columns in the metadata and select only the columns needed for cleaning playback data
-rename_cols_and_select <- function(metadata){
-  if("latitude" %in% colnames(metadata)){
-    metadata <- metadata %>% rename(lat = latitude)
-  }
-  if("longitude" %in% colnames(metadata)){
-    metadata <- metadata %>% rename(long = longitude)
-  }
-  metadata_foruse <- metadata %>% select(point_id, aru_id, lat, long)
-  return(metadata_foruse)
-}
-
-# make a function to join the metadata to the playback data
-join_playback_metadata <- function(playback, metadata){
-  newdat <- left_join(playback, metadata, by = "aru_id")
-  # maybe in the future select/reorder certain columns
-}
-
-
-# make a function to join the metadata to the playback data
-join_playback_metadata_bypoint <- function(playback, metadata){
-  newdat <- left_join(playback, metadata, by = "point_id")
-  # maybe in the future select/reorder certain columns
-}
-
-# Create a survey ID column that is just the site, a #, then 1 (since in 2022 only one survey was conducted) 
-separate_site_make_survey_id <- function(dataframe){
-  dataframe <- dataframe %>% 
-    separate(point_id, into = c("site_id", "point"), sep = "-" , remove = FALSE) %>%
-    mutate(survey_id = paste(site_id,"#1"))
-  dataframe$survey_id <- str_replace(dataframe$survey_id," ", "")
-  return(dataframe)
-}
-
-# Make a function to create a new column that wasn't entered into the dataset and fill it with "no_data" values
-make_unentered_columns <- function(dataframe,column_name){
-  dataframe <- dataframe %>% mutate(!!column_name := "no_data")
-  return(dataframe)
-}
-
-
-# select the columns in the correct order
-reorder_final_cols <- function(dataframe){
-  final_dataframe <- dataframe %>% select(obs,
-                                          date,
-                                          time,
-                                          survey_id, 
-                                          site_id, 
-                                          point_id,
-                                          lat,
-                                          long,
-                                          time, 
-                                          interval, 
-                                          species, 
-                                          bbcu, 
-                                          ybcu, 
-                                          distance, 
-                                          bearing, 
-                                          how, 
-                                          visual, 
-                                          call, 
-                                          sex, 
-                                          cluster, 
-                                          notes)
-}
-#### Code ############
+#### Initial Playback Cleaning ############
 
 # Region 7 #################
 # Need to create a new script for removing the U and space from the Region 7 playback data and joining it to the right name from the metadata, then writing it to outputs 
@@ -284,7 +146,7 @@ test <- clean_time(r6_22)
 #choose the final columns to include in playback data
 r6_22_final <- reorder_final_cols(r6_22)
 
-# CHECKPOINT: REGION 6 #####
+##### CHECKPOINT: REGION 6 #####
 # sum the number of BBCU and YBCU for each site
 check62 <- r6_22_final %>% group_by(point_id) %>% summarize(count_bbcu = ifelse(sum(bbcu, na.rm = TRUE)>=1,1,0)) 
 sum(check62$count_bbcu, na.rm = TRUE) # 1 sites with bbcu
@@ -382,6 +244,104 @@ pb_22_summed <- pb_22_summed %>%
   )
 # Write this to a new dataframe
 write.csv(pb_22_summed, "./Data/Playback_Results/2022/Outputs/2022_PlaybackSurveys_SiteLevelCuckoo_11-29.csv", row.names = FALSE)
+
+
+
+
+
+#### Secondary Playback Cleaning 3/2024 ###################
+
+# Manual edits to 22 UMBEL data 3/25/24:
+## Added in M1-M5 intervals, since they didn't record it unless they heard a cuckoo during it. Start time for intervals was calculated as 5 min before the start of the playback period
+
+# Read in all of the playback data
+r5_22 <- read.csv("./Data/Playback_Results/2022/Raw_Data/2022_BBCUPlaybackSessionResults_FWPR5.csv")
+r6_22 <- read.csv("./Data/Playback_Results/2022/Raw_Data/Output_After_First_Cleaning/2022_PlaybackSurveys_FWPR6_Cleaned10-9.csv")
+r7_22 <- read.csv("./Data/Playback_Results/2022/Raw_Data/Output_After_First_Cleaning/2022_PlaybackSurveys_FWPR7_Cleaned10-6.csv")
+umbel_22 <- read.csv("./Data/Playback_Results/2022/Raw_Data/Output_After_First_Cleaning/2022_PlaybackSurveys_UMBEL_Cleaned10-9_addedintervals.csv")
+
+# create a metadata sheet
+# Add on the number observers column
+r6_22 <- r6_22 %>% mutate(num_obs = 1) %>% reorder_cols
+# Add on the number of observers column
+r7_22 <- r7_22 %>% mutate(num_obs = 1) %>% reorder_cols
+# Add on the number of observers column, assign more than one observer to my data
+# unique(umbel_22$obs)
+umbel_22 <- umbel_22 %>% mutate(num_obs = case_when(obs == "AK" ~ 2,
+                                                    obs == "BOC" ~ 1,
+                                                    obs == "RPD" ~ 1,
+                                                    obs == "ACN" ~ 1)) %>%
+  reorder_cols
+
+pb_22_all <- rbind(r5_22,r6_22,r7_22,umbel_22)
+# Write this to the outputs as unfiltered data
+#write.csv(pb_22_all, "./Data/Playback_Results/2022/Outputs/2022_PlaybackData_AllCollaborators.csv",row.names = FALSE)
+
+
+
+# Create a document that has both the coordinates for each site and the coordinates averaged
+site_locs_all_22 <- pb_22_all %>% group_by(point_id) %>% summarize(lat = mean(lat),long = mean(long))
+site_locs_all_22 <- site_locs_all_22 %>% separate(point_id, into = c("site","id"), remove = FALSE) 
+# Write this to a csv
+#write.csv(site_locs_all_22, "./Data/Playback_Results/2022/Outputs/2022_PlaybackSiteLocations_All_3-25-2023.csv",row.names = FALSE)
+
+
+
+# Create a playback sheet by removing metadata columns
+pb_22_all <- pb_22_all %>% clean_time %>% rename(start_time = time, bbcu_detection = bbcu, ybcu_detection = ybcu, observer = obs)
+# Select columns of interest
+pb_22_all <- pb_22_all %>% mutate(across(c(distance, bearing, visual, call, cluster), ~ifelse(. == "", NA, .)))
+pb_22_data <- pb_22_all %>% select_final_pbdata_cols
+# write this to outputs
+#write.csv(pb_22_data, "./Data/Playback_Results/2022/Outputs/2022_PlaybackData_3-25-24.csv",row.names = FALSE)
+
+
+
+# Create a metadata sheet by grouping by survey ID and selecting the relevant columns
+pb_22_metad <- pb_22_all %>% mutate(sky_start = "no_data",
+                                             sky_end = "no_data",
+                                             wind_start = "no_data",
+                                             wind_end = "no_data",
+                                             temp_start = "no_data",
+                                             temp_end = "no_data")
+pb_22_meta <- pb_22_metad %>% group_by(survey_id,
+                                      date) %>% 
+  summarize(survey_site_start_time = min(start_time), 
+            observer = paste(unique(observer), collapse = ", "),
+            num_obs = max(num_obs),
+            num_points = length(unique(point_id)),
+            lat_avg = mean(lat),
+            long_avg = mean(long),
+            sky_start = paste(unique(sky_start)),
+            sky_end = paste(unique(sky_end)),
+            wind_start = paste(unique(wind_start)),
+            wind_end = paste(unique(wind_end)),
+            temp_start = paste(unique(temp_start)),
+            temp_end = paste(unique(temp_end)),
+            detection_hist_bbcu = max(bbcu_detection, na.rm = TRUE),
+            detection_hist_ybcu = max(ybcu_detection, na.rm = TRUE),
+            notes = paste(notes, collapse = ""))
+# Remove the weird NA values from the notes column
+#unique(pb_22_meta$notes)
+pb_22_meta$notes <- str_replace(pb_22_meta$notes,"NANANANANANANANANANANANANANANANANANANANANANANANANANANANANA","")
+
+# Select the columns we want
+metad_22_wcoords <- pb_22_meta %>% select_final_metad_cols()
+# Write this to csv
+#write.csv(metad_22_wcoords, "./Data/Playback_Results/2022/Outputs/2022_PlaybackSurveyMetadataWDetectionsCoords_3-25-24.csv", row.names = FALSE)
+
+
+
+# Create a datasheet for ArcGIS that has average playback site locations and cuckoo detections at each site
+# split cuckoo_summed by site
+site_detections_22 <- metad_22_wcoords %>% separate(survey_id, into = c("site","survey_num"), sep = "#")
+site_detections_22 <- site_detections_22 %>% group_by(site,lat_avg,long_avg) %>% summarize(bbcu_detected = max(detection_hist_bbcu),ybcu_detected = max(detection_hist_ybcu)) %>% select(site,bbcu_detected,ybcu_detected,lat_avg,long_avg)
+# Write this to a .csv file
+#write.csv(site_detections_22, "./Data/Playback_Results/2022/Outputs/2022_PlaybackSiteLocationsAvgWithDetections_3-25-24.csv", row.names = FALSE)
+
+
+
+
 
 
 
