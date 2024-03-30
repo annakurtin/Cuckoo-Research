@@ -41,6 +41,13 @@ load_packages(packages)
 # 105-1/20230624_70000_670s-675s_cadence_coo.wav changed to 0
 # 104-5/20230624_70000_55s-60s_cadence_coo.wav changed to 0
 # 102-3/20230623_90000_445s-450s_cadence_coo.wav changed to 0
+# 83-1/20230621_70000_1095s-1100s_cadence_coo.wav LEFT AS 1, likely playback audio but too far away to say for sure
+# FAR-3/20220706_90000_1450.0s-1455.0s_cadence_coo.wav changed to 0
+#HAM-1/20220706_70000_1185.0s-1190.0s_cadence_coo.wav changed to 0
+# HAM-2/20220706_70000_310.0s-315.0s_cadence_coo.wav changed to 0
+# SID-3/20220701_90000_95.0s-100.0s_cadence_coo.wav changed to 0
+# MOC-3/20220712_90000_615.0s-620.0s_cadence_coo.wav changed to 0
+# HAT-1/20220711_90000_1020.0s-1025.0s_cadence_coo.wav changed to 0
 # As a note: when I was going through and double checking the audio, I changed files that had playback calls in them to 0. I will also go through and mask out these files later, but I want to minimize the chance that a false positive slips through.
 # mask out just the file that has the playback during it or mask the whole day?
 
