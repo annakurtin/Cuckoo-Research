@@ -5,7 +5,10 @@
 # First formatting them for use in ARCGIS - summarizing cuckoo detection for each site 
 # Next formatting them for us in modeling (later)
 
-# Need to account for variety in points at each site, need to account for same site conducted at different days
+# Need to account for variety in points at each site
+# need to account for same site conducted at different days
+# add another point within the site where the survey crews conducted additional playbacks away from the point
+# change the format of the date
 
 # Created 11/29/2023
 

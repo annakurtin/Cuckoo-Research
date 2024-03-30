@@ -6,7 +6,6 @@
 # Next formatting them for us in modeling (later)
 
 # STATUS need to run the UMBEL part of the code again with the completed monitoring_points data
-# NEED TO ADD ON A COLUMN FOR NUM OBSERVERS FOR DETECTION
 # NEED TO GO AND FIX THE TIME COLUMN
 # Need to create datasheets that match the 2023 datasheets
 
