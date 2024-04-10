@@ -96,6 +96,32 @@ m4
 # JAGS needs your data in a list and only takes numeric data
 # JAGS doesn't do anything for you
 
+#Simulate some occupancy data and some covariates 
+
+M <- 100 #number of sites 
+J <- 3 #number of visits 
+C <- matrix(NA, nrow = M, ncol = J)
+
+#fill in this data with 0 and 1 with a detection probability of 30%
+# visit 1
+C[,1] <- rbinom(M, 1, 0.3)
+# visit 2
+C[,2] <- rbinom(M, 1, 0.3)
+# visit 3
+C[,3] <- rbinom(M, 1, 0.3)
+#There are no NAs. These would be removed in a usual analysis (downside to unmarked)
+# Baysean methods such as JAGS can handle this
+
+# Simulate some wind
+# note that it is important to scale your variables
+wind <- array(runif(M * J, -1,1), dim = c(M, J)) #making a fake windspeed covariate
+
+# let's make a discrete covariate for habitat quality 
+hab <- c(rep("Good", 33), rep("Med", 33), rep("Poor", 34)) #three habitat types - first 33 are good, next 33 are medium, and last 34 are poor
+
+time <- runif(M,0,4)
+
+temp <- runif(M, 0,4) #fake temperature 
 
 ## Step 1: change habitat quality into numeric
 hab2 <- as.factor(hab)#JAGS will not do this for you. JAGS only takes numeric data

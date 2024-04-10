@@ -42,6 +42,7 @@ pb_21_summed <- pb_21_dat %>% group_by(site_id) %>% summarize(lat_avg = mean(lat
 
 #### Secondary Playback Data Cleaning ######
 pb_21 <- read.csv("./Data/Playback_Results/2021/Raw_Data/2021_BBCUPlaybackSessionResults_UMBEL.csv") %>% clean_names()
+# 4/9/2023: went through and changed extra playbacks at 96 to 96_A and 96_B because they were conducted >100 m away from the point they are labeled as but within 400 m of the other points so therefore within the same site - based off of what Anna Noson instructed me to do (in advisor meeting notes)
 # didn't manually go through and add in M1-M5 intervals
 # change the way the point_id is formatted
 pb_21$point_id <- str_replace(pb_21$point_id, "_","-")
@@ -72,6 +73,8 @@ pb_21_dat <- pb_21 %>% select_final_pbdata_cols()
 ## NEED TO CHECK THIS FOR DUPLICATES, MULTIPLE SURVEYS ________________________________________________
 # read in coordinates
 lt_pt <- read.csv("./Data/Monitoring_Points/UMBEL_LongTermSites.csv") %>% clean_names()
+weath <- read.csv("./Data/Playback_Results/2021/Raw_Data/MMR2021_WeatherData_CuckooPlaybacks.csv")
+# COMBINE THESE TOGETHER AND THEN COMBINE WITH PLAYBACK DATA ___________________________________________________SS
 lt_pt <- lt_pt %>% rename(point_id = gps_id, lat = lat_wgs84, long = long_wgs84) %>% select(point_id,lat,long)
 lt_pt$point_id <- str_replace(lt_pt$point_id, "_","-") 
 nam_pt <- read.csv("./Data/Monitoring_Points/UMBEL_LetterNamedPoints2022.csv")  %>% clean_names() 
