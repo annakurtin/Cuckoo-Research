@@ -5,14 +5,11 @@
 # First formatting them for use in ARCGIS - summarizing cuckoo detection for each site 
 # Next formatting them for us in modeling (later)
 
-# Need to account for variety in points at each site
-# need to account for same site conducted at different days
-# add another point within the site where the survey crews conducted additional playbacks away from the point
-# change the format of the date
+## Maybe:  CHECK METADATA FOR DUPLICATES?
 
 # Created 11/29/2023
 
-# Last updated 3/25/2023
+# Last updated 4/11/2023
 
 
 #### Setup ###############
@@ -24,20 +21,20 @@ source("./R_Scripts/6_Function_Scripts/Create_Functions_For_Cleaning_Playback_Da
 
 #### Old: Initial Cleaning Code ######
 
-pb_21 <- read.csv("./Data/Playback_Results/2021/Raw_Data/2021_BBCUPlaybackResults_UMBEL_AKEdits_1129.csv")
-# Create columns for site_id and survey_id
-pb_21_dat <- separate_site_make_survey_id(pb_21)
-# replace NA in the playback_detection column with "no_data"
-#pb_21_dat <- pb_21_dat %>% mutate(playback_detection = ifelse(is.na(playback_detection),"no_data",playback_detection))
-
-# Summarize by site
-pb_21_summed <- pb_21_dat %>% group_by(site_id) %>% summarize(lat_avg = mean(lat, na.rm = TRUE), long_avg = mean(long, na.rm = TRUE),detection_hist_bbcu = max(playback_detection, na.rm = TRUE)) 
-# replace -Inf with no_data
-#pb_21_summed %>% str_replace(-Inf, "no_data")
-# NEED TO FIX THIS LATER
-
-# write to .csv for ArcGIS
-#write.csv(pb_21_summed,"./Data/Playback_Results/2021/Outputs/2021_PlaybackResultsSummarized_11-29.csv", row.names = FALSE)
+# pb_21 <- read.csv("./Data/Playback_Results/2021/Raw_Data/2021_BBCUPlaybackResults_UMBEL_AKEdits_1129.csv")
+# # Create columns for site_id and survey_id
+# pb_21_dat <- separate_site_make_survey_id(pb_21)
+# # replace NA in the playback_detection column with "no_data"
+# #pb_21_dat <- pb_21_dat %>% mutate(playback_detection = ifelse(is.na(playback_detection),"no_data",playback_detection))
+# 
+# # Summarize by site
+# pb_21_summed <- pb_21_dat %>% group_by(site_id) %>% summarize(lat_avg = mean(lat, na.rm = TRUE), long_avg = mean(long, na.rm = TRUE),detection_hist_bbcu = max(playback_detection, na.rm = TRUE)) 
+# # replace -Inf with no_data
+# #pb_21_summed %>% str_replace(-Inf, "no_data")
+# # NEED TO FIX THIS LATER
+# 
+# # write to .csv for ArcGIS
+# #write.csv(pb_21_summed,"./Data/Playback_Results/2021/Outputs/2021_PlaybackResultsSummarized_11-29.csv", row.names = FALSE)
 
 
 #### Secondary Playback Data Cleaning ######
@@ -70,22 +67,12 @@ pb_21_dat <- pb_21 %>% select_final_pbdata_cols()
 #write.csv(pb_21_dat, "./Data/Playback_Results/2021/Outputs/2021_PlaybackData_3-25-24.csv",row.names = FALSE)
 
 # Make metadata
-## NEED TO CHECK THIS FOR DUPLICATES, MULTIPLE SURVEYS ________________________________________________
 # read in coordinates
 lt_pt <- read.csv("./Data/Monitoring_Points/UMBEL_LongTermSites.csv") %>% clean_names()
-weath <- read.csv("./Data/Playback_Results/2021/Raw_Data/MMR2021_WeatherData_CuckooPlaybacks.csv")
-# COMBINE THESE TOGETHER AND THEN COMBINE WITH PLAYBACK DATA ___________________________________________________SS
 lt_pt <- lt_pt %>% rename(point_id = gps_id, lat = lat_wgs84, long = long_wgs84) %>% select(point_id,lat,long)
 lt_pt$point_id <- str_replace(lt_pt$point_id, "_","-") 
 nam_pt <- read.csv("./Data/Monitoring_Points/UMBEL_LetterNamedPoints2022.csv")  %>% clean_names() 
 nam_pt <- nam_pt %>% rename(point_id = gps_id) %>% select(point_id, lat, long)
-
-pb_21_metad <- pb_21 %>% mutate(sky_start = "no_data",
-                                    sky_end = "no_data",
-                                    wind_start = "no_data",
-                                    wind_end = "no_data",
-                                    temp_start = "no_data",
-                                    temp_end = "no_data")
 
 # Initial combo to coordinates
 pb_21_init <- left_join(pb_21_metad,lt_pt, by = "point_id")
@@ -99,34 +86,51 @@ coords <- rbind(nam_pts,lt_pt)
 # Combine metadata with coordinates
 pb_21_metad_coord1 <- left_join(pb_21_metad,coords, by = "point_id")
 
-
 pb_21_metad_coord <- pb_21_metad_coord1 %>% group_by(survey_id,
                                        date) %>% 
   summarize(survey_site_start_time = min(start_time), 
             num_obs = max(num_obs),
             num_points = length(unique(point_id)),
-            sky_start = paste(unique(sky_start)),
-            sky_end = paste(unique(sky_end)),
-            wind_start = paste(unique(wind_start)),
-            wind_end = paste(unique(wind_end)),
-            temp_start = paste(unique(temp_start)),
-            temp_end = paste(unique(temp_end)),
-            lat_avg = mean(lat),
-            long_avg = mean(long),
+            lat_avg = mean(lat, na.rm = TRUE),
+            long_avg = mean(long,na.rm = TRUE),
             detection_hist_bbcu = max(bbcu_detection, na.rm = TRUE),
             detection_hist_ybcu = max(ybcu_detection, na.rm = TRUE),
             observer = paste(unique(observer), collapse = ", "),
-            notes = paste(notes, collapse = ""))
-pb_21_metad_fin <- pb_21_metad_coord %>% select_final_metad_cols()
+            notes_m = paste(notes, collapse = ""))
+# Change the one site that had multiple surveys done
+pb_21_metad_coord[23,1] <- "82#2"
+pb_21_metad_coord <- pb_21_metad_coord %>% separate(survey_id, into = c("site","survey_num"), sep = "#", remove = FALSE)
+
+
+# Read in weather data 
+weather_21 <- read.csv("./Data/Playback_Results/2021/Raw_Data/MMR2021_WeatherData_CuckooPlaybacks.csv") %>% clean_names()
+weather_21 <- weather_21 %>% separate(gps_id, into = c("site","point"),sep = "_", remove = FALSE)
+# sort the weather data
+weather_21 <- weather_21 %>% arrange(site,time)
+weather_21 <- weather_21 %>% group_by(site) %>% summarize(sky_start = first(sky),
+                                                    sky_end = last(sky),
+                                                    wind_start = first(wind),
+                                                    wind_end = last(wind),
+                                                    temp_start = first(wind),
+                                                    temp_end = last(wind),
+                                                    notes_w = paste(notes, collapse = ""))
+
+# Join the weather data with the playback metadata
+pb_21_metad_all <- left_join(pb_21_metad_coord, weather_21, by = "site")
+pb_21_metad_all <- pb_21_metad_all %>% mutate(notes = paste(notes_m, notes_w, collapse = ""))
+# Format to match the other date columns in 2022 and 2023
+pb_21_metad_all$date <- format(pb_21_metad_all$date, "%m/%d/%Y")
+
+pb_21_metad_fin <- pb_21_metad_all %>% select_final_metad_cols()
 # write this to a csv file
-#write.csv(pb_21_metad_fin, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSurveyMetadataWDetectionsCoords_3-25-24.csv", row.names = FALSE)
+#write.csv(pb_21_metad_fin, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSurveyMetadataWDetectionsCoords_4-11-24.csv", row.names = FALSE)
 
 
 # Make a sheet for ArcGIS that has all of the survey locations and detections
 site_detections_21 <- pb_21_metad_coord1 %>% separate(survey_id, into = c("site","survey_num"), sep = "#")
-site_detections_21 <- site_detections_21 %>% group_by(site) %>% summarize(bbcu_detected = max(bbcu_detection),ybcu_detected = max(ybcu_detection), lat_avg = mean(lat), long_avg = mean(long)) %>% select(site,bbcu_detected,ybcu_detected,lat_avg,long_avg)
+site_detections_21 <- site_detections_21 %>% group_by(site) %>% summarize(bbcu_detected = max(bbcu_detection),ybcu_detected = max(ybcu_detection), lat_avg = mean(lat, na.rm = TRUE), long_avg = mean(long,na.rm = TRUE)) %>% select(site,bbcu_detected,ybcu_detected,lat_avg,long_avg)
 # Write this to a .csv file
-#write.csv(site_detections_21, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSiteLocationsAvgWithDetections_3-25-24.csv", row.names = FALSE)
+#write.csv(site_detections_21, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSiteLocationsAvgWithDetections_4-11-24.csv", row.names = FALSE)
 
 
 # Make a datasheet for all the locations
@@ -134,4 +138,4 @@ site_locs_all_21 <- left_join(pb_21_metad,coords, by = "point_id")
 site_locs_all_21 <- site_locs_all_21 %>% group_by(point_id) %>% summarize(lat = mean(lat),long = mean(long))
 site_locs_all_21 <- site_locs_all_21 %>% separate(point_id, into = c("site","id"), remove = FALSE) 
 # Write this to a csv
-write.csv(site_locs_all_21, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSiteLocations_All_3-25-2023.csv",row.names = FALSE)
+#write.csv(site_locs_all_21, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSiteLocations_All_4-11-2023.csv",row.names = FALSE)
