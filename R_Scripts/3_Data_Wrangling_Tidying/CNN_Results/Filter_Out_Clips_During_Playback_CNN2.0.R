@@ -95,6 +95,7 @@ clip_dat_23 <- create_formatted_datetime(clip_dat_23)
 
 
 #### Filter out playback audio####
+# Create time intervals in the playback metadata####
 # Read in the playback metadata
 pbmeta_23 <- read.csv("./Data/Playback_Results/2023/Outputs/2023_PlaybackSurveyMetadataWDetectionsCoords_3-22-24.csv")
 # Convert to date format
@@ -126,61 +127,97 @@ pbmeta$interval_end <- pbmeta$datetime + (2*60*60)
 #pbmeta[1,20] >pbmeta[1,19] # yes
 # make a column for site id
 pbmeta <- pbmeta %>% separate(survey_id, into= c("site_id","survey_num"),sep = "#", remove = FALSE)
-
+# Write all the playback metadata to a file for use in other sites
+#write.csv(pbmeta,"./Data/Playback_Results/AllYears_PlaybackSurveyMetadataWIntervals4Cleaning_4-12.csv" ,row.names = FALSE)
+#####
+# Just read in this cleaned data to avoid bogging down R
+pbmeta <- read.csv("./Data/Playback_Results/AllYears_PlaybackSurveyMetadataWIntervals4Cleaning_4-12.csv" ) %>% clean_names()
+pbmeta$interval_start <- as_datetime(pbmeta$interval_start, tz = "America/Denver")
+pbmeta$interval_end <- as_datetime(pbmeta$interval_end, tz = "America/Denver")
 
 # make a column for site within the pbmeta 
 # left join playback metadata by the site 
 
 #### Filter out acoustic files that were recorded during playbacks ######
 
-filter_out_pb <- function(clip_dat){
+filter_out_pb <- function(clip_dat,pbmeta){
   
   sites_list <- unique(clip_dat$site)
-  
   # initialize an empty dataframe
   final_df <- data.frame()
   # for each site id
   for (site in sites_list){
     temp_clip <- clip_dat %>% filter(site_id == site)
     temp_pb <- pbmeta %>% filter(site_id == site)
-    # initialize a logical vector to track if start_clip is within any interval
-    during_playbacks <- logical(nrow(temp_clip))
     # filter the rows that aren't in the playback interval
     # for each row in temp_clip, check if start_clip is within any interval
     for (i in 1:nrow(temp_clip)) {
-      during_playbacks[i] <- any(temp_clip$start_clip[i] %within% interval(temp_pb$interval_start, temp_pb$interval_end))
+      temp_clip$during_playbacks[i] <- any(temp_clip$start_clip[i] %within% interval(temp_pb$interval_start, temp_pb$interval_end))
     }
-    
-    # add during_playbacks as a new column in temp_clip
-    temp_clip$during_playbacks <- during_playbacks
-    
     # filter temp_clip based on the logical vector
     filtered_site_clips <- temp_clip %>% filter(during_playbacks == FALSE)
     # not properly registering when the start_clip is within the interval
     # bind it to dataframe 
     final_df <- rbind(final_df,filtered_site_clips)
   }
+  return(final_df)
+  
   
 }
 
-filtered_clips_21 <- filter_out_pb(clip_dat_21)
-filtered_clips_22 <- filter_out_pb(clip_dat_22)
-filtered_clips_23 <- filter_out_pb(clip_dat_23)
+filtered_clips_21 <- filter_out_pb(clip_dat_21,pbmeta)
+filtered_clips_22 <- filter_out_pb(clip_dat_22,pbmeta)
+filtered_clips_23 <- filter_out_pb(clip_dat_23,pbmeta)
 
-#test <- final_df %>% filter(point_id=="82-3")
-# PICK UP HERE - DOUBLE CHECK THAT THIS CODE RAN CORRECTLY FOR 2021 AND WRITE THEM ALL THE CSV
+
 # Identify which clips are only in the original clips data
-removed_from_final <- clip_dat %>%
-  anti_join(final_df, by = "clip")
+removed_from_final <- clip_dat_21 %>%
+  anti_join(filtered_clips_21, by = "clip")
 # Looks good
 
 # Write this to a .csv 
-#write.csv(filtered_clips_21, "./Data/Classifier_Results/Model2.0/Outputs/2021_AllCollab_topclips_filteredPB_4-12.csv", row.names = FALSE)
-#write.csv(filtered_clips_22, "./Data/Classifier_Results/Model2.0/Outputs/2022_AllCollab_topclips_filteredPB_4-12.csv", row.names = FALSE)
-#write.csv(filtered_clips_23, "./Data/Classifier_Results/Model2.0/Outputs/2023_AllCollab_topclips_filteredPB_4-12.csv", row.names = FALSE)
+# write.csv(filtered_clips_21, "./Data/Classifier_Results/Model2.0/Outputs/2021_AllCollab_topclips_filteredPB_4-12.csv", row.names = FALSE)
+# write.csv(filtered_clips_22, "./Data/Classifier_Results/Model2.0/Outputs/2022_AllCollab_topclips_filteredPB_4-12.csv", row.names = FALSE)
+# write.csv(filtered_clips_23, "./Data/Classifier_Results/Model2.0/Outputs/2023_AllCollab_topclips_filteredPB_4-12.csv", row.names = FALSE)
 
 
 #### CODE GRAVEYARD ######
+# 
+# test <- filtered_clips_21 %>% filter(site_id == "82")
+# # Troubleshooting 
+# sites_list <- "CUL"
+# clip_dat <- clip_dat_23
+# 
+# # initialize an empty dataframe
+# final_df <- data.frame()
+# # for each site id
+# for (site in sites_list){
+#   temp_clip <- clip_dat %>% filter(site_id == site)
+#   temp_pb <- pbmeta %>% filter(site_id == site)
+#   # initialize a logical vector to track if start_clip is within any interval
+#   #during_playbacks <- logical(nrow(temp_clip))
+#   # filter the rows that aren't in the playback interval
+#   # for each row in temp_clip, check if start_clip is within any interval
+#   for (i in 1:nrow(temp_clip)) {
+#     #print(i)
+#     temp_clip$during_playbacks[i] <- any(temp_clip$start_clip[i] %within% interval(temp_pb$interval_start, temp_pb$interval_end))
+#   }
+#   # Why is this shifting it down?
+#   # add during_playbacks as a new column in temp_clip
+#   #temp_clip$during_playbacks <- during_playbacks
+#   
+#   # filter temp_clip based on the logical vector
+#   filtered_site_clips <- temp_clip %>% filter(during_playbacks == FALSE)
+#   # not properly registering when the start_clip is within the interval
+#   # bind it to dataframe 
+#   final_df <- rbind(final_df,filtered_site_clips)
+# }
+# temp_clip$start_clip[i]
+# temp_pb$interval_end
+# test <- temp_clip %>% filter(during_playbacks == TRUE) # none of these are coming out as true when I tested MOC
+
+#test <- final_df %>% filter(point_id=="82-3")
+# PICK UP HERE - DOUBLE CHECK THAT THIS CODE RAN CORRECTLY FOR 2021 AND WRITE THEM ALL THE CSV
 # filtered_clip_dat <- clip_dat %>% filter(!(start_clip %within% interval(pbmeta$interval_start,pbmeta$interval_end)))
 # made small data to test it on
 #small_clipdat <- clip_dat %>% filter(site_id %in% c("82","PRD"))
