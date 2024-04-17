@@ -55,8 +55,9 @@ create_detection_plot <- function(current_point,current_year, year_clips){
   # Plot this
   ggplot() +
     geom_bar(data = clips_tocheck, mapping = aes(x = datetime, y = annotation, fill= species), position = "stack", stat = "identity") + 
-    labs(x = "Date", y = "Annotation", title = paste("Detection History for ",current_point, current_year)) +  # Labels for axes
+    labs(x = "Date", y = "Annotation", title = paste("Species Detection History for ",current_point, current_year)) +  # Labels for axes
     scale_x_datetime(date_breaks = "4 days") + # show every 5 days
+    scale_fill_manual(values = c("BBCU" = "darkblue","UNK" = "darkgoldenrod2"))+
     theme(axis.text.x = element_text(angle = 45,hjust = 1)) 
 }
 
@@ -65,20 +66,23 @@ call_type_plot <- function(current_point,current_year, year_clips){
   # Plot this
   ggplot() +
     geom_bar(data = clips_tocheck, mapping = aes(x = datetime, y = annotation, fill= call_type), position = "stack", stat = "identity") + 
-    labs(x = "Date", y = "Annotation", title = paste("Detection History for ",current_point, current_year)) +  # Labels for axes
+    labs(x = "Date", y = "Annotation", title = paste("Call Type Detection History for ",current_point, current_year)) +  # Labels for axes
     scale_x_datetime(date_breaks = "4 days") + # show every 5 days
     theme(axis.text.x = element_text(angle = 45,hjust = 1)) 
 }
 
-
-current_point <- "YELL-182"
+# Change these 
+current_point <- "203-2"
 current_year <- "2023"
 year_clips <- clips_23
+clips_tocheck <- year_clips %>% filter(point_id == current_point)
+clips_tocheck %>% filter(annotation == 1)
 
+jpeg(paste("./Data/Classifier_Results/Model2.0/Outputs/Plots_Filtering_Out_YBCU/Spp_Det_",current_point,".jpg"), width = 720, height = 577)
 create_detection_plot(current_point = current_point,
                       current_year = current_year,
                       year_clips = year_clips)
-
+dev.off()
 call_type_plot(current_point = current_point,
                       current_year = current_year,
                       year_clips = year_clips)
@@ -86,7 +90,7 @@ call_type_plot(current_point = current_point,
 
 
  
-clips_tocheck <- year_clips %>% filter(point_id == current_point)
+
 
 
 
