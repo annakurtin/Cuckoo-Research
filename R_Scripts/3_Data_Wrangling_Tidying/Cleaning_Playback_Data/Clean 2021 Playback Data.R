@@ -9,7 +9,7 @@
 
 # Created 11/29/2023
 
-# Last updated 4/11/2023
+# Last updated 4/18/2023
 
 
 #### Setup ###############
@@ -38,7 +38,7 @@ source("./R_Scripts/6_Function_Scripts/Create_Functions_For_Cleaning_Playback_Da
 
 
 #### Secondary Playback Data Cleaning ######
-pb_21 <- read.csv("./Data/Playback_Results/2021/Raw_Data/2021_BBCUPlaybackSessionResults_UMBEL.csv") %>% clean_names()
+pb_21 <- read.csv("./Data/Playback_Results/2021/Raw_Data/2021_BBCU_UMBELfixed.csv") %>% clean_names()
 # 4/9/2023: went through and changed extra playbacks at 96 to 96_A and 96_B because they were conducted >100 m away from the point they are labeled as but within 400 m of the other points so therefore within the same site - based off of what Anna Noson instructed me to do (in advisor meeting notes)
 # didn't manually go through and add in M1-M5 intervals
 # change the way the point_id is formatted
@@ -64,15 +64,24 @@ pb_21 <- pb_21 %>% mutate(across(c(distance, bearing, visual, call, cluster), ~i
 pb_21_dat <- pb_21 %>% select_final_pbdata_cols()
 
 # Write this to a csv
-#write.csv(pb_21_dat, "./Data/Playback_Results/2021/Outputs/2021_PlaybackData_3-25-24.csv",row.names = FALSE)
+#write.csv(pb_21_dat, "./Data/Playback_Results/2021/Outputs/2021_PlaybackData_4-18-24.csv",row.names = FALSE)
 
 # Make metadata
+
 # read in coordinates
 lt_pt <- read.csv("./Data/Monitoring_Points/UMBEL_LongTermSites.csv") %>% clean_names()
 lt_pt <- lt_pt %>% rename(point_id = gps_id, lat = lat_wgs84, long = long_wgs84) %>% select(point_id,lat,long)
 lt_pt$point_id <- str_replace(lt_pt$point_id, "_","-") 
 nam_pt <- read.csv("./Data/Monitoring_Points/UMBEL_LetterNamedPoints2022.csv")  %>% clean_names() 
 nam_pt <- nam_pt %>% rename(point_id = gps_id) %>% select(point_id, lat, long)
+
+# Create a metadata sheet from the playback data
+pb_21_metad <- pb_21 %>% mutate(sky_start = "no_data",
+                                sky_end = "no_data",
+                                wind_start = "no_data",
+                                wind_end = "no_data",
+                                temp_start = "no_data",
+                                temp_end = "no_data")
 
 # Initial combo to coordinates
 pb_21_init <- left_join(pb_21_metad,lt_pt, by = "point_id")
@@ -98,7 +107,7 @@ pb_21_metad_coord <- pb_21_metad_coord1 %>% group_by(survey_id,
             observer = paste(unique(observer), collapse = ", "),
             notes_m = paste(notes, collapse = ""))
 # Change the one site that had multiple surveys done
-pb_21_metad_coord[23,1] <- "82#2"
+pb_21_metad_coord[24,1] <- "82#2"
 pb_21_metad_coord <- pb_21_metad_coord %>% separate(survey_id, into = c("site","survey_num"), sep = "#", remove = FALSE)
 
 
@@ -122,15 +131,26 @@ pb_21_metad_all <- pb_21_metad_all %>% mutate(notes = paste(notes_m, notes_w, co
 pb_21_metad_all$date <- format(pb_21_metad_all$date, "%m/%d/%Y")
 
 pb_21_metad_fin <- pb_21_metad_all %>% select_final_metad_cols()
+# change one of these to reflect the fact that there were multiple surveys
+pb_21_metad_fin[5,1] <- "104#1.5"
+pb_21_metad_fin[7,1] <- "105#1.5"
+# Left 82 as two separate surveys because on 6-18 three points were surveyed (1,3 and 4) and on 7-08 three points were surveyed (2,3 and 4), which makes this a more balanced survey effort than the "half surveys" where one of the sites was left out
+
+# Test how well this aligns with metadata
+created_md_test <- pb_21_metad_coord1 %>% group_by(point_id) %>% summarize(lat_pbclean= mean(lat), long_pbclean = mean(long))
+metad_recorded <- read.csv("./Data/Metadata/Outputs/2021_ARUDeployment_Retrieval_Metadata_UMBEL_Cleaned2-21.csv") %>% clean_names()
+metad_recorded <- metad_recorded %>% select(point_id,lat,long)
+test_ofcoords <- left_join(created_md_test,metad_recorded, by = "point_id")
+# potentially problematic points: 102-1, 102-2. There's more to this (as far as agreement b/w the metadata and the playback data) but I'm going to ask Andy/Anna about this later (see Anna Noson's email on 4/18/2024)
 # write this to a csv file
-#write.csv(pb_21_metad_fin, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSurveyMetadataWDetectionsCoords_4-11-24.csv", row.names = FALSE)
+#write.csv(pb_21_metad_fin, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSurveyMetadataWDetectionsCoords_4-18-24.csv", row.names = FALSE)
 
 
 # Make a sheet for ArcGIS that has all of the survey locations and detections
 site_detections_21 <- pb_21_metad_coord1 %>% separate(survey_id, into = c("site","survey_num"), sep = "#")
 site_detections_21 <- site_detections_21 %>% group_by(site) %>% summarize(bbcu_detected = max(bbcu_detection),ybcu_detected = max(ybcu_detection), lat_avg = mean(lat, na.rm = TRUE), long_avg = mean(long,na.rm = TRUE)) %>% select(site,bbcu_detected,ybcu_detected,lat_avg,long_avg)
 # Write this to a .csv file
-#write.csv(site_detections_21, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSiteLocationsAvgWithDetections_4-11-24.csv", row.names = FALSE)
+#write.csv(site_detections_21, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSiteLocationsAvgWithDetections_4-18-24.csv", row.names = FALSE)
 
 
 # Make a datasheet for all the locations
@@ -138,4 +158,4 @@ site_locs_all_21 <- left_join(pb_21_metad,coords, by = "point_id")
 site_locs_all_21 <- site_locs_all_21 %>% group_by(point_id) %>% summarize(lat = mean(lat),long = mean(long))
 site_locs_all_21 <- site_locs_all_21 %>% separate(point_id, into = c("site","id"), remove = FALSE) 
 # Write this to a csv
-#write.csv(site_locs_all_21, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSiteLocations_All_4-11-2023.csv",row.names = FALSE)
+#write.csv(site_locs_all_21, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSiteLocations_All_4-18-2023.csv",row.names = FALSE)

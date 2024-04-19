@@ -1,0 +1,672 @@
+---
+title: "Basic Occupancy Model in JAGS"
+author: "Anna Kurtin"
+date: "3/31/2024"
+output: html_document
+---
+
+Combine with your project proposal to make the intro for this first draft? 
+
+JAGS is a more flexible way to run bayesian models. When you build JAGS code, you write out your full model and specify it's formulas, as opposed to more "black box" packages such as unmarked and ubms. 
+[explanation of jags vs stan](https://bookdown.org/steve_midway/BHME/Ch4.html)
+
+[demo of ubms vs jags](https://github.com/kenkellner/ubms/blob/master/vignettes/JAGS-comparison.Rmd)
+
+JAGS doesn't, however, allow you to build your own MCMC sampler. **Which one does it use?** In order to do so, you will need to use a software such as NIMBLE. JAGS also can't handle NA data (?).
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(unmarked)
+library(jagsUI)
+library(tidyverse)
+```
+
+# Basic Occupancy Model 1: Known Parameters
+For the first simulation, we'll run a jags model assuming that we know the parameters behind the model. Then, we'll run a jags model where we don't know the parameters, only the data.
+
+First, we are going to simulate the data and model assuming we know the parameter
+```{r Simulate Data 1}
+set.seed(123)
+
+n_unit <- 85
+n_rep <- 3
+
+# Simulate covariates
+# Site level covariate: probability of cottonwood (Populus sp.) presence
+cov1 <- round(rbeta(n_unit, .70, .15) ,2)
+# Site level covariate: percent of lidar returns at the median height
+cov2 <- round(rbeta(n_unit, .50, .20),2)
+# Survey level covariate: dB of background noise
+cov3 <- matrix(runif(n_unit * n_rep, min = -70, max = -17), nrow = n_unit) # Visibility
+# Center and scale this to perform better in our models
+cov3_fin <- scale(cov3, center = TRUE)
+cov3_alt <- matrix(rnorm(n_unit * n_rep, mean = 1, sd = .5), nrow = n_unit) # Visibility
+
+# Define true parameter values for simulating data
+a0_true <- .20 # baseline probability of occupancy (originally -1)
+a1_true <- 0.3 # effect of cottonwood presence on occupancy 
+a2_true <- 0.5 # effect of median height veg density on occupancy 
+b0_true <- .60 # baseline probability of detection (originally -2)
+b1_true <- 0.8 # not used
+b2_true <- 0.5 # effect of background noise on detection
+
+# Simulate occupancy probability (psi) at each unit
+psi <- plogis(a0_true + a1_true * cov1 + a2_true * cov2)
+# When we set the values of cov1 and cov2 with raw counts or percentages, these are all 1. This is why we scale things?
+
+# Simulate true presence/absence
+Z <- rbinom(n_unit, 1, psi)
+
+# Initialize arrays to store detection probabilities and detection data
+theta <- array(NA, dim = c(n_unit, n_rep))
+det_data <- array(NA, dim = c(n_unit, n_rep))
+
+# Simulate detection probability (theta) and detection data (det_data)
+## Have the same covariate in the detection and the biological model?
+for (i in 1:n_unit) {
+  theta[i, ] <- plogis(b0_true + b2_true * cov3_alt[i, ])
+  det_data[i, ] <- rbinom(n_rep, 1, Z[i] * theta[i, ])
+}
+# Detection probability is generally pretty low (around 18%) so I changed cov3 to give a higher detection probability 
+mean(theta[,1]) #18% with cov3_alt. 12 with cov3_fin - this is zero-inflated with cov3_fin
+# How to represent dB without zero-inflating data?
+# Come back to adjust cov3
+
+```
+
+```{r Run JAGS Model 1}
+# Create the jags_model
+cat("
+  model{
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0 + a1*cov1[i] + a2*cov2[i]
+      for(j in 1:n_rep){
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0 + b2*cov3[i,j]
+      }
+    }
+    # Priors
+    a0 ~ dnorm(0, 0.01)
+    a1 ~ dnorm(0, 0.01)
+    a2 ~ dnorm(0, 0.01)
+    b0 ~ dnorm(0, 0.01)
+    b2 ~ dnorm(0, 0.01)
+  }
+  ", file = "Simulation_JAGS_Occ_Model1.txt")
+
+# Create a list of data for JAGS
+jags_data1 <- list(
+  Z = Z,
+  det_data = det_data,
+  cov1 = cov1,
+  cov2 = cov2,
+  cov3 = cov3_alt,
+  n_unit = n_unit,
+  n_rep = n_rep
+)
+
+# Set initial values (optional)
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    a1 = rnorm(1, 0, 1),
+    a2 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b2 = rnorm(1, 0, 1)
+  )
+}
+
+# Run JAGS model
+jags_fit1 <- jags(data = jags_data1, 
+                 model.file = "Simulation_JAGS_Occ_Model1.txt",
+                 parameters.to.save = c("a0", "a1", "a2", "b0", "b2"),
+                 n.iter = 10000, 
+                 n.burnin = 2000, 
+                 n.chains = 3,
+                 inits = init_func)
+
+jags_fit1
+```
+
+
+```{r look at JAGS Model 1 Results}
+# Get a summary of the results
+summary(jags_fit1)
+
+# Plot the results
+plot(jags_fit1)
+# walk through what each of these look like?
+# The plots look grassy - good. What does Rhat mean? 
+# Are the density plots the posterior distribution?
+# Extract MCMC chains
+#chains <- as.mcmc(jags_fit1)
+
+
+```
+
+Looking at model 1 trace plots and density plots:
+
+* a0 - the baseline probability of occupancy is estimated to be 0.57, with a credible interval from -1.23 to 2.5.
+
+* a1 - the effect of probability of populus presence on occupancy. Mean value is -0.046, with a credible interval from -1.96 to 1.71
+
+* a2 - the effect of vegetation density on occupancy. Mean value is 0.79, with a credible interval from -0.65 to 2.19.
+
+* b0 - the baseline probability of detection is estimated to be 0.51, with a credible interval from -0.15 to 1.18.
+
+* b2 - the effect of sonic masking on detection probability. Mean value is 0.40, with a credible interval -0.25 to 1.06.
+
+**Does is make sense for these to be more and less than 1? Am I interpreting these right?**
+
+
+# Basic Occupancy Model 2: Unknown Parameters
+
+Now, we are going to run the JAGS model assuming unknown parameters. 
+
+```{r Simulate Data for JAGS}
+# How to format data for JAGS? can it only be from 0-1
+
+# JAGS only takes numeric data (int or factor)
+set.seed(123)
+# generate a list of point IDs
+#point_id <- c(1:85)
+#n_site <- length(point_id)
+n_site <- 85
+n_visit <- 3
+
+# Simulate covariates
+# Site level covariate: probability of cottonwood (Populus sp.) presence
+populus1 <- round(rbeta(n_site, .70, .15) ,2)
+# Discrete: simulate whether cottonwood was present or not at the sites (estimate a 30% probability that cottonwood present) - this is more like what our data actually looks like
+populus2 <- rbinom(n = n_site, size = 1, prob = .35)
+# Try scaling this for our model?
+populus3 <- scale(populus2,center = TRUE)
+# TRY USING POPULUS2 FIRST
+
+# Site level covariate: subcanopy density - percent of lidar returns at the median height
+veg_dense1 <- round(rbeta(n_site, .50, .20),2)
+# Continuous: Simulate GEDI percent of returns coming from 50% height
+veg_dense2 <- round(runif(n = n_site, min = 10, max = 80),2)
+veg_dense3 <- scale(veg_dense2, center = TRUE)
+
+# Survey level covariate: dB of background noise
+background_db1 <- matrix(rnorm(n_site * n_visit, mean = 1, sd = .5), nrow = n_site)
+background_db2 <- matrix(runif(n_site * n_visit, min = -70, max = -17), nrow = n_site)
+# Center and scale this to perform better in our models
+background_db3 <- scale(background_db2, center = TRUE)
+ # Visibility
+
+# Simulate 3 sampling periods of detection data based on prelim detections from habitat points
+# 85 total habitat points, 18 with detections, 21% naive occupancy 
+detected_visit1 <-rbinom(n = n_site,size = 1, prob = .21)
+detected_visit2 <-rbinom(n = n_site,size = 1, prob = .21)
+detected_visit3 <-rbinom(n = n_site,size = 1, prob = .21)
+detection_hist <- cbind(detected_visit1,detected_visit2,detected_visit3)
+```
+
+
+```{r Run JAGS Model Unknown Params, eval = FALSE}
+# Create the jags_model
+cat("
+  model{
+    # Loop through each sampling unit
+    for(i in 1:n_site){
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli dist with occupancy probability psi  
+      logit(psi[i]) <- a0 + a_pop*populus[i] + a_vd*veg_dense[i]
+      
+      # Loop through each visit
+      for(j in 1:n_visit){
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data 
+        logit(theta[i,j]) <- b0 + b_masking*background_db[i,j]
+      }
+    }
+    # Priors
+    a0 ~ dnorm(0, 0.01)
+    a_pop ~ dnorm(0, 0.01)
+    a_vd ~ dnorm(0, 0.01)
+    b0 ~ dnorm(0, 0.01)
+    b_masking ~ dnorm(0, 0.01)
+
+  }", file = ".//Model_Files//Simulation_JAGS_Occ_Model4.txt")
+
+# Create a list of data for JAGS
+jags_data <- list(
+  det_data = detection_hist,
+  populus = populus1,
+  veg_dense = veg_dense1,
+  background_db = background_db1,
+  n_site = n_site,
+  n_visit = n_visit
+)
+
+# Establish which parameters for the model to monitor
+params <- c("Z","a0", "a1", "a2", "b0", "b2") 
+
+# Bayesian models need a place to start for latent variables 
+# Set initial values (optional)
+zst <- rep(1,n_site)
+init_func <- function(){
+  list(
+    Z = zst,
+    a0 = rnorm(1, 0, 1),
+    a_pop = rnorm(1, 0, 1),
+    a_vd = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b_masking = rnorm(1, 0, 1)
+  )
+}
+
+# Run JAGS model
+jags_fit <- jags(data = jags_data, 
+                 model.file = "./Model_Files/Simulation_JAGS_Occ_Model4.txt",
+                 parameters.to.save = c("a0", "a_pop", "a_vd", "b0", "b_masking"), # These are the covariates that will appear in your traceplots
+                 n.iter = 3000, 
+                 n.burnin = 800, 
+                 n.chains = 3,
+                 inits = init_func)
+
+
+# Look at how the model performed
+jags_fit
+
+# Look at just the values
+summary(jags_fit)
+
+# Plot the results
+plot(jags_fit)
+# this one looks like it failed to converge - why?
+```
+
+**Can't get this part to run**
+```{r Run JAGS Model 3, eval = FALSE}
+# Create the jags_model
+cat("
+  model{
+    # Loop through each sampling unit
+    for(i in 1:n_site){
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli dist with occupancy probability psi  
+      logit(psi[i]) <- a0 + a_pop*populus[i] + a_vd*veg_dense[i]
+      
+      # Loop through each visit
+      for(j in 1:n_visit){
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data 
+        logit(theta[i,j]) <- b0 + b_masking*background_db[i,j]
+      }
+    }
+    # Priors
+    a0 ~ dnorm(0, 0.01)
+    a_pop ~ dnorm(0, 0.01)
+    a_vd ~ dnorm(0, 0.01)
+    b0 ~ dnorm(0, 0.01)
+    b_masking ~ dnorm(0, 0.01)
+
+  }", file = ".//Model_Files//Simulation_JAGS_Occ_Model5.txt")
+
+# Create a list of data for JAGS
+# running this on realistic, unscaled data
+jags_data2 <- list(
+  det_data = detection_hist,
+  populus = populus2,
+  veg_dense = veg_dense2,
+  background_db = background_db3,
+  n_site = n_site,
+  n_visit = n_visit
+)
+
+# Establish which parameters for the model to monitor
+params <- c("Z","a0", "a_pop", "a_vd", "b0", "b_masking") 
+
+# Bayesian models need a place to start for latent variables 
+# Set initial values (optional)
+zst <- rep(1,n_site)
+init_func <- function(){
+  list(
+    Z = zst,
+    a0 = rnorm(1, 0, 1),
+    a_pop = rnorm(1, 0, 1),
+    a_vd = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b_masking = rnorm(1, 0, 1)
+  )
+}
+
+# Run JAGS model
+jags_fit2 <- jags(data = jags_data2, 
+                 model.file = "./Model_Files/Simulation_JAGS_Occ_Model5.txt",
+                 parameters.to.save = c("a0", "a_pop", "a_vd", "b0", "b_masking"), # These are the covariates that will appear in your traceplots
+                 n.iter = 3000, 
+                 n.burnin = 800, 
+                 n.chains = 3,
+                 inits = init_func)
+
+
+# Look at how the model performed
+jags_fit2
+
+# Look at just the values
+summary(jags_fit2)
+
+# Plot the results
+plot(jags_fit2)
+# this one looks like it failed to converge - why?
+```
+This model worked for the standard variables. What if we use them on more realistic variables that more closely reflect the data?
+
+
+# Code Graveyard
+```{r CODE GRAVEYARD, inclue = FALSE, eval = FALSE}
+# # Set initial values (optional)
+# init_func <- function(){
+#   list(
+#     a0 = rnorm(1, 0, 1),
+#     a1 = rnorm(1, 0, 1),
+#     a2 = rnorm(1, 0, 1),
+#     b0 = rnorm(1, 0, 1),
+#     b2 = rnorm(1, 0, 1)
+#   )
+# }
+
+# # Leaving this off for now
+# # date of first survey ranging from June 1 (J.D. 152) to Aug 1 (J.D. 213)
+# julian_date1 <- round(runif(n=n_site, min = 152, max = 213),0)
+# # date of second survey: two days apart
+# julian_date2 <- julian_date1 + 2
+# # date of last survey: two days apart
+# julian_date3 <- julian_date2 + 2
+# # Make this into a matrix
+# date_matrix <- cbind(julian_date1,julian_date2,julian_date3)
+
+
+# Combine into a list
+# data_m2 <- list(detection_hist = detection_hist, 
+#              populus = populus, 
+#              percent_veg_50 = percent_veg_50, 
+#              background_db = background_db, 
+#              date_matrix = date_matrix)
+# Initialize true presence/absence with naive occupancy 
+z <- rbinom(n_unit, 1, .21)
+cov3 <- matrix(rnorm(n_site * n_rep, mean = 1, sd = .5), nrow = n_site) # Visibility
+
+```
+
+Example of how to parameterize
+```{r JAGS/BUGS Model, eval = FALSE}
+# Parameterization of a single-species, single season occupancy model using JAGS/BUGS
+
+# Loop through each study site
+for(i in 1:n_site){
+  # Calculate probability of the presence or absence of the species at this site
+  Z[i] ~ dbern(psi[i]) 
+  # Set up the logistic regression model for the probability of occupancy in the sampling unit i
+  logit(psi[i]) <- a0 + a1*cov1[i] + a2*cov2[i] 
+  
+  # Loop through each replicate at the site
+  for(j in 1:n_rep){
+    # Calculate the probability of detection at this visit - estimated from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta. If Z[i] is 0, detection will also be 0
+    det_data[i,j] ~ dbern(Z[i]*theta[i,j])  
+    # Set up the logistic regression model for detection probability 
+    logit(theta[i,j]) <- b0 + b1*cov1[i] + b2*cov3[i,j]
+  }
+}
+```
+
+
+n_unit: number of study sites/units 
+i: the index for the study site
+Z: the presence or absence of a species at the site 
+psi: a vector with the value for psi (probability of occupancy)
+theta: probability of detection 
+a0, a1, a2: coefficients, we want to estimate it's effect on presence/absence (a0 is the intercept and a1 and a2 are the effect of the first and second covariates)
+cov1[i]: a site-level covariate (like habitat variable) for sampling unit i
+cov2[i]: a site-level covariate (like habitat variable) for sampling unit i
+n_rep: number of replicates at each site/unit
+j: the index for the replicate
+det_data[i,j]: the detection/nondetection of the species in replicate j within sampling unit i
+b0. b1, b2: coefficients, we want to estimate it's effect on detection/nondetection
+cov1[i]: a survey level covariate for sampling unit i and replicate j
+cov2[i]: a survey level covariate for sampling unit i and replicate j
+
+
+```{r Simulate Data}
+set.seed(123)
+#### Simulate data ####
+colnames <- c("point_id","pres_visit1","pres_visit2","pres_visit3","pres_populus","percent_veg_50","background_db","date1","date2","date3")
+
+# generate a list of point IDs
+point_id <- c(1:85)
+n_site <- length(point_id)
+# Simulate 3 sampling periods of detection data based on prelim detections from habitat points
+# 85 total habitat points, 18 with detections, 21% naive occupancy 
+detected_visit1 <-rbinom(n = n_site,size = 1, prob = .21)
+detected_visit2 <-rbinom(n = n_site,size = 1, prob = .21)
+detected_visit3 <-rbinom(n = n_site,size = 1, prob = .21)
+detection_hist <- cbind(point_id,detected_visit1,detected_visit2,detected_visit3)
+n_rep <- 3
+
+# Site-level covariates
+# Discrete: simulate whether cottonwood was present or not at the sites (estimate a 30% probability that cottonwood present)
+populus <- rbinom(n = n_site, size = 1, prob = .35)
+# Continuous: Simulate GEDI percent of returns coming from 50% height
+percent_veg_50 <- round(runif(n = n_site, min = 10, max = 80),2)
+
+# Survey-level covariates
+# Sonic masking could go either way depending on how I want to group it but we're just doing survey level for now
+background_db <- matrix(round(runif(n = n_site * n_rep, min = -70, max = -17),2), nrow = n_site)
+
+# date of first survey ranging from June 1 (J.D. 152) to Aug 1 (J.D. 213)
+julian_date1 <- round(runif(n=n_site, min = 152, max = 213),0)
+# date of second survey: two days apart
+julian_date2 <- julian_date1 + 2
+# date of last survey: two days apart
+julian_date3 <- julian_date2 + 2
+# Make this into a matrix
+date_matrix <- cbind(julian_date1,julian_date2,julian_date3)
+
+
+# Combine into dataframe
+# Combine lists into a data frame
+df <- data.frame(
+  point_id = point_id,
+  pres_visit1 = pres_visit1,
+  pres_visit2 = pres_visit2,
+  pres_visit3 = pres_visit3,
+  pres_populus = populus,
+  percent_veg_50 = percent_veg_50,
+  background_db = background_db,
+  date1 = julian_date1,
+  date2 = julian_date2,
+  date3 = julian_date3
+)
+```
+
+```{r Simulate Data 2}
+# JAGS only takes numeric data (int or factor)
+
+# generate a list of point IDs
+point_id <- c(1:85)
+n_site <- length(point_id)
+n_visit <- 3
+# Simulate 3 sampling periods of detection data based on prelim detections from habitat points
+# 85 total habitat points, 18 with detections, 21% naive occupancy 
+detected_visit1 <-rbinom(n = n_site, size = 1, prob = .21)
+detected_visit2 <-rbinom(n = n_site, size = 1, prob = .21)
+detected_visit3 <-rbinom(n = n_site, size = 1, prob = .21)
+detection_hist <- cbind(detected_visit1,detected_visit2,detected_visit3)
+
+
+# Site-level covariates
+# Discrete: simulate whether cottonwood was present or not at the sites (estimate a 30% probability that cottonwood present)
+populus <- rbinom(n = n_site, size = 1, prob = .35)
+#populus <- scale(populus)
+# Continuous: Simulate GEDI percent of returns coming from 50% height
+percent_veg_50 <- round(runif(n = n_site, min = 10, max = 80),2)
+#percent_veg_50 <- scale(percent_veg_50)
+
+# Survey-level covariates
+# Sonic masking could go either way depending on how I want to group it but we're just doing survey level for now
+background_db <- matrix(round(runif(n = n_site * n_visit, min = -70, max = -17),2), nrow = n_site)
+#background_db <- scale(background_db)
+
+```
+
+Implementing model: this was my failed attempt to create a JAGS model 
+```{r Run JAGS Model 2}
+# Old code that used to work
+# Create the jags_model
+cat("
+  model{
+    # Loop through each sampling unit
+    for(i in 1:n_site){
+      z[i] ~ dbern(psi[i])  # State model (occupancy)
+      logit(psi[i]) <- a0 + a1*populus[i] + a2*percent_veg_50[i]
+      
+      # Loop through each visit
+      for(j in 1:n_visit){
+          C[i,j] ~ dbin(p[i,j], z[i]) # detection model
+        logit(p[i,j]) <- b0 + b2*background_db[i,j]
+        
+      }
+    }
+      
+    # Priors
+    a0 ~ dnorm(0, 0.01)
+    a1 ~ dnorm(0, 0.01)
+    a2 ~ dnorm(0, 0.01)
+    b0 ~ dnorm(0, 0.01)
+    b2 ~ dnorm(0, 0.01)
+  }
+  ", file = "Simulation_JAGS_Occ_Model2.txt")
+
+# Create a list of data for JAGS
+jags_data2 <- list(
+  C = detection_hist,
+  populus = populus,
+  percent_veg_50 = percent_veg_50,
+  background_db = background_db, 
+  n_site = n_site,
+  n_visit = n_visit
+)
+
+# Establish which parameters for the model to monitor
+params <- c("a0", "a1", "a2", "b0", "b2") 
+
+# Bayesian models need a place to start for latent variables 
+zst <- apply(jags_data2$C, 1, max) #starting values for our latent z variable 
+# take the C data, take the max value and start at place 1
+inits <- function(){
+  list(z = zst, 
+       a0 = rnorm(1, 0, 1),
+       a1 = rnorm(1, 0, 1),
+       a2 = rnorm(1, 0, 1),
+       b0 = rnorm(1, 0, 1),
+       b2 = rnorm(1, 0, 1))} #starting values
+
+# # Set initial values (optional)
+# init_func <- function(){
+#   list(
+#     a0 = rnorm(1, 0, 1),
+#     a1 = rnorm(1, 0, 1),
+#     a2 = rnorm(1, 0, 1),
+#     b0 = rnorm(1, 0, 1),
+#     b2 = rnorm(1, 0, 1)
+#   )
+# }
+
+# Run JAGS model
+jags_fit2 <- jags(data = jags_data2, 
+                 model.file = "Simulation_JAGS_Occ_Model2.txt",
+                 parameters.to.save = c("a0", "a1", "a2", "b0", "b2"),
+                 n.iter = 10000, 
+                 n.burnin = 2000, 
+                 n.chains = 3,
+                 inits = inits)
+
+# Look at how the model performed
+jags_fit2
+
+# Look at just the values
+summary(jags_fit2)
+
+# Plot the results
+plot(jags_fit2)
+# this one looks like it failed to converge - why?
+```
+
+
+```{r Run JAGS Model 3}
+# Create the jags_model
+cat("
+  model{
+    # Loop through each sampling unit
+    for(i in 1:n_site){
+      z[i] ~ dbern(psi[i])  # State model (occupancy)
+      logit(psi[i]) <- a0 + a1*populus[i] + a2*percent_veg_50[i]
+      
+      # Loop through each visit
+      for(j in 1:n_visit){
+        C[i,j] ~ dbern(p[i,j]*z[i]) # detection model
+        logit(p[i,j]) <- b0 + b2*background_db[i,j]
+      }
+    }
+      
+    # Priors
+    a0 ~ dnorm(0, 0.01)
+    a1 ~ dnorm(0, 0.01)
+    a2 ~ dnorm(0, 0.01)
+    b0 ~ dnorm(0, 0.01)
+    b2 ~ dnorm(0, 0.01)
+  }
+  ", file = "Simulation_JAGS_Occ_Model3.txt")
+
+# Create a list of data for JAGS
+jags_data2 <- list(
+  C = detection_hist,
+  populus = populus,
+  percent_veg_50 = percent_veg_50,
+  background_db = background_db, 
+  n_site = n_site,
+  n_visit = n_visit
+)
+
+# Establish which parameters for the model to monitor
+params <- c("z","a0", "a1", "a2", "b0", "b2") 
+
+# Bayesian models need a place to start for latent variables 
+#zst <- apply(jags_data2$C, 1, max) #starting values for our latent z variable 
+# Bayesian models need a place to start for latent variables 
+# zst <- numeric(n_site)  # Create empty vector to store initial values for z
+# for (i in 1:n_site) {
+#   zst[i] <- max(jags_data2$C[i, ])
+# }
+zst <- rep(1,n_site)
+# take the C data, take the max value and start at place 1
+inits_func <- function (){
+  list(z = zst, 
+       a0 = rnorm(1, 0, 1),
+       a1 = rnorm(1, 0, 1),
+       a2 = rnorm(1, 0, 1),
+       b0 = rnorm(1, 0, 1),
+       b2 = rnorm(1, 0, 1))} #starting values
+
+
+# Run JAGS model
+jags_fit2 <- jags(data = jags_data2, 
+                 model.file = "Simulation_JAGS_Occ_Model3.txt",
+                 parameters.to.save = c("z","a0", "a1", "a2", "b0", "b2"),
+                 n.iter = 10000, 
+                 n.burnin = 2000, 
+                 n.chains = 3,
+                 inits = inits_func)
+
+# Look at how the model performed
+jags_fit2
+
+# Look at just the values
+#summary(jags_fit2)
+
+# Plot the results
+#plot(jags_fit2)
+# this one looks like it failed to converge - why?
+```

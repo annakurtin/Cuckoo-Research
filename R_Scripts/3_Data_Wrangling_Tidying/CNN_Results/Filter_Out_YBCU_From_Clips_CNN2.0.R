@@ -3,7 +3,7 @@
 ## Purpose: to read in the clips sheets and filter out calls that are YBCU
 
 # Created 4/12/2023
-# Last modified 4/12/2023
+# Last modified 4/18/2023
 
 #### Setup #################################
 packages <- c("data.table","tidyverse","janitor","chron","scale_x_datetime")
@@ -91,7 +91,38 @@ call_type_plot(current_point = current_point,
 
  
 
+# Make a facet wrap plot of the cuckoo detection
+# filter out ybcu points from 2023
+ybcu_23 <- ybcu_clips %>% filter(year == 2023)
+ybcu_points_23 <- unique(ybcu_23$point_id)
+# take a list of the points
+# filter clips_23 to only be those points
+clips_vis_23 <- clips_23 %>% filter(point_id %in% ybcu_points_23)
+unique(clips_vis_23$point_id) # looks good
+#add in the ggplot data
+ggplot() +
+  geom_bar(data = clips_vis_23, mapping = aes(x = datetime, y = annotation, fill= species), position = "stack", stat = "identity") + 
+  labs(x = "Date", y = "Annotation", title = "Species Detection History 2023") +  # Labels for axes
+  scale_x_datetime(date_breaks = "4 days") + # show every 5 days
+  scale_fill_manual(values = c("BBCU" = "darkblue","UNK" = "darkgoldenrod2"))+
+  theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+  facet_wrap(~point_id, nrow = 5)
 
+
+ybcu_22 <- ybcu_clips %>% filter(year == 2022)
+ybcu_points_22 <- unique(ybcu_22$point_id)
+# take a list of the points
+# filter clips_23 to only be those points
+clips_vis_22 <- clips_22 %>% filter(point_id %in% ybcu_points_22)
+unique(clips_vis_22$point_id) # looks good
+#add in the ggplot data
+ggplot() +
+  geom_bar(data = clips_vis_22, mapping = aes(x = datetime, y = annotation, fill= species), position = "stack", stat = "identity") + 
+  labs(x = "Date", y = "Annotation", title = "Species Detection History 2022") +  # Labels for axes
+  scale_x_datetime(date_breaks = "4 days") + # show every 5 days
+  scale_fill_manual(values = c("BBCU" = "darkblue","UNK" = "darkgoldenrod2"))+
+  theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+  facet_wrap(~point_id, nrow = 5)
 
 
 

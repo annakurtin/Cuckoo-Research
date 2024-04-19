@@ -1,0 +1,181 @@
+---
+title: "Run_Basic_Occupancy_Model_Unmarked UBMS"
+author: "Anna Kurtin"
+date: "4/1/2024"
+output: html_document
+---
+```{r setup, include = FALSE}
+library(unmarked)
+library(ubms)
+```
+# Unmarked vs ubms
+- pros to ubms and unmarked: easier to use, faster to run bc they use likelihood instead of MCMC
+- Cons to ubms/unmarked: can't handle NAs, less flexible, better used for 'out of the box' analayses
+
+[Great explanation of running and interpreting models in ubms](https://cran.r-project.org/web/packages/ubms/vignettes/ubms.html)
+
+*intro:*
+Unmarked is a modeling package that uses a maximum likelihood approach to fit models of wildlife occurrence and abundance. It utilizes a similar sintax to lme4, a common package for linear models. However, it cannot incorporate random effects or use a Bayesian approach to modeling. 
+
+Ubms provides a solution to these shortcomings by using the same syntax and format to fit models as unmarked, but using the same sampler as Stan. This allows it to fit models much faster than unmarked. It can also handle NA values in the data. Since Stan cannot handle discrete parameters, unmarked marginalizes the underlying likelihoods. However, ubms only works with certain models, and has reduced flexibility in how you design these models. The risk in using packages like ubms is seeing the model as a "black box", rather than knowing in detail how your model is laid out and what each part of it does. In order to custom build your models, you need to use Stan directly or a package such as JAGS, which uses a different (Gibbs) sampler. 
+
+Here, I will compare the output of a model created in ubms with a model built with JAGS. 
+
+# Create Simple Model with Unmarked 
+
+```{r Simulate Data 1}
+# generate a list of point IDs
+point_id <- c(1:85)
+n_site <- length(point_id)
+n_visit <- 3
+# Simulate 3 sampling periods of detection data based on prelim detections from habitat points
+# 85 total habitat points, 18 with detections, 21% naive occupancy 
+detected_visit1 <-rbinom(n = n_site,size = 1, prob = .21)
+detected_visit2 <-rbinom(n = n_site,size = 1, prob = .21)
+detected_visit3 <-rbinom(n = n_site,size = 1, prob = .21)
+detection_hist <- cbind(detected_visit1,detected_visit2,detected_visit3)
+
+
+# Site-level covariates
+# Discrete: simulate whether cottonwood was present or not at the sites (estimate a 30% probability that cottonwood present)
+populus <- rbinom(n = n_site, size = 1, prob = .35)
+# Continuous: Simulate GEDI percent of returns coming from 50% height
+percent_veg_50 <- round(runif(n = n_site, min = 10, max = 80),2)
+
+# Survey-level covariates
+# Sonic masking could go either way depending on how I want to group it but we're just doing survey level for now
+background_db <- matrix(round(runif(n = n_site * n_visit, min = -70, max = -17),2), nrow = n_site)
+
+# Leaving this off for now
+# date of first survey ranging from June 1 (J.D. 152) to Aug 1 (J.D. 213)
+julian_date1 <- round(runif(n=n_site, min = 152, max = 213),0)
+# date of second survey: two days apart
+julian_date2 <- julian_date1 + 2
+# date of last survey: two days apart
+julian_date3 <- julian_date2 + 2
+# Make this into a matrix
+date_matrix <- cbind(julian_date1,julian_date2,julian_date3)
+
+
+# Combine into dataframe
+# Combine lists into a data frame
+df <- data.frame(
+  point_id = point_id,
+  pres_visit1 = detected_visit1,
+  pres_visit2 = detected_visit2,
+  pres_visit3 = detected_visit3,
+  pres_populus = populus,
+  percent_veg_50 = percent_veg_50,
+  background_db = background_db,
+  date1 = julian_date1,
+  date2 = julian_date2,
+  date3 = julian_date3
+)
+
+# Create an unmarked dataframe
+y <- df[,2:4]
+siteCovs <- df[,5:7]
+obsCovs <- list(date = df[,8:10])
+
+umf <- unmarkedFrameOccu(y = y, siteCovs = siteCovs, obsCovs = obsCovs)
+# Look at the dataframe to make sure it's correct
+summary(umf)
+
+# standardize the data
+umf@siteCovs$pres_populus <- scale(umf@siteCovs$pres_populus)
+umf@siteCovs$percent_veg_50 <- scale(umf@siteCovs$percent_veg_50)
+umf@siteCovs$background_db <- scale(umf@siteCovs$background_db)
+umf@obsCovs$date <- scale(umf@obsCovs$date)
+```
+
+
+```{r Fit Naive Unmarked Model}
+# Naive model
+fit_occu_naive <- occu(formula = ~ 1 # detection formula
+                 ~ 1, # occupancy formula
+                 data = umf)
+# also takes the inputs to the stan() call where you can specify iterations, burnin, initial values, etc. Not sure how to do priors. 
+fit_occu_naive
+# back transform these
+backTransform(fit_occu_naive, type = 'state')
+```
+
+```{r Fit Full Unmarked Model}
+# Model with covriates
+fit_occu_full <- occu(formula = ~ date + background_db ~ pres_populus + percent_veg_50, data = umf)
+```
+
+******* MISSING: ADD IN DISCUSSION OF MODEL OUTPUT **************
+
+# Create Simple Model with UBMS
+
+```{r Fit Naive ubms Model}
+# 2 chains, 10000 iterations for final one
+# stan requires fewer iterations to reach convergence 
+fit_stan <- stan_occu(~1~1, data=umf, chains=3, iter=2000, seed=123)
+fit_stan
+```
+
+First row under estimate is the intercept. Model parameters in summary table are shown "on the appropriate transformed scale" (in this case logit). To get the corresponding probabilities, you use the predict function.
+
+```{r Naive Model Results}
+# To get the psi or p for each site or observation:
+# pull out the probability of occupancy across each site 
+predict(fit_stan, submodel = "state")
+# Here we see it's the same accross each site because this model has no covariates on it
+
+# Extract summary tables
+summary_state1 <- summary(fit_stan, "state")
+
+# Extract entire posterior for a parameter
+# To see how to call the submodel and parameter you are interested in first
+names(fit_stan)
+# let's pull out the state model
+occ_intercept1 <- extract(fit_stan, "beta_state[(Intercept)]")[[1]] # what does the [[1]] do?
+# Graph the probability density function (???) for this intercept
+hist(occ_intercept1, freq=FALSE)
+lines(density(occ_intercept1), col='red', lwd=2)
+```
+
+```{r Fit Full ubms Model}
+# We'll fit a global model, which incorporates every variable, and see how it performs. 
+fit_stan_global <- stan_occu(~date+background_db ~pres_populus+percent_veg_50, data = umf, chains = 3, iter = 2000, seed = 123)
+fit_stan_global
+loo_global <- loo(fit_stan_global)
+looic_global <- loo_global$looic
+```
+
+*Understanding this output:*
+
+Call is the command used to get the model output. Beneath are tables for each of the sub models, the occupancy model and the detection model. 
+Look at your n_eff: rule of thumb is to have this > 100*number of chains.
+
+**So for this case, we want the n_eff to be > 300**
+
+Looking at traceplots: can conclude that all MCMC chains have converged if all Rhat > 1.05
+Visualize convergence by looking at the traceplots to see if they have the fuzzy caterpillar look
+
+If your n_eff is too low or your traceplots look messy, try re-running the model with more iterations.
+
+```{r Traceplots ubms}
+traceplot(fit_stan_global, pars=c("beta_state","beta_det"))
+```
+
+You can also look at the residuals (difference between the observed and the estimated value) vs the predicted value.
+
+When evaluating these: if the model fits the data well, you expect 95% of the binned residual points to fall within the shaded are
+
+```{r Plot Residuals ubms}
+plot_residuals(fit_stan2, submodel="state")
+```
+
+# Examine covariate effects
+
+Now, let's look at the impact of each of the effects on occupancy. 
+
+```{r Marginal Covariate Effects}
+plot_effects(fit_stan_global, "state")
+# Here you can see presence of populus and then percent of veg returns above 50
+
+plot_effects(fit_stan_global, "det") # Date then background dB
+```

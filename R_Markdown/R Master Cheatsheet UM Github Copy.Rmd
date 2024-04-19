@@ -1023,6 +1023,9 @@ AM2018_file_metadata <-  AM2018_file_metadata %>% mutate(datetime=as.POSIXct(dat
 # To change the data to the absolute value
 abs(-1)
 
+
+# To change a character to a factor and specify the levels
+veg$grazing_intensity <- factor(veg$grazing_intensity, levels = c("0","L","H"))
 ```
 
 **Explanations**
