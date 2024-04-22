@@ -12,7 +12,17 @@ library(ubms)
 - pros to ubms and unmarked: easier to use, faster to run bc they use likelihood instead of MCMC
 - Cons to ubms/unmarked: can't handle NAs, less flexible, better used for 'out of the box' analayses
 
+[Occupancy Models in Unmarked](https://doi90.github.io/lodestar/fitting-occupancy-models-with-unmarked.html)
+
 [Great explanation of running and interpreting models in ubms](https://cran.r-project.org/web/packages/ubms/vignettes/ubms.html)
+
+[Ken Kellner's Resource on Ubms](https://github.com/kenkellner/ubms)
+
+[Tutorial of Occupancy Models and Output in Unmarked](https://doi90.github.io/lodestar/fitting-occupancy-models-with-unmarked.html#model-evaluation)
+
+[Ken Kellner's Power Analysis in Unmarked](https://cran.r-project.org/web/packages/unmarked/vignettes/powerAnalysis.html)
+
+[Ken Kellner: Comparing Ubms and JAGS](https://github.com/kenkellner/ubms/blob/master/vignettes/JAGS-comparison.Rmd)
 
 *intro:*
 Unmarked is a modeling package that uses a maximum likelihood approach to fit models of wildlife occurrence and abundance. It utilizes a similar sintax to lme4, a common package for linear models. However, it cannot incorporate random effects or use a Bayesian approach to modeling. 

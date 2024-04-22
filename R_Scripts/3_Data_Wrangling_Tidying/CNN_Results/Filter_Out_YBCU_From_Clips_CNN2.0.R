@@ -6,7 +6,7 @@
 # Last modified 4/18/2023
 
 #### Setup #################################
-packages <- c("data.table","tidyverse","janitor","chron","scale_x_datetime")
+packages <- c("data.table","tidyverse","janitor","chron")
 source("./R_Scripts/6_Function_Scripts/Install_Load_Packages.R")
 load_packages(packages)
 
@@ -15,6 +15,7 @@ clips_21 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2021_AllCollab_
 clips_22 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2022_AllCollab_topclips_filteredPB_4-12.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver"))
 clips_23 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2023_AllCollab_topclips_filteredPB_4-12.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver"))
 ybcu_clips <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/Clip_Annotation_YBCU_Files_4-12.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver"))
+# 2022 FAR-2, 2022 FAR-3, 2022 HOL-1, 2022 ELI-1, and 2023 203-2 don't actually have any YBCU, these were changed to UNK
 
 # Make a unique identifier
 clips_21 <- unite(clips_21,clip_unique,c(point_id,datetime),sep=" ",remove=FALSE)
@@ -91,10 +92,12 @@ call_type_plot(current_point = current_point,
 
  
 
-# Make a facet wrap plot of the cuckoo detection
+# Make a facet wrap plot of the cuckoo detectionhttp://127.0.0.1:13745/graphics/plot_zoom_png?width=967&height=900
 # filter out ybcu points from 2023
 ybcu_23 <- ybcu_clips %>% filter(year == 2023)
 ybcu_points_23 <- unique(ybcu_23$point_id)
+# remove the ones that don't have any data
+ybcu_points_23 <- ybcu_points_23[ybcu_points_23 != "203-2"]
 # take a list of the points
 # filter clips_23 to only be those points
 clips_vis_23 <- clips_23 %>% filter(point_id %in% ybcu_points_23)
@@ -105,12 +108,24 @@ ggplot() +
   labs(x = "Date", y = "Annotation", title = "Species Detection History 2023") +  # Labels for axes
   scale_x_datetime(date_breaks = "4 days") + # show every 5 days
   scale_fill_manual(values = c("BBCU" = "darkblue","UNK" = "darkgoldenrod2"))+
-  theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+  theme(axis.text.x = element_text(angle = 90,hjust = 1)) +
   facet_wrap(~point_id, nrow = 5)
-
+# dimensions to save this are 1500, 800
+ggplot() +
+  geom_bar(data = clips_vis_23, mapping = aes(x = datetime, y = annotation, fill= call_type), position = "stack", stat = "identity") + 
+  labs(x = "Date", y = "Annotation", title = "Call Types 2023") +  # Labels for axes
+  scale_x_datetime(date_breaks = "4 days") + # show every 5 days
+  scale_fill_manual(values = c("cadence_coo" = "turquoise4","rattle" = "coral4"))+
+  theme(axis.text.x = element_text(angle = 90,hjust = 1)) +
+  facet_wrap(~point_id, nrow = 5)
 
 ybcu_22 <- ybcu_clips %>% filter(year == 2022)
 ybcu_points_22 <- unique(ybcu_22$point_id)
+# Remove the ones that don't have any data
+ybcu_points_22 <- ybcu_points_22[ybcu_points_22!= "FAR-2"]
+ybcu_points_22 <- ybcu_points_22[ybcu_points_22!= "FAR-3"]
+ybcu_points_22 <- ybcu_points_22[ybcu_points_22!= "HOL-1"]
+ybcu_points_22 <- ybcu_points_22[ybcu_points_22!= "ELI-1"]
 # take a list of the points
 # filter clips_23 to only be those points
 clips_vis_22 <- clips_22 %>% filter(point_id %in% ybcu_points_22)
@@ -121,11 +136,18 @@ ggplot() +
   labs(x = "Date", y = "Annotation", title = "Species Detection History 2022") +  # Labels for axes
   scale_x_datetime(date_breaks = "4 days") + # show every 5 days
   scale_fill_manual(values = c("BBCU" = "darkblue","UNK" = "darkgoldenrod2"))+
-  theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+  theme(axis.text.x = element_text(angle = 90,hjust = 1)) +
+  facet_wrap(~point_id, nrow = 5)
+# Make a plot for call types
+ggplot() +
+  geom_bar(data = clips_vis_22, mapping = aes(x = datetime, y = annotation, fill= call_type), position = "stack", stat = "identity") + 
+  labs(x = "Date", y = "Annotation", title = "Call Types 2022") +  # Labels for axes
+  scale_x_datetime(date_breaks = "4 days") + # show every 5 days
+  scale_fill_manual(values = c("cadence_coo" = "turquoise4","rattle" = "coral4"))+
+  theme(axis.text.x = element_text(angle = 90,hjust = 1)) +
   facet_wrap(~point_id, nrow = 5)
 
-
-
+clips_22 %>% filter(point_id == "SID-1") %>% filter(annotation == 1)
 #### Code Graveyard ####
 
 # Original graphing

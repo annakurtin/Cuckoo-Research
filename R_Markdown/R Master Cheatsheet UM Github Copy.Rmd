@@ -1340,6 +1340,15 @@ txhousing%>%mutate(listings_cat = case_when(listings>2000 ~ "high",
                                             listings<=2000 & 500<=listings ~ "med",
                                             listings<500 ~ "low"))
 
+## Using case_when with regular expressions:
+test <- veg %>%
+  mutate(sampling_design = case_when(
+    grepl("^[[:alpha:]]{4}-[[:digit:]]{3}$", point_id) ~ "habitat_grts", # match four alphanumeric then a dash then three digits
+    grepl("^[[:digit:]]{2,3}-[[:digit:]]{1}$", point_id) ~ "mmr_grts", # match two or three digits then a dash then one digit
+    grepl("^[[:alpha:]]{3}-[[:digit:]]{1}$", point_id) ~ "selectedcu_nonrand", # match three alphanumeric then a dash then one digit
+    TRUE ~ NA_character_  # Default case if none of the above conditions match
+  ))
+
 #pulling out certain characters of a value and creating a new column of them in a specified datatype
 #Resource: introduction to stringr https://stringr.tidyverse.org/articles/stringr.html 
 d <- d %>% mutate(Time = str_sub(File_Name, -10, -5),

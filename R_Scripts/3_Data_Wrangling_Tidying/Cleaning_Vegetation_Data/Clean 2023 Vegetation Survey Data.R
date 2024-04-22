@@ -91,6 +91,32 @@ veg$grazing_status <- factor(veg$grazing_status, levels = c("Historic","Current"
 # x and y: change to standard names I'm using
 veg <- veg %>% rename(long= x, lat =  y)
 
+# Create classifications for the data to use in the model
+## When it was a GRTS point selected for habitat chapter, sampling design = habitat_grts
+### When the point is four letters then a dash then three numbers
+## When it was a GRTS point selected for long term UMBEl monitoring, sampling design = mmr_grts
+### When the point is 2-3 numbers then a dash then one numbers
+## When it was a non randomly selected point just used in long-term cuckoo monitoring, sampling design = selectedcu_nonrand
+### When the point ID is 3 letters then a dash then one number
+veg <- veg %>%
+  mutate(sampling_design = case_when(
+    grepl("^[[:alpha:]]{4}-[[:digit:]]{3}$", point_id) ~ "habitat_grts",
+    grepl("^[[:digit:]]{2,3}-[[:digit:]]{1}$", point_id) ~ "mmr_grts",
+    grepl("^[[:alpha:]]{3}-[[:digit:]]{1}$", point_id) ~ "selectedcu_nonrand",
+    TRUE ~ NA_character_  # Default case if none of the above conditions match
+  ))
+#test %>% select(point_id, sampling_design)
+# For writing the layers in google earth engine 
+# pull the habitat and mmr grts points 
+hab_chap <- veg %>% filter(sampling_design %in% c("habitat_grts","mmr_grts"))
+# was there an ARU at each of these points?
+unique(hab_chap$aru_present)
+# yes
+# Write this for use in your habitat chapter(can be updated post other cleaning)
+#write.csv(hab_chap,"./Data/Vegetation_Data/Outputs/2023_VegData_HabMMRGRTS_4-22.csv", row.names = FALSE)
+# Create and write a datasheet of coordinates for use in google earth engine
+hab_chap_red <- hab_chap %>% select(point_id, long, lat)
+write.csv(hab_chap_red,"./Data/Monitoring_Points/Outputs/2023_VegSurveyCoords_HabMMRGRTS_4-22.csv", row.names = FALSE)
 # write the cleaned data
 #write.csv(veg,"./Data/Vegetation_Data/Outputs/2023_VegSurveyData_Cleaned1-15.csv", row.names = FALSE)
 

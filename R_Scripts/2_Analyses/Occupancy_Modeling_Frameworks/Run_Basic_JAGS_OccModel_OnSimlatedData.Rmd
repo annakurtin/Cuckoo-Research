@@ -12,6 +12,15 @@ JAGS is a more flexible way to run bayesian models. When you build JAGS code, yo
 
 [demo of ubms vs jags](https://github.com/kenkellner/ubms/blob/master/vignettes/JAGS-comparison.Rmd)
 
+[Converting from JAGS to NIMBLE](https://r-nimble.org/quick-guide-for-converting-from-jags-or-bugs-to-nimble)
+
+[Demo of Simple JAGS Notes](https://github.com/rpruim/Kruschke-Notes/blob/master/08-JAGS.Rmd)
+
+[Ken Kellner JAGS UI Info](https://github.com/kenkellner/jagsUI)
+### Overall Bayesian Resources
+[Initial Values with a Gibbs sampler](https://drvalle1.github.io/100_jags_problems_init_values.html)
+[MCMC Settings](https://cran.r-project.org/web/packages/JointAI/vignettes/MCMCsettings.html)
+
 JAGS doesn't, however, allow you to build your own MCMC sampler. **Which one does it use?** In order to do so, you will need to use a software such as NIMBLE. JAGS also can't handle NA data (?).
 
 ```{r setup, include=FALSE}
