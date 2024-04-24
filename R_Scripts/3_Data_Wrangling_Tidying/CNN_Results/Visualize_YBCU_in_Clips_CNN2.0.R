@@ -1,4 +1,4 @@
-#### Filter Out YBCU Audio From CNN2.0 Clips ###################
+#### Visualized YBCU Audio From CNN2.0 Clips to Filter It Out ###################
 
 ## Purpose: to read in the clips sheets and filter out calls that are YBCU
 
@@ -147,7 +147,16 @@ ggplot() +
   theme(axis.text.x = element_text(angle = 90,hjust = 1)) +
   facet_wrap(~point_id, nrow = 5)
 
-clips_22 %>% filter(point_id == "SID-1") %>% filter(annotation == 1)
+# Checking for specific clips
+clips_22 %>% filter(point_id == "PRD-3") %>% filter(annotation == 1)
+
+
+
+
+
+
+
+
 #### Code Graveyard ####
 
 # Original graphing
