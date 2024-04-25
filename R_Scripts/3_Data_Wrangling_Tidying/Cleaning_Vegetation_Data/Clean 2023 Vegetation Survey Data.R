@@ -118,7 +118,7 @@ unique(hab_chap$aru_present)
 hab_chap_red <- hab_chap %>% select(point_id, long, lat)
 #write.csv(hab_chap_red,"./Data/Monitoring_Points/Outputs/2023_VegSurveyCoords_HabMMRGRTS_4-22.csv", row.names = FALSE)
 # write the cleaned data
-write.csv(veg,"./Data/Vegetation_Data/Outputs/2023_VegSurveyData_Cleaned4-23.csv", row.names = FALSE)
+#write.csv(veg,"./Data/Vegetation_Data/Outputs/2023_VegSurveyData_Cleaned4-23.csv", row.names = FALSE)
 
 
 
