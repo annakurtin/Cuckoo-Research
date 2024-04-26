@@ -8,7 +8,7 @@
   # set date for the setup date and optionally the time of the set (if time not provided camtrapR defaults to assume all are set at noon)
   # retrival date for the date the station was taken down and optionally the time (if time not provided camtrapR defaults to assume all retrivals are at noon)
   # problem columns, these are set so that there are pairs with problem1_from and problem1_to, problem2_from and problem2_to, etc so that each pari represents the start and end time of when the station was inactive for whatever reason
-CTtable <- read.csv("CTtable_ex.csv")
+CTtable <- read.csv("./Data/Example_Data/FromJordan_CamTrapR/CTtable_ex.csv")
 
 op_table <- cameraOperation(CTtable = CTtable, 
                             # Used station column to indicate the grid cell
@@ -43,7 +43,7 @@ op_table <- cameraOperation(CTtable = CTtable,
     # a species column for what species was detected
     # a grid id column that matches with the camera operation table as that is how we grouped cameras
     # a date/time column for the date and time of the detection
-ssn_detect_dt <- read.csv("recordTable_ex.csv")
+ssn_detect_dt <- read.csv("./Data/Example_Data/FromJordan_CamTrapR/recordTable_ex.csv")
 
 cala_dh <- detectionHistory(recordTable = ssn_detect_dt,
                             species = "Canis latrans",
