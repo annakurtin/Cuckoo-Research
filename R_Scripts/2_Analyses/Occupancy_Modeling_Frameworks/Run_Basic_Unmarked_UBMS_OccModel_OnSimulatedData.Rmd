@@ -10,7 +10,7 @@ library(ubms)
 ```
 # Unmarked vs ubms
 - pros to ubms and unmarked: easier to use, faster to run bc they use likelihood instead of MCMC
-- Cons to ubms/unmarked: can't handle NAs, less flexible, better used for 'out of the box' analayses
+- Cons to ubms/unmarked: can't handle NAs, less flexible, better used for 'out of the box' analyses
 
 [Occupancy Models in Unmarked](https://doi90.github.io/lodestar/fitting-occupancy-models-with-unmarked.html)
 

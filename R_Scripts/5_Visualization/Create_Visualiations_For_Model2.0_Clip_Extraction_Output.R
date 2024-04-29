@@ -33,8 +33,10 @@ test3 <- fwpr5_scores %>% filter(!(score < 0))
 # Create a cuckoo palette?
 #(Start with just 2023 with a standardized protocol)
 clips_21 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2021_AllCollab_topclips_filteredPB_4-12.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver")) %>% mutate(date_formatted = as.Date(date_formatted, format = "%Y-%m-%d"))
-clips_22 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2022_AllCollab_topclips_filteredPB_4-12.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver")) %>% mutate(date_formatted = as.Date(date_formatted, format = "%Y-%m-%d")) 
-clips_23 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2023_AllCollab_topclips_filteredPB_4-12.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver")) %>% mutate(date_formatted = as.Date(date_formatted, format = "%Y-%m-%d"))
+#clips_22 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2022_AllCollab_topclips_filteredPB_4-12.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver")) %>% mutate(date_formatted = as.Date(date_formatted, format = "%Y-%m-%d"))
+clips_22 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2022_AllCollab_topclips_filteredPBYBCU_4-24.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver")) %>% mutate(date_formatted = as.Date(date_formatted, format = "%Y-%m-%d"))
+#clips_23 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2023_AllCollab_topclips_filteredPB_4-12.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver")) %>% mutate(date_formatted = as.Date(date_formatted, format = "%Y-%m-%d"))
+clips_23 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2023_AllCollab_topclips_filteredPBYBCU_4-24.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver")) %>% mutate(date_formatted = as.Date(date_formatted, format = "%Y-%m-%d"))
 
 
 # What did detections look like over the deployment time?
@@ -86,6 +88,7 @@ ggplot(timeperiod_22, aes(x = time_period, y = num_detections)) +
 
 
 # Look at all of the sites
+jpeg(paste("./Deliverables/Cuckoo_Detection_History/BBCU_SiteDetHistory_2023.jpg"), width = 1500, height = 800)
 point_det_23 <- clips_23 %>% group_by(point_id, date_formatted) %>% summarize(detection = max(annotation))
 #date_recstart_23 <- clips_23 %>% group_by(point_id) %>% summarize(first_date = min(date_formatted))
 ggplot(point_det_23, aes(x = date_formatted, y = detection)) +
@@ -96,7 +99,9 @@ ggplot(point_det_23, aes(x = date_formatted, y = detection)) +
   theme(axis.text.x = element_text(angle = 90,hjust = 1)) +
   labs(x = "Date",y = "Detection",title = "Daily Detections At 2023 Sites") +
   facet_wrap(~ point_id, nrow = 10)
+dev.off()
 # 2022
+jpeg(paste("./Deliverables/Cuckoo_Detection_History/BBCU_SiteDetHistory_2022.jpg"), width = 1500, height = 800)
 point_det_22 <- clips_22 %>% group_by(point_id, date_formatted) %>% summarize(detection = max(annotation))
 date_point_recstart_22 <- clips_22 %>% group_by(point_id) %>% summarize(first_date = min(date_formatted))
 ggplot(point_det_22, aes(x = date_formatted, y = detection)) +
@@ -107,6 +112,35 @@ ggplot(point_det_22, aes(x = date_formatted, y = detection)) +
   theme(axis.text.x = element_text(angle = 90,hjust = 1)) +
   labs(x = "Date",y = "Detection",title = "Daily Detections At 2022 Sites") +
   facet_wrap(~ point_id, nrow = 10)
+dev.off()
+
+
+# Create a graphic of detections for the YBCU data in 2023
+ybcu_23 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2023_YBCU_Clips_4-24.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver")) %>% mutate(date_formatted = as.Date(date_formatted, format = "%Y-%m-%d"))
+ybcu_det_23 <- ybcu_23 %>% group_by(point_id, date_formatted) %>% summarize(detection = max(ybcu))
+jpeg(paste("./Deliverables/Cuckoo_Detection_History/YBCU_SiteDetHistory_2023.jpg"), width = 1500, height = 800)
+ggplot(ybcu_det_23, aes(x = date_formatted, y = detection)) +
+  geom_bar(stat = "identity", fill = 'darkgoldenrod2') +
+  scale_y_continuous(breaks = seq(0,13,by =2)) +
+  scale_x_date(date_breaks = "2 days") + # show every 5 days
+  theme(axis.text.x = element_text(angle = 90,hjust = 1)) +
+  labs(x = "Date",y = "Detection",title = "Daily Detections At 2023 Sites") +
+  facet_wrap(~ point_id, nrow = 10)
+dev.off()
+
+# Create a graphic of detections for the YBCU data in 2022
+ybcu_22 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2022_YBCU_Clips_4-24.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver")) %>% mutate(date_formatted = as.Date(date_formatted, format = "%Y-%m-%d"))
+ybcu_det_22 <- ybcu_22 %>% group_by(point_id, date_formatted) %>% summarize(detection = max(ybcu))
+jpeg(paste("./Deliverables/Cuckoo_Detection_History/YBCU_SiteDetHistory_2022.jpg"), width = 1500, height = 800)
+ggplot(ybcu_det_22, aes(x = date_formatted, y = detection)) +
+  geom_bar(stat = "identity", fill = 'darkgoldenrod2') +
+  scale_y_continuous(breaks = seq(0,13,by =2)) +
+  scale_x_date(date_breaks = "2 days") + # show every 5 days
+  theme(axis.text.x = element_text(angle = 90,hjust = 1)) +
+  labs(x = "Date",y = "Detection",title = "Daily Detections At 2023 Sites") +
+  facet_wrap(~ point_id, nrow = 10)
+dev.off()
+
 
 
 ##### Code Graveyard ####
