@@ -24,8 +24,19 @@ test <- clips_23 %>% filter(hour %in% c(10000,70000,90000,230000))
 test2 <- test %>% filter(point_id == "MISO-032")
 test3 <- clips_23 %>% filter(point_id == "MISO-032")
 unique(test3$hour)
+
+clips_new <- clips_23 %>%
+  mutate(site_id = case_when(
+    # If point_id has four letters then a dash then three numbers
+    grepl("^[[:alpha:]]{4}-[[:digit:]]{3}$", point_id) ~ point_id,
+    # If point_id has two numbers, three numbers, or three letters then a dash then one number
+    grepl("^[[:digit:]]{2,3}-[[:digit:]]{1}$", point_id) |
+      grepl("^[[:alpha:]]{3}-[[:digit:]]{1}$", point_id) ~ gsub("-.*", "", point_id)
+  ))
 # Summarize this
-site_det_23 <- clips_23 %>% group_by(point_id) %>% summarize(bbcu = max(annotation))
+site_det_23 <- clips_new %>% group_by(site_id) %>% summarize(bbcu = max(annotation))
+# Number of sites with detections
+sum(site_det_23$bbcu)
 nrow(site_det_23)
 sum(site_det_23$bbcu)
 # Write it

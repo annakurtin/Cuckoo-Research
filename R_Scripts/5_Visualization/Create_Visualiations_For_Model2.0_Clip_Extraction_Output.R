@@ -30,13 +30,20 @@ test3 <- fwpr5_scores %>% filter(!(score < 0))
 
 
 #### Add on with finished data ####
-# Create a cuckoo palette?
 #(Start with just 2023 with a standardized protocol)
 clips_21 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2021_AllCollab_topclips_filteredPB_4-12.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver")) %>% mutate(date_formatted = as.Date(date_formatted, format = "%Y-%m-%d"))
 #clips_22 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2022_AllCollab_topclips_filteredPB_4-12.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver")) %>% mutate(date_formatted = as.Date(date_formatted, format = "%Y-%m-%d"))
 clips_22 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2022_AllCollab_topclips_filteredPBYBCU_4-24.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver")) %>% mutate(date_formatted = as.Date(date_formatted, format = "%Y-%m-%d"))
 #clips_23 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2023_AllCollab_topclips_filteredPB_4-12.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver")) %>% mutate(date_formatted = as.Date(date_formatted, format = "%Y-%m-%d"))
 clips_23 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2023_AllCollab_topclips_filteredPBYBCU_4-24.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver")) %>% mutate(date_formatted = as.Date(date_formatted, format = "%Y-%m-%d"))
+clips_23 <- clips_23 %>%
+  mutate(site_id = case_when(
+    # If point_id has four letters then a dash then three numbers
+    grepl("^[[:alpha:]]{4}-[[:digit:]]{3}$", point_id) ~ point_id,
+    # If point_id has two numbers, three numbers, or three letters then a dash then one number
+    grepl("^[[:digit:]]{2,3}-[[:digit:]]{1}$", point_id) |
+      grepl("^[[:alpha:]]{3}-[[:digit:]]{1}$", point_id) ~ gsub("-.*", "", point_id)
+  ))
 
 
 # What did detections look like over the deployment time?
@@ -142,6 +149,23 @@ ggplot(ybcu_det_22, aes(x = date_formatted, y = detection)) +
 dev.off()
 
 
+
+# Look at individual sites
+detections_graphic <- clips_23%>% group_by(site_id, date_formatted) %>% summarize(detection = max(annotation))
+# pull out sites with detections
+points_with_dets <- detections_graphic %>% filter(detection ==1)
+sites_pos <- unique(points_with_dets$site_id)
+daily_det_forgraphic <- detections_graphic %>% filter(site_id %in% sites_pos)
+
+#date_recstart_23 <- clips_23 %>% group_by(point_id) %>% summarize(first_date = min(date_formatted))
+ggplot(daily_det_forgraphic, aes(x = date_formatted, y = detection)) +
+  geom_bar(stat = "identity", fill = eyering_red1) +
+  # geom_vline(xintercept = date_recstart_23$first_date)+
+  scale_y_continuous(breaks = seq(0,13,by =2)) +
+  scale_x_date(date_breaks = "12 days") + # show every 5 days
+  theme(axis.text.x = element_text(angle = 90,hjust = 1)) +
+  labs(x = "Date",y = "Detection",title = "Daily Detections At 2023 Sites") +
+  facet_wrap(~ site_id, nrow = 10)
 
 ##### Code Graveyard ####
 # timeperiod2 <- spread(timeperiod, time_period, num_detections)
