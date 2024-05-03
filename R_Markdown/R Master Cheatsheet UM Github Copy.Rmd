@@ -451,6 +451,19 @@ is.Date(MasterData$date)
 # To see information about a package 
 vignette("dplyr")
 
+# You can also import or export R data objects, which will save the formatting in columns such as datetime and prevent you having to go between .csv files
+
+# There are two ways to do this
+# You can save it in R's native binary with save() and load()
+save(samp_occ_l_summ, file = "./Data/Detection_History/2023_All_ARUs/Outputs/fit_varying_samplength_occ.Rdata")
+occ_output <- load(samp_occ_l_summ, file = "./Data/Detection_History/2023_All_ARUs/Outputs/fit_varying_samplength_occ.Rdata")
+
+# OR as an Rdata file with saveRDS and readRDS
+#For saving models (sum_det_mods is a named list object):
+saveRDS(sum_det_mods,file = "3.Outputs/Red_Fox_Models/summer_coyote_state_physical_models.RData")
+#for reading them back in:
+sum_det_mods <- readRDS("3.Outputs/Red_Fox_Models/summer_coyote_state_physical_models.RData")
+
 ```
 
 ```{R Creating Dataframe}

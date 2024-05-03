@@ -64,7 +64,7 @@ pb_21 <- pb_21 %>% mutate(across(c(distance, bearing, visual, call, cluster), ~i
 pb_21_dat <- pb_21 %>% select_final_pbdata_cols()
 
 # Write this to a csv
-#write.csv(pb_21_dat, "./Data/Playback_Results/2021/Outputs/2021_PlaybackData_4-18-24.csv",row.names = FALSE)
+#write.csv(pb_21_dat, "./Data/Playback_Results/2021/Outputs/2021_PlaybackData_5-2-24.csv",row.names = FALSE)
 
 # Make metadata
 
@@ -94,6 +94,8 @@ nam_pts <- nam_pt %>% filter(point_id %in% points)
 coords <- rbind(nam_pts,lt_pt)
 # Combine metadata with coordinates
 pb_21_metad_coord1 <- left_join(pb_21_metad,coords, by = "point_id")
+# No more points with missing coordinates
+pb_21_metad_coord1 %>% filter(is.na(long)==TRUE)
 
 pb_21_metad_coord <- pb_21_metad_coord1 %>% group_by(survey_id,
                                        date) %>% 
@@ -143,14 +145,14 @@ metad_recorded <- metad_recorded %>% select(point_id,lat,long)
 test_ofcoords <- left_join(created_md_test,metad_recorded, by = "point_id")
 # potentially problematic points: 102-1, 102-2. There's more to this (as far as agreement b/w the metadata and the playback data) but I'm going to ask Andy/Anna about this later (see Anna Noson's email on 4/18/2024)
 # write this to a csv file
-#write.csv(pb_21_metad_fin, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSurveyMetadataWDetectionsCoords_4-18-24.csv", row.names = FALSE)
+#write.csv(pb_21_metad_fin, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSurveyMetadataWDetectionsCoords_5-2-24.csv", row.names = FALSE)
 
 
 # Make a sheet for ArcGIS that has all of the survey locations and detections
 site_detections_21 <- pb_21_metad_coord1 %>% separate(survey_id, into = c("site","survey_num"), sep = "#")
 site_detections_21 <- site_detections_21 %>% group_by(site) %>% summarize(bbcu_detected = max(bbcu_detection),ybcu_detected = max(ybcu_detection), lat_avg = mean(lat, na.rm = TRUE), long_avg = mean(long,na.rm = TRUE)) %>% select(site,bbcu_detected,ybcu_detected,lat_avg,long_avg)
 # Write this to a .csv file
-#write.csv(site_detections_21, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSiteLocationsAvgWithDetections_4-18-24.csv", row.names = FALSE)
+#write.csv(site_detections_21, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSiteLocationsAvgWithDetections_5-2-24.csv", row.names = FALSE)
 
 
 # Make a datasheet for all the locations
@@ -158,4 +160,4 @@ site_locs_all_21 <- left_join(pb_21_metad,coords, by = "point_id")
 site_locs_all_21 <- site_locs_all_21 %>% group_by(point_id) %>% summarize(lat = mean(lat),long = mean(long))
 site_locs_all_21 <- site_locs_all_21 %>% separate(point_id, into = c("site","id"), remove = FALSE) 
 # Write this to a csv
-#write.csv(site_locs_all_21, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSiteLocations_All_4-18-2023.csv",row.names = FALSE)
+#write.csv(site_locs_all_21, "./Data/Playback_Results/2021/Outputs/2021_PlaybackSiteLocations_All_5-2-2023.csv",row.names = FALSE)
