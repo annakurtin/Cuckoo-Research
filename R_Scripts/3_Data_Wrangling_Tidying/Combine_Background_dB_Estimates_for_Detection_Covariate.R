@@ -33,6 +33,8 @@ all_back_fin <- all_back_fin %>%
       grepl("^[[:alpha:]]{3}-[[:digit:]]{1}$", point_id) ~ gsub("-.*", "", point_id)
   ))
 # Write the point-level averages
-#write.csv(all_back_fin, "./Data/Detection_Covariates/Avg_dB_FullFiles/Outputs/2023_AllCollabs_AvgBackground_Noise.csv", row.names = FALSE)
+write.csv(all_back_fin, "./Data/Detection_Covariates/Avg_dB_FullFiles/Outputs/2023_AllCollabs_PointLvl_AvgBackground_Noise_4-29.csv", row.names = FALSE)
 
 all_back_site <- all_back_fin %>% group_by(site_id) %>% summarize(avg_db = mean(mean_db))
+# Write site level averages
+write.csv(all_back_site, "./Data/Detection_Covariates/Avg_dB_FullFiles/Outputs/2023_AllCollabs_SiteLvl_AvgBackground_Noise_4-29.csv", row.names = FALSE)
