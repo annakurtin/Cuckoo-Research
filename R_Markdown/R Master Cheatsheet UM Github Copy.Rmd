@@ -6,6 +6,12 @@ output: html_document
     
 ---
 
+Thing to put in YAML to adjust output:
+header-includes:
+  - \usepackage{lineno}
+  - \linenumbers
+  - \usepackage{setspace}
+  - \doublespacing
 ```{R}
 # If you're having trouble rendering the plots in the viewer window, put this code into the YAML
 #editor_options: 
@@ -16,6 +22,8 @@ output: html_document
 ## Expand all code chunks with alt+shift+O
 
 ```
+
+[Making manuscripts in R](https://jhemberger.github.io/posts/posts/r-markdown-manuscripts/)
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, error = TRUE, eval = FALSE)

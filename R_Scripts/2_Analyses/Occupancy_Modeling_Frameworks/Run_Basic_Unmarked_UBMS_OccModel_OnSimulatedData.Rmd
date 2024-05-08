@@ -18,6 +18,12 @@ library(ubms)
 
 [Ken Kellner's Resource on Ubms](https://github.com/kenkellner/ubms)
 
+[Overview of UBMS](https://cran.r-project.org/web/packages/ubms/vignettes/ubms.html#compare-candidate-models)
+
+[Rhat values and convergence](https://mc-stan.org/docs/2_18/reference-manual/notation-for-samples-chains-and-draws.html) 
+
+[Description of Neff](https://andrewcharlesjones.github.io/journal/21-effective-sample-size.html)
+
 [Tutorial of Occupancy Models and Output in Unmarked](https://doi90.github.io/lodestar/fitting-occupancy-models-with-unmarked.html#model-evaluation)
 
 [Ken Kellner's Power Analysis in Unmarked](https://cran.r-project.org/web/packages/unmarked/vignettes/powerAnalysis.html)
