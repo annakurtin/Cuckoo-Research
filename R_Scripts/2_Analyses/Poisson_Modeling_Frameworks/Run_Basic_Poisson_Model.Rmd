@@ -1,0 +1,88 @@
+---
+title: "Poisson_Model_Framework"
+author: "Anna Kurtin"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+```
+
+```{R Data Simulation}
+# Specify the number of sites
+n.site <- 10
+# pull data from the two land cover types you are studying
+x <- gl(n = 2, k = n.site, labels = c("grassland", "arable"))
+eps <- rnorm(2*n.site, mean = 0, sd = 0.5)# Normal random effect
+# Calculate populations growth rate with overdispersion caused by site-specific differences in hare density
+lambda.OD <- exp(0.69 +(0.92*(as.numeric(x)-1) + eps) )
+# Calculate pop growth rate without overdispersion
+lambda.Poisson <- exp(0.69 +(0.92*(as.numeric(x)-1)) ) # For comparison
+
+# With overdispersion
+C.OD <- rpois(n = 2*n.site, lambda = lambda.OD)
+# Without overdispersion
+C.Poisson <- rpois(n = 2*n.site, lambda = lambda.Poisson)
+
+# Visualize these
+par(mfrow = c(1,2))
+boxplot(C.OD ~ x, col = "grey", xlab = "Land-use", main = "With OD", 
+ylab = "Hare count", las = 1, ylim = c(0, max(C.OD)))
+boxplot(C.Poisson ~ x, col = "grey", xlab = "Land-use", main = "Without OD", 
+ylab = "Hare count", las = 1, ylim = c(0, max(C.OD)) )
+
+```
+
+
+```{R Analysis in R}
+
+glm.fit.no.OD <- glm(C.OD ~ x, family = poisson)
+glm.fit.with.OD <- glm(C.OD ~ x, family = quasipoisson)
+summary(glm.fit.no.OD)
+summary(glm.fit.with.OD)
+anova(glm.fit.no.OD, test = "Chisq")
+anova(glm.fit.with.OD, test = "F")
+
+```
+
+```{R Analysis in JAGS}
+# Bundle and summarize the data set passed to JAGS
+str(bdata <- list(C.OD = C.OD, x = as.numeric(x)-1, n = length(x)))
+
+# Specify model in BUGS language
+cat(file = "PoissonEx_TTest.txt", "
+model {
+# Priors
+ alpha ~ dnorm(0,0.001)
+ beta ~ dnorm(0,0.001)
+ sigma ~ dunif(0, 10)	
+ tau <- 1 / (sigma * sigma)
+
+# Likelihood
+ for (i in 1:n) {
+    C.OD[i] ~ dpois(lambda[i]) 
+    log(lambda[i]) <- alpha + beta *x[i] + eps[i]
+    eps[i] ~ dnorm(0, tau)
+ }
+}
+")
+
+# Inits function
+inits <- function(){ list(alpha=rlnorm(1), beta=rlnorm(1), sigma = rlnorm(1))}
+
+# Parameters to estimate
+params <- c("lambda","alpha", "beta", "sigma")
+
+# MCMC settings
+na <- 1000  ;  nc <- 3  ;  ni <- 3000  ;  nb <- 1000  ;  nt <- 5
+
+# Call JAGS, check convergence and summarize posteriors
+out <- jags(bdata, inits, params, "PoissonEx_TTest.txt", n.adapt = na, n.thin = nt, n.chains = nc, 
+n.burnin = nb, n.iter = ni, parallel = TRUE)
+par(mfrow = c(3, 3))  ;  traceplot(out)  ;  par(mfrow = c(1, 1))
+print(out, dig = 3)
+
+
+```

@@ -1,0 +1,253 @@
+---
+title: "Determining Detection Submodel"
+author: "Anna Kurtin"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ubms)
+library(unmarked)
+library(janitor)
+library(ggplot2)
+library(loo)
+
+# Create visualization palette
+eyering_red1 <- "#B75F4A"
+foliage_green2 <-"#656131"
+
+set.seed(123)
+```
+
+
+# Data Reading and Formatting
+```{r Read in Data}
+# y data: read in a dataframe that has a row for every point and a column for every detection period 
+
+# Site-level covariates
+# Read in vegetation density for each site
+vegdense <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Detection_Covariates/ShrubTreeDensityComposite_2023_ARUPoints.csv")
+vegdense <- vegdense %>%
+  mutate(site_id = case_when(
+    # If point_id has four letters then a dash then three numbers
+    grepl("^[[:alpha:]]{4}-[[:digit:]]{3}$", point_id) ~ point_id,
+    # If point_id has two numbers, three numbers, or three letters then a dash then one number
+    grepl("^[[:digit:]]{2,3}-[[:digit:]]{1}$", point_id) |
+      grepl("^[[:alpha:]]{3}-[[:digit:]]{1}$", point_id) ~ gsub("-.*", "", point_id)
+  ))
+# take the average of this across the site
+vegdense_avg <- vegdense %>% group_by(site_id,sampling_design) %>% summarize(veg_density_avg = round(mean(composite_dense,na.rm = TRUE),2))
+#include sampling design as a detection covariate
+
+# background noise
+# Originally was going to be a survey-level covariate
+# Read in metric for average background dB during the survey period
+## Don't have time to parse this out right now, just doing by site level
+old_background_db <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Detection_Covariates/2023_AllCollabs_SiteLvl_AvgBackground_Noise_4-29.csv")
+background_db <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Detection_Covariates/BackgroundNoiseBandpass_2023_ARUPoints.csv")
+colnames(background_db) <- c("site_id","backdb_survey1","backdb_survey2","backdb_survey3","backdb_survey4","backdb_survey5","backdb_survey6")
+
+
+# Read in detection and effort data 
+effort <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Detection_History/2023_All_ARUs/Outputs/DetectionHist_CamTrapR/bbcu__effort__not_scaled_14_days_per_occasion__2024-04-29.csv") %>% clean_names
+survey_periods <- colnames(effort)
+colnames(effort) <- c("site_session","effort_survey1","effort_survey2","effort_survey3","effort_survey4","effort_survey5","effort_survey6")
+effort <- effort %>% separate(site_session, into = c("site_id","session_name"), sep = "__") %>% select(-session_name)
+
+detections <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Detection_History/2023_All_ARUs/Outputs/DetectionHist_CamTrapR/bbcu__detection_history__with_effort__14_days_per_occasion__2024-04-29.csv") %>% clean_names
+colnames(detections) <- c("site_session","det_survey1","det_survey2","det_survey3","det_survey4","det_survey5","det_survey6")
+
+# Split apart the detections into site and point
+detections <- detections %>% separate(site_session, into = c("site_id","session_name"), sep = "__")
+
+# Combine them
+full_dat <- left_join(detections,background_db, by = "site_id")
+full_dat <- left_join(full_dat,vegdense_avg, by = "site_id")
+full_dat <- left_join(full_dat, effort, by = "site_id")
+full_dat <- full_dat %>% mutate(start_date_s1 = 152,
+                    start_date_s2 = 166,
+                    start_date_s3 = 180,
+                    start_date_s4 = 194,
+                    start_date_s5 = 208,
+                    start_date_s6 = 222)
+# Trying this to see if it will resolve the model conflicts 
+full_dat <- na.omit(full_dat)
+#saveRDS(full_dat, file ="./Data/Full_Data_for_ubms_Models.Rdata")
+```
+
+# Data Exploration and Visualization
+```{r Data Exploration}
+# Look at detection data
+clips_all <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Classifier_Results/Model2.0/Outputs/2023_AllCollab_topclips_filteredPBYBCU_4-24.csv")
+# Create a site_id column
+clips_all <- clips_all %>%
+  mutate(site_id = case_when(
+    # If point_id has four letters then a dash then three numbers
+    grepl("^[[:alpha:]]{4}-[[:digit:]]{3}$", point_id) ~ point_id,
+    # If point_id has two numbers, three numbers, or three letters then a dash then one number
+    grepl("^[[:digit:]]{2,3}-[[:digit:]]{1}$", point_id) |
+      grepl("^[[:alpha:]]{3}-[[:digit:]]{1}$", point_id) ~ gsub("-.*", "", point_id)
+  ))
+timepers_detected <- clips_all %>% group_by(site_id) %>% summarize(times_detected= sum(annotation))
+# Split up the number of sites that have zeros vs ones 
+# GRAPHIC FOR PRESENTATION
+hist(timepers_detected$times_detected, breaks = 14, xlab = "Number of BBCU Detections", main = "Raw Detection Data", col = eyering_red1)
+
+# Look at how survey effort and sampling design covary 
+full_dat %>% ggplot(aes(x=site_id, y = effort_survey1, fill = sampling_design)) +
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_blank())+
+  labs(title = "Survey Effort and Sampling Design",
+       x = "Site", y = "Survey Effort")
+# It looks like these covary quite a bit, so we can remove the sampling design from these models 
+
+# look at whether any others covary
+## Veg Density and Average Background Noise
+plot(x = full_dat$avg_db,y = full_dat$veg_density_avg)
+## Date and survey effort
+plot(x = full_dat$avg_db,y = full_dat$veg_density_avg)
+
+# Visualize your data to inform your priors
+# average db for survey session
+# NEW average dB
+db <- full_dat[,9:14]
+db_long <- db %>% pivot_longer(cols = c(backdb_survey1,backdb_survey2,backdb_survey3,backdb_survey4,backdb_survey5,backdb_survey6), names_to = "survey_period",values_to = "db" )
+hist(scale(db_long$db), xlab = "Background dB", main = "Scaled Histogram of Background Noise", col = eyering_red1)
+## Looks like a normal distribution around the scaled variable should be good for a prior
+
+# Veg density
+hist(full_dat$veg_density_avg, xlab = "Average Composite Density at a Site", main = "Histogram of Vegetation Density", col = eyering_red1)
+hist(scale(full_dat$veg_density_avg), xlab = "Average Composite Density at a Site", main = "Scaled Histogram of Vegetation Density", col = eyering_red1)
+## This is a distribution with a left skew - gamma? but it goes below zero --> use normal instead?
+
+# Date
+# uniform distribution between 152-208 - does this include those values?
+dates <- full_dat[,23:28]
+dates_long <- dates %>% pivot_longer(cols = c(start_date_s1,start_date_s2,start_date_s3,start_date_s4,start_date_s5,start_date_s6), names_to = "survey_period",values_to = "date" )
+hist(scale(dates_long$date), xlab = "Date", main = "Scaled Histogram of Survey Start Date", col = eyering_red1)
+
+# Effort
+efforts <- full_dat[,17:22]
+efforts_long <- efforts %>% pivot_longer(cols = c(effort_survey1,effort_survey2,effort_survey3,effort_survey4,effort_survey5,effort_survey6), names_to = "survey_period",values_to = "effort" )
+hist(scale(efforts_long$effort), xlab = "Effort", main = "Scaled Histogram of Survey Effort", col = eyering_red1)
+
+```
+
+
+# Use this data in modeling with ubms 
+```{r Create UMF}
+# Create an unmarked dataframe
+# denote which columns have the detection data
+y <- full_dat[,3:8]
+# site covariates: avg_db, sampling_design, veg_density_avg
+#site_id <- full_dat[,1]
+veg_dense <- full_dat[,16]
+siteCovs <- as.data.frame(veg_dense)
+#iteCovs$veg_dense <- as.numeric(siteCovs$veg_dense)
+obsCovs <- list(date = full_dat[,23:28],
+                effort = full_dat[,17:22],
+                backdb = full_dat[,9:14])
+umf <- unmarkedFrameOccu(y = y, siteCovs = siteCovs, obsCovs = obsCovs)
+
+# Do I need to center and scale effort?
+# standardize the numeric data so that they all have a mean of 0 and a standard deviation of 1
+umf@siteCovs$veg_dense <- scale(umf@siteCovs$veg_dense)
+umf@obsCovs$date <- scale(umf@obsCovs$date)
+umf@obsCovs$effort <- scale(umf@obsCovs$effort)
+umf@obsCovs$backdb <- scale(umf@obsCovs$backdb)
+# Look at the dataframe to make sure it's correct
+summary(umf)
+# Look at min and max of date
+#min(umf@obsCovs$date)
+#max(umf@obsCovs$date)
+```
+
+# Fit the model
+
+```{r Fit Model}
+# Set parameters
+num_chains <- 3
+num_iterations <- 3000
+seed <- 123
+num_thin <- 2
+normal_prior <- normal(location = 0, scale = 1) # setting these equal to 0 and 1, which is what we scaled our covariates to 
+uniform_prior <- uniform(lower = -2, upper = 2) # Use this for date 
+# Need to add in a thinning parameter
+#uniform_prior_site <- uniform(lower= 1, upper = 88)
+#prior_det_covs <- normal(location = 0, scale = 1) # setting these equal to 0 and 1, which is what we scaled our covariates to
+# test <- runif(10000,min=-1.5,max = 1.5)
+# min(test)
+# max(test)
+# uniform is not inclusive, but it'll get close to those
+# Create null model
+det_mod0 <- stan_occu(~1~1, 
+                      data=umf, 
+                      prior_coef_det = normal_prior,
+                      chains=num_chains, 
+                      iter=num_iterations, 
+                      seed=seed)
+saveRDS(det_mod0, file = "./R_Scripts/7_Model_Scripts/ubms_Naive_Detection_Model.Rdata")
+
+# Create detection model with covariates
+det_mod_global <- stan_occu(~date+veg_dense+backdb+effort ~1,
+                      data=umf,
+                      prior_coef_det = c(uniform_prior,normal_prior,normal_prior,normal_prior),
+                      chains=num_chains, 
+                      iter=num_iterations, 
+                      #thin = num_thin,
+                      seed=seed)
+saveRDS(det_mod_global, file = "./R_Scripts/7_Model_Scripts/ubms_Global_Detection_Model.Rdata")
+# This looks good - moving forward with this model
+#best rhat and n_eff values with 3000 iterations and no thinning 
+```
+
+Now that we've ran and saved those models, let's read them in again so we can assess them. 
+
+```{r Read in Models}
+# Naive model 
+det_mod0 <- readRDS("./R_Scripts/Project/Models/Naive_Detection_Model.Rdata")
+# Global model
+det_mod_global <- readRDS("./R_Scripts/Project/Models/Global_Detection_Model_noSite.Rdata")
+```
+**Determining if the model has converged:**
+
+Reference on Rhat: https://mc-stan.org/rstan/reference/Rhat.html
+
+* The traceplots have the "grassy" look that we want, indicating that chains are overlapping and have converged.
+
+* The rule of thumb for n_eff is to have this > 100 * number of chains. Since we have 3 chains, we want this to be over 300, which it looks like it is for this model. 
+
+* You can conclude that all MCMC chains have converged if all Rhat < 1.05. In this case, our Rhat goes from 0.999 - 1.001, which is good.
+
+```{r Evaluate Model Convergence}
+det_mod0 # neff in the thousands and Rhat around 1, looks good
+traceplot(det_mod0, pars=c("beta_state","beta_det"))# Looks good
+
+det_mod_global # neff in the thousands and Rhat around 1, looks good
+traceplot(det_mod_global, pars=c("beta_state","beta_det"))# Looks good
+```
+
+Now that we know which ones have converged and which ones haven't, let's assess the model fit for the ones that converged. 
+
+```{r Evaluate Model Fit}
+ubms::loo(det_mod_global)
+# Gloal model: pareto k diagnostic values are too high??????
+ubms::loo(det_mod0)
+```
+
+We are using leave-one-out cross validation to assess our candidate models. The metric we are calculating is the expected predictive accuracy (elpd). The larger the elpd, the better performing the model is. We chose which candidate models to keep based on the elpd_diff - we kept all models where the difference in was within the se_diff*2.
+
+We can see that the global detection model without site as a covariate performs better than the naive model
+
+
+```{r Top Models Eval}
+# Evaluate which variables to keep from the beta coefficients
+plot_effects(det_mod_global, "det")
+summary(det_mod_global, submodel ="det")
+
+plot_effects(det_mod0, "det")
+summary(det_mod0, submodel ="det")
+```
