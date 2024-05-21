@@ -4,12 +4,13 @@
 
 # Created 10/24/2023
 
-# Last modified: 4/23/2024
+# Last modified: 5/20/2024
 
 
 #### Setup #################################
 packages <- c("tidyverse","janitor")
 source("./R_Scripts/6_Function_Scripts/Install_Load_Packages.R")
+source("./R_Scripts/6_Function_Scripts/Create_SiteColumn_fromPointID.R")
 load_packages(packages)
 
 
@@ -105,6 +106,8 @@ veg <- veg %>%
     grepl("^[[:alpha:]]{3}-[[:digit:]]{1}$", point_id) ~ "selectedcu_nonrand",
     TRUE ~ NA_character_  # Default case if none of the above conditions match
   ))
+# create a site_id column
+veg <- veg %>% create_site_col()
 #test %>% select(point_id, sampling_design)
 # For writing the layers in google earth engine 
 # pull the habitat and mmr grts points 
@@ -117,14 +120,42 @@ unique(hab_chap$aru_present)
 # Create and write a datasheet of coordinates for use in google earth engine
 hab_chap_red <- hab_chap %>% select(point_id, long, lat)
 #write.csv(hab_chap_red,"./Data/Monitoring_Points/Outputs/2023_VegSurveyCoords_HabMMRGRTS_4-22.csv", row.names = FALSE)
+
 # write the cleaned data
-#write.csv(veg,"./Data/Vegetation_Data/Outputs/2023_VegSurveyData_Cleaned4-23.csv", row.names = FALSE)
+#write.csv(veg,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-20.csv", row.names = FALSE)
 
 
 
-############ Veg Data Sheets ###########################
-# Cleaning veg data
-#lump across species
+############ Tree and Shrub Data Sheets ###########################
+# Read in tree data and shrub data
+tree <- read.csv("./Data/Vegetation_Data/Raw_Data/Trees_1.csv") %>% clean_names()
+tree <- tree %>% select(-c(object_id,
+                           for_each_tree_species_choose_the_most_dominant_in_the_plot_up_to_4,
+                           specify_other,
+                           to_add_another_tree_species,
+                           creator,edit_date,editor)) %>% rename(child_global_id = global_id)
+  
+
+shrub <- read.csv("./Data/Vegetation_Data/Raw_Data/ShrubCover_2.csv") %>% clean_names()
+shrub <- shrub %>% select(-c(object_id, 
+                             for_each_shrub_species_choose_the_most_dominant_in_the_plot_up_to_8,
+                             specify_other, 
+                             to_add_another_shrub_species, 
+                             creator, 
+                             edit_date,
+                             editor)) %>% rename(child_global_id = global_id)
+
+# Read in the veg data and select global ID and point id
+veg_red <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-20.csv") 
+veg_red <- veg_red %>% select(global_id,point_id,site_id) %>% rename(parent_global_id = global_id)
+
+# Join by global_id to assign point ID to the veg and shrub data
+tree_comb <- left_join(tree, veg_red, by = "parent_global_id")
+shrub_comb <- left_join(shrub, veg_red, by = "parent_global_id")
+# Write this to .csv
+#write.csv(tree_comb,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_TreeData_Cleaned5-20.csv", row.names = FALSE)
+#write.csv(shrub_comb,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_ShrubData_Cleaned5-20.csv", row.names = FALSE)
+
 
 
 

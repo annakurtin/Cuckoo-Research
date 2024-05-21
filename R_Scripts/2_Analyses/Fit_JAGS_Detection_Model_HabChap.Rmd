@@ -1,19 +1,30 @@
 ---
-title: "JAGS_Detection_Model_HabChap"
+title: "JAGS Detection Model For Habitat Chapter"
 author: "Anna Kurtin"
 date: "`r Sys.Date()`"
 output: html_document
 ---
 
+Shoutout to Matt Tyers for the package on interfacing with jagsUI:
+
+[PDF](https://cran.r-project.org/web/packages/jagshelper/jagshelper.pdf)
+
+[GitHub](https://github.com/mbtyers/jagshelper)
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(jagsUI)
 library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 ```
 
 
 # Data Reading and Formatting
-```{r Read in Data}
+
+Read in data and format it for use in JAGS. 
+```{r Read in Data, eval = FALSE}
 # y data: read in a dataframe that has a row for every point and a column for every detection period 
 
 # Site-level covariates
@@ -58,24 +69,26 @@ full_dat <- full_dat %>% mutate(start_date_s1 = 152,
                      start_date_s5 = 208,
                      start_date_s6 = 222)
 full_dat <- full_dat %>% select(-c(session_name, sampling_design))
-# Trying this to see if it will resolve the model conflicts 
-# full_dat <- na.omit(full_dat)
-saveRDS(full_dat, file ="./Data/Habitat_Model_Covariates/Full_DetectionData_JAGSModels_HabChap.Rdata")
+
+#saveRDS(full_dat, file ="./Data/Habitat_Model_Covariates/Full_DetectionData_JAGSModels_HabChap.Rdata")
 ```
 
 # Data Exploration and Visualization
+
+Looking at distributions of data to inform what probability distribution I should use for priors. 
 ```{r Data Exploration}
+full_dat <- readRDS(file ="C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Full_DetectionData_JAGSModels_HabChap.Rdata")
 # Didn't include sampling design bc in previous work these covaried 
 # look at whether any others covary
 ## Veg Density and Average Background Noise
-plot(x = full_dat$avg_db,y = full_dat$veg_density_avg)
+#plot(x = full_dat$avg_db,y = full_dat$veg_density_avg)
 ## Date and survey effort
-plot(x = full_dat$avg_db,y = full_dat$veg_density_avg)
+#plot(x = full_dat$avg_db,y = full_dat$veg_density_avg)
 
 # Visualize your data to inform your priors
 # average db for survey session
 # NEW average dB
-db <- full_dat[,9:14]
+db <- full_dat[,8:13]
 db_long <- db %>% pivot_longer(cols = c(backdb_survey1,backdb_survey2,backdb_survey3,backdb_survey4,backdb_survey5,backdb_survey6), names_to = "survey_period",values_to = "db" )
 hist(scale(db_long$db), xlab = "Background dB", main = "Scaled Histogram of Background Noise", col = eyering_red1)
 ## Looks like a normal distribution around the scaled variable should be good for a prior
@@ -87,30 +100,49 @@ hist(scale(full_dat$veg_density_avg), xlab = "Average Composite Density at a Sit
 
 # Date
 # uniform distribution between 152-208 - does this include those values?
-dates <- full_dat[,23:28]
+dates <- full_dat[,21:26]
 dates_long <- dates %>% pivot_longer(cols = c(start_date_s1,start_date_s2,start_date_s3,start_date_s4,start_date_s5,start_date_s6), names_to = "survey_period",values_to = "date" )
 hist(scale(dates_long$date), xlab = "Date", main = "Scaled Histogram of Survey Start Date", col = eyering_red1)
 
 # Effort
-efforts <- full_dat[,17:22]
+efforts <- full_dat[,15:20]
 efforts_long <- efforts %>% pivot_longer(cols = c(effort_survey1,effort_survey2,effort_survey3,effort_survey4,effort_survey5,effort_survey6), names_to = "survey_period",values_to = "effort" )
 hist(scale(efforts_long$effort), xlab = "Effort", main = "Scaled Histogram of Survey Effort", col = eyering_red1)
 
 ```
 
 # JAGS Model
-```{r Run JAGS Model 1}
-full_dat <- readRDS("./Data/Habitat_Model_Covariates/Full_DetectionData_JAGSModels_HabChap.Rdata")
+
+**Global Detection Model and Priors:** 
+$$
+z_i \sim Bernoulli(\psi)
+$$ 
+
+$$
+y_{ij} \sim Bernoulli(p| \beta_{date},\beta_{veg density},\beta_{avg db}, \beta_{effort})
+$$
+
+$$x_{avgdb} \sim normal(\mu = 0, \sigma = 1)$$
+$$x_{vegdensity} \sim normal(\mu = 0, \sigma = 1)$$
+$$x_{date} \sim uniform(lower = -2, upper = 2)$$
+$$x_{effort} \sim normal(\mu = 0, \sigma = 1)$$
+
+To add: test to see if you can recover simulated variables from your jags model 
+**ADD IN HERE LATER**
+
+
+```{r Run JAGS Model 1, eval = FALSE}
 # b1/cov1: date
 # b2/cov2: veg density
 # b3/cov3: background noise
 # b4/cov4: effort
 
-# you can just specify how to filll in the values
-# Can also specify to skip the values that are missing
-# assumption is that the data is missing at random
-# pulls the output towards the center
-# frequentist generally has to remove NAs from the dataset
+# We have some NA values in our data from ARUs that cut out early:
+# you can just specify how to fill in the values
+# Can also specify to skip the values that are missing (in other script)
+# assumption is that the data is missing at random (met here, ARU model was randomized so no systemic bias in which ones went out)
+# Filling in the data from a distribution pulls the output towards the center
+# frequentist approaches generally have to remove NAs from the dataset - would remove 17 sites from our data
 
 # Create the jags_model
 cat("
@@ -191,16 +223,29 @@ jags_fit_global <- jags(data = jags_data,
                  n.chains = 3,
                  inits = init_func)
 #saveRDS(jags_fit_global, file = "./R_Scripts/7_Model_Scripts/JAGS_Global_Detection_Model.Rdata")
-
 ```
 
+# Evaluate Model Convergence and Output
 
 ```{r look at JAGS Model 1 Results}
-# Read in the model that we saved after running the above code
-jags_fit_global <- readRDS("./R_Scripts/7_Model_Scripts/JAGS_Global_Detection_Model.Rdata")
+# b1/cov1: date
+# b2/cov2: veg density
+# b3/cov3: background noise
+# b4/cov4: effort
 
+# Read in the model that we saved after running the above code
+jags_fit_global <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research//R_Scripts/7_Model_Scripts/JAGS_Global_Detection_Model.Rdata")
+# I think I need to try saving the mcmc chains instead
+jags_chains_global <- jags_df(jags_fit_global)
+#jags_chains_global$b1
 # Get a summary of the results
 summary(jags_fit_global)
+
+# plot traceplots
+tracedens_jags(jags_fit_global)
+```
+```{R Looking at F Values Old, include = FALSE}
+#jags_fit_global$overlap0
 # Looking at f values
 # b1 date: 0.99 (strongly impacts)
 # b2 veg density: 0.59 (weak-low impact)
@@ -208,34 +253,99 @@ summary(jags_fit_global)
 # b4 effort:  0.88 (moderately impacts)
 
 # Plot the results
-plot(jags_fit_global)
-# B0, B1, and B3 (with a small n_eff value) didn't converge
+#plot(jags_chains_global)
+# B0, B1 (Date), and B3 (background noise) (with a small n_eff value) didn't converge
+```
 
+# Evaluating Posterior Distributions 
+
+```{R Assess Posterior Distribution}
+# Make violin plots from the posterior samples of the chains to visualize the posterior distribution and its overlap with zero (check the code that you wrote with thomas)
+chains_viol <- jags_chains_global %>% select(b1,b2,b3,b4)
+colnames(chains_viol) <- c("date","veg_density","background_noise","effort")
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("date","veg_density","background_noise","effort"),names_to = "Parameter", values_to = "Values")
+
+# Create the violin plot
+ggplot(chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter)) +
+  geom_violin(trim = FALSE) +
+  labs(title = "Violin Plot of MCMC Chains") +
+  scale_fill_manual(values = c("date"=col1, "background_noise"=col2, "effort" = col3, "veg_density" = col4)) +
+  theme_minimal()
+
+# Establish the number of iterations
+nI <- length(chains_viol$date)
+
+# Create histograms of posterior distributions
+hist(chains_viol$date, xlab = "Date", main = "Histogram of Posterior Distribution of Date", col = col1)
+abline(v = 0, lwd = 3, col = "black")
+# Print out the f value
+jags_fit_global$mean$b1
+# Negative, so we're testing which side of zero it falls on
+date_fval <- length(which(jags_chains_global$b1 < 0))/nI
+print(paste("F value for Date:", date_fval))
+
+# Veg density
+hist(chains_viol$veg_density, xlab = "Veg Density", main = "Histogram of Posterior Distribution of Veg Density", col = col4)
+abline(v = 0,lwd = 3, col = "black")
+jags_fit_global$mean$b2
+# Positive, so we're testing which side of zero it falls on
+veg_fval <- length(which(jags_chains_global$b2 > 0))/nI
+print(paste("F value for Veg Density:", veg_fval))
+
+# Background Noise
+hist(chains_viol$background_noise, xlab = "Survey Level Background Noise", main = "Histogram of Posterior Distribution of Background Noise", col = col2)
+abline(v = 0,lwd = 3, col = "black")
+jags_fit_global$mean$b3
+# Negative, so we're testing which side of zero it falls on
+db_fval <- length(which(jags_chains_global$b3 < 0))/nI
+print(paste("F value for Background Noise:", db_fval))
+
+# Survey Effort
+hist(chains_viol$effort, xlab = "Survey Level Effort", main = "Histogram of Posterior Distribution of Effort", col = col3)
+abline(v = 0,lwd = 3, col = "black")
+jags_fit_global$mean$b4
+# Positive, so we're testing which side of zero it falls on
+effort_fval <- length(which(jags_chains_global$b4 > 0))/nI
+print(paste("F value for Effort:", effort_fval))
+
+```
+
+# Remaining Questions:
+
+ - Which detection covariates to carry forward into my full model?
+
+- What does it mean that some of the model didn't converge? Can I fix this or should I not rely on the output from this model?
+
+```{R Here Lies my Failed Attempts and Stuff I Dont Need, include = FALSE, eval = FALSE}
 # Extract MCMC chains
 #chains <- as.mcmc(jags_fit_global)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#TODO 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Make violin plots from the posterior samples of the chains to visualize the posterior distribution and its overlap with zero (check the code that you wrote with thomas)
-test <- extract(det_mod_global)
-test$beta_det
+# global_chains <- extract(jags_fit_global)
+# test$beta_det
+
+# Just looking at veg_density
+# ggplot(data = test, mapping = aes(x = Parameter, y = Values)) + 
+#   geom_boxplot() 
+# 
+# jags_chains_global %>% ggplot(aes(x = ))
 
 # Look at the proportion that is on the same size of zero as the mean (derived from the summary of the model)
 # make a violin plot (package vioplot I think)
 # If the percent of posterior samples that fall on the same of zero as the mean is >90%, you have reason to believe there's a strong effect (F value in jags)
 # don't go down to 70%
 # Effect of effort 
-nI <- length(test$beta_det[,4])
-length(which(test$beta_det[,4] < 0))/nI
+# nI <- length(test$beta_det[,4])
+# length(which(test$beta_det[,4] < 0))/nI
 
+# # Manually calculating f values
+# nI <- length(jags_chains_global[,1])
+# # Date
+# ## Test if mean is positive or negative
+# jags_fit_global$mean$b1
+# # Negative, so we're testing which side of zero it falls on
+# date_fval <- length(which(jags_chains_global$b1 < 0))/nI
 
-```
-
-
-# Test GPT code - BAD DO NOT USE OVERLY COMPLICATED
-
-```{r Run JAGS Model 2, eval=FALSE}
+# Running old JAGS model from Test GPT code - DO NOT USE OVERLY COMPLICATED
 full_dat <- readRDS("./Data/Habitat_Model_Covariates/Full_DetectionData_JAGSModels_HabChap.Rdata")
 # b1/cov1: date
 # b2/cov2: veg density

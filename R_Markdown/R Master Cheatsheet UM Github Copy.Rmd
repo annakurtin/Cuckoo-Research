@@ -191,6 +191,10 @@ library(terra)
 library(mapview)
 library(ggmap)
 
+# For conducting bayesian analysis on breeding bird survey data: bbsBayes https://www.rdocumentation.org/packages/bbsBayes/versions/2.5.3
+install.packages("bbsBayes")
+library(bbbsBayes)
+
 ```
 
 ```{r GitHub Interface}
