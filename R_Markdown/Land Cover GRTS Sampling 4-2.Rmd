@@ -16,7 +16,7 @@ Info on [EPSG 32100](https://epsg.io/32100)
 ```{r Setup, include=FALSE}
 # Load in packages
 packages <- c("data.table","sf","ggmap","terra","raster","mapview","tidyverse","rgdal","XML","methods","FedData","rasterVis","tidyterra","spsurvey", "spData", "usmap","tmap")
-source(".\\R_Scripts\\Install_Load_Packages.R")
+source("./R_Scripts/6_Function_Scripts/Install_Load_Packages.R")
 load_packages(packages)
 ```
 
@@ -48,7 +48,7 @@ proj_bound[4] <- ymax_proj
 
 ```{r Read in Reprojected Land Cover Data}
 # read in the updated, reprojected raster
-lcov <- terra::rast(".\\Data\\Spatial_Data\\NLCD_2019_MTLandcoverProjected.tiff")
+lcov <- terra::rast("./Data/Spatial_Data/NLCD_2019_MTLandcoverProjected.tiff")
 lcov <- as.factor(lcov)
 # I also made a new raster after setting as factor and changing value but I would just run this code chunk every time lcov_new <- terra::rast(".\\Data\\Spatial_Data\\NLCD_2019_MTLandcoverProjectedEdited.tiff")
 
@@ -304,20 +304,23 @@ lcov_to_exclude <- c(11,12,21,22,23,24,31,81,82)
 
 ```{r Missouri GRTS Plotting}
 # select the points in the GRTS sample we want
-miso_main <- read_csv("D:\\MT_Spatial_Data\\Miso_Main_Sample.csv")
+miso_main <- read_csv("D:/MT_Spatial_Data/GRTSSample_NotMaskedToLiDAR/Miso_Main_Sample.csv")
 miso_main_trim <- miso_main %>% filter(!stratum %in% lcov_to_exclude)
 # make it into an SF object
 miso_main_sf <- miso_main_trim %>% st_as_sf(coords=c("lon_WGS84", "lat_WGS84")) %>%
   st_set_crs("EPSF:32100")
 
-miso_over <- read_csv("D:\\MT_Spatial_Data\\Miso_Over_Sample.csv")
+miso_over <- read_csv("D:/MT_Spatial_Data/GRTSSample_NotMaskedToLiDAR/Miso_Over_Sample.csv")
 # no need to trim in the over sample 
 # make it into an SF object
 miso_over_sf <- miso_over %>% st_as_sf(coords=c("lon_WGS84", "lat_WGS84")) %>%
   st_set_crs("EPSF:32100")
 
 
-polys_miso <- st_read("D:\\MT_Spatial_Data\\For_GRTS\\Landcover_Polygon_Missouri.shp") 
+# Old 
+# polys_miso <- st_read("D:\\MT_Spatial_Data\\For_GRTS\\Landcover_Polygon_Missouri.shp") 
+# New
+polys_miso <- st_read("D:/MT_Spatial_Data/For_GRTS/Landcover_Polygon_Missouri_MaskedToLidar.shp") 
 
 # add in a column for the names of each column 
 #main_samples_trimmed <- main_samples_trimmed %>% mutate(lancover == 1)

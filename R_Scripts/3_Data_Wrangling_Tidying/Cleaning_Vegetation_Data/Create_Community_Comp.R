@@ -22,8 +22,16 @@ load_packages(packages)
 #### Read in Data ###################################
 tree <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_TreeData_Cleaned5-20.csv")
 #### Why do some of these entries not have a point_id??????????????????????????
+tree_points <- unique(tree$point_id)
 shrub <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_ShrubData_Cleaned5-20.csv")
 #### Why do some of these entries not have a point_id??????????????????????????
+shrub_points <- unique(shrub$point_id)
+
+# Compare this to all the points
+point_dat <- read.csv("./Data/Monitoring_Points/2023_AllARUPoints_FromDeploymentData.csv")
+all_points <- unique(point_dat$point_id)
+
+# Figure out where the overlap is here ??????????????????????????????????
 
 #### Tree Data ######################################
 # What are the unique values of species?
@@ -97,7 +105,7 @@ hist(dominant_shrub$max_x_cover)
 unique(shrub$shrub_species)
 # Should I include ELAN in these????
 
-floodplain_spp <- c("SALI", "SAMY", "SAEX")
+floodplain_spp <- c("SALI", "SAMY", "SAEX", "POPU", "PDEL", "PANG", "PTRI")
 misc_broadl_spp <- c("ELAN","ROSA", "SYAL", "PRVI", "RIBE","TOXI", "SHCA", "COST", "FRPE", "ACNE", "CRDO")
 upland_spp <- c("ARCA", "JUSC", "ARTR", "JUCO", "SAVE", "PIPO", "PSME")
 # ARCA: silver sagebrush - upland
@@ -107,8 +115,8 @@ upland_spp <- c("ARCA", "JUSC", "ARTR", "JUCO", "SAVE", "PIPO", "PSME")
 # PRVI: choke cherry - other broadleaf
 # RIBE: currant spp - other broadleaf
 # TOXI: poison ivy - other broadleaf
-# RHTR?????????
-# POPU: cottonwood spp - other broadleaf ??????????????????
+# RHTR????????? skunkbush sumac - rhus trilobata
+# POPU: cottonwood spp - floodplain
 # UNSH: unknown (exclude)
 # JUSC: rocky mtn juniper - upland
 # SHCA: Buffaloberry - other broadleaf
@@ -117,12 +125,12 @@ upland_spp <- c("ARCA", "JUSC", "ARTR", "JUCO", "SAVE", "PIPO", "PSME")
 # COST: dogwood - other broadleaf
 # FRPE: green ash - other broadleaf
 # SAMY: peach leaf willow - floodplain
-# PDEL: plains cottonwood - other broadleaf???????????????????????????
-# PANG: narrowleaf cottonwood - other broadleaf ?????????????????
+# PDEL: plains cottonwood - floodplain
+# PANG: narrowleaf cottonwood - floodplain
 # SAEX: sandbar willow - floodplain
 # JUCO: common juniper - upland
 # ACNE: box elder - other broadleaf
-# PTRI: black cottonwood - other broadleaf??????????????
+# PTRI: black cottonwood - floodplain
 # CRDO: black hawthorn -other broadleaf
 # SAVE: greasewood - upland 
 # PIPO: ponderosa pine- upland
@@ -142,6 +150,10 @@ dominant_shrub <- test %>% group_by(site_id) %>%
     dominant_community = shrub_comm[which.max(total_cover)]
   )
 # Refine this once you know which species go in which communities for sure
+dominant_shrub %>% group_by(dominant_community) %>% summarize(n=n())
+# There are 23 + points for these
+
+
 
 
 #### ChatGPT Musings ######################

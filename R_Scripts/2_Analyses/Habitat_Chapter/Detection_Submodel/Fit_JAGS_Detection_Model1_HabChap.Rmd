@@ -1,7 +1,7 @@
 ---
-title: "JAGS Detection Model For Habitat Chapter"
+title: "JAGS Detection Model For Habitat Chapter V1"
 author: "Anna Kurtin"
-date: "`r Sys.Date()`"
+date: "5/20/2024"
 output: html_document
 ---
 

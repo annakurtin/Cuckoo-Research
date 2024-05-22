@@ -1,0 +1,220 @@
+---
+title: "Recover Params JAGS Detection Model1"
+author: "Anna Kurtin"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+set.seed(123)
+```
+
+## Generate Data
+
+```{R generate data}
+nP <- 107
+# number of points
+nV <- 6    # number of repeated visits
+nC <- 4    # number of covariates
+
+# create latent state (z) and detection (y) data storage
+z <- NULL        # point-level latent state
+y <- array(NA, dim = c(nP, nV))   # point-level observation data
+
+# create covariates
+# initialize empty array for x (covariates)
+x <- array(NA, dim = c(nP,nC))
+# Fill the array with randomly generated data
+x[,1] <- runif(nP,-2,2)
+for (j in 2:(nC)){
+  x[,j] <- rnorm(nP, 0, 1)
+}
+
+
+# covariate effects (pull randomly for each covariate)
+beta <- rnorm(nC, 0, 1)
+
+psi0 <- qlogis(0.2) # probability of presence
+p0 <- qlogis(0.6) # probability of detection
+
+# Calculate probability of presence from the beta values
+psi <- NULL
+for (i in 1:nP){
+  psi[i] = plogis(psi0 + beta[1]* x[i,1] + beta[2] * x[i,2] + beta[3] * x[i,3] + beta[4] * x[i,4])
+}
+# plot how probability of occupancy relates to the two covariates to see what the relationship is
+plot(psi ~ x[,1])
+plot(psi ~ x[,2])
+plot(psi ~ x[,3])
+plot(psi ~ x[,4])
+
+# get your true presence/non presence values from psi
+z <- rbinom(nP, 1, psi)
+
+# total number of detections across number of visits (nV)
+y <- matrix(NA, nP, nV)
+# fill in the detection matrix dependent on whether the animal was there (z) and whether it was detected (p0)
+for (i in 1:nP){
+  for (j in 1:nV){
+    y[i,j] <- rbinom(1, z[i], plogis(p0))
+  }
+}
+
+# Create some holes in the samples to simulate NA data
+# select randomly which data will be NA
+mess_y <- sample(1:nP, 20)
+mess_x <- sample(1:nP, 5)
+# Change this data to NA
+y[mess_y, 3] <- NA
+x[mess_x, ] <- c(NA,NA)
+
+```
+
+
+```{R Set Up Model}
+# sampler settings that Thomas had (not currently used in model)
+nc <- 4 # number of chains
+nt <- 1 # number of thinning
+ni <- 5000 # number of iterations
+nb <- 1000 # number burnin
+
+# Put the data into JAGS and run it on your previous model
+# Create the jags_model
+cat("
+  model{
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0
+      
+      cov2[i] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+      
+      for(j in 1:n_rep){
+        cov1[i,j] ~ dunif(-2, 2) # Assuming normal distribution for missing covariates
+        cov3[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        cov4[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0 + b1*cov1[i,j] + b2*cov2[i] + b3*cov3[i,j] + b4*cov4[i,j]
+        
+      }
+    }
+    
+    # Priors
+    a0 ~ dnorm(0, 0.01)
+    b0 ~ dnorm(0, 0.01)
+    b1 ~ dunif(-2, 2)
+    b2 ~ dnorm(0, 1)
+    b3 ~ dnorm(0, 1)
+    b4 ~ dnorm(0, 1)
+  }
+  ", file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models/Test_JAGS_Occ_DetectionModel1.txt")
+
+
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z,
+  # Detection/nondetection data
+  det_data = y,
+  # Date
+  cov1 = x[,1],
+  # Veg Density - site level
+  cov2 = x[,2],
+  # Background noise
+  cov3 = x[,3],
+  # Effort 
+  cov4 = x[,4],
+  n_unit = nP,
+  n_rep = nV
+)
+
+# Set initial values (optional)
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = runif(1, min = -2, max = 2),
+    #b1 = rnorm(1, 0, 1),
+    b2 = rnorm(1, 0, 1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
+  )
+}
+
+# Run JAGS model
+jags_fit_test <- jags(data = jags_data, 
+                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models/Test_JAGS_Occ_DetectionModel1.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
+                 n.iter = 10000, 
+                 n.burnin = 2000, 
+                 n.chains = 3,
+                 inits = init_func)
+#saveRDS(jags_fit_global, file = "./R_Scripts/7_Model_Scripts/JAGS_Global_Detection_Model.Rdata")
+```
+
+
+
+```{R generate data OLD}
+nP <- 107
+# number of points
+nV <- 6    # number of repeated visits
+nC <- 4    # number of covariates
+
+# create latent state (z) and detection (y) data storage
+z <- NULL        # point-level latent state
+y <- array(NA, dim = c(nP, nV))   # point-level observation data
+
+# create covariates
+# initialize empty array for x (covariates)
+x <- array(NA, dim = c(nP,nC))
+# Fill the array with randomly generated data
+for (j in 1:(nC)){
+  x[,j] <- rnorm(nP, 0, 1)
+}
+
+
+# covariate effects (pull randomly for each covariate)
+beta <- rnorm(nC, 0, 1)
+
+psi0 <- qlogis(0.2) # probability of presence
+p0 <- qlogis(0.6) # probability of detection
+
+# Calculate probability of presence from the beta values
+psi <- NULL
+for (i in 1:nP){
+  psi[i] = plogis(psi0 + beta[1]* x[i,1] + beta[2] * x[i,2] + beta[3] * x[i,3] + beta[4] * x[i,4])
+}
+# plot how probability of occupancy relates to the two covariates to see what the relationship is
+plot(psi ~ x[,1])
+plot(psi ~ x[,2])
+plot(psi ~ x[,3])
+plot(psi ~ x[,4])
+
+# get your true presence/non presence values from psi
+z <- rbinom(nP, 1, psi)
+
+# total number of detections across number of visits (nV)
+y <- matrix(NA, nP, nV)
+# fill in the detection matrix dependent on whether the animal was there (z) and whether it was detected (p0)
+for (i in 1:nP){
+  for (j in 1:nV){
+    y[i,j] <- rbinom(1, z[i], plogis(p0))
+  }
+}
+
+# Create some holes in the samples to simulate NA data
+# select randomly which data will be NA
+mess_y <- sample(1:nP, 20)
+mess_x <- sample(1:nP, 5)
+# Change this data to NA
+y[mess_y, 3] <- NA
+x[mess_x, ] <- c(NA,NA)
+
+```
