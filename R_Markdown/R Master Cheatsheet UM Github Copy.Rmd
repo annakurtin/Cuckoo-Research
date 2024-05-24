@@ -994,6 +994,10 @@ test_ <- na.omit(read.csv("Master_File_Analyzed_2019_Only_R.csv"))
 # How to sub in NA values into a column that says "na" or "N/A"
 playbacks_2021 <- playbacks_2021 %>% replace_with_na(replace= list(playback_detection="na"))
 
+# How to replace blanks with NA values
+shrub_comb <- shrub_comb %>%
+  mutate(across(c(shrub_species,shrub_sp_other_collated),~na_if(., "")))
+
 # Creating a column
 Dominance_data["RS"] <- "same"
 

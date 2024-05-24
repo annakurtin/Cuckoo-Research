@@ -4,7 +4,7 @@
 
 # Created 10/24/2023
 
-# Last modified: 5/20/2024
+# Last modified: 5/23/2024
 
 
 #### Setup #################################
@@ -46,7 +46,15 @@ veg[19,2] <- "YELL-060" # Missing the first 0
 veg[75,2] <- "MAN-2"
 # Fix the JDD-1 duplication
 veg[37,2] <- "JDD-2"
+# Fix the CLA-1 duplication
+veg[103,2] <- "CLA-2"
+# Fix the error that labeled MISO-091 as MISO-097 (found out by looking at the coordinates from the deployment data)
+veg[172,2] <- "MISO-091"
 #veg$point_id == "YELL-032"
+# Asked Daniel about the AME-1 duplication ********PENDING**********
+
+# Remove the points that were collected at Seacross Ranch
+veg <- veg %>% filter(!point_id %in% c("SRA-1","SRA-2","SRA-3","SRB-1","SRB-2","SRB-3","LGC-1","LGC-2","LGC-3"))
 
 # Convert datetime to datetime 
 veg <- veg %>% mutate(datetime = as.POSIXct(date, format = "%m/%d/%Y %H:%M"),
@@ -122,11 +130,34 @@ hab_chap_red <- hab_chap %>% select(point_id, long, lat)
 #write.csv(hab_chap_red,"./Data/Monitoring_Points/Outputs/2023_VegSurveyCoords_HabMMRGRTS_4-22.csv", row.names = FALSE)
 
 # write the cleaned data
-#write.csv(veg,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-20.csv", row.names = FALSE)
+write.csv(veg,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-23.csv", row.names = FALSE)
+
+# Checking cleaning:
+veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-23.csv")
+veg[duplicated(veg$point_id)==TRUE,]
+#Checking continuity 
+#old_veg <- read.csv("./Data/Vegetation_Data/Outputs/Archive/2023_VegSurvey_MainData_Cleaned5-20.csv")
+#old_vegpts <- unique(old_veg$point_id)
+#setdiff(deployed_points,old_vegpts)
+deploy <- read.csv("./Data/Metadata/Outputs/2023_ARUDeployment_MetadataFull_Cleaned10-24.csv")
+deployed_points <- unique(deploy$point_id)
+# Figuring out duplicates
+veg_pts <- unique(veg$point_id)
+# Points in deployment not in veg
+setdiff(deployed_points,veg_pts)
+# Points in veg not in deployment
+setdiff(veg_pts,deployed_points)
+# Looks good
 
 
 
 ############ Tree and Shrub Data Sheets ###########################
+
+# Cleaned veg:
+veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-23.csv")
+# Read in the veg data and select global ID and point id
+veg_red <- veg %>% select(global_id,point_id,site_id,notes) %>% rename(parent_global_id = global_id)
+
 # Read in tree data and shrub data
 tree <- read.csv("./Data/Vegetation_Data/Raw_Data/Trees_1.csv") %>% clean_names()
 tree <- tree %>% select(-c(object_id,
@@ -134,8 +165,27 @@ tree <- tree %>% select(-c(object_id,
                            specify_other,
                            to_add_another_tree_species,
                            creator,edit_date,editor)) %>% rename(child_global_id = global_id)
+# Missing SIP-2 and SIP-1?
+# Join by global_id to assign point ID to the veg and shrub data
+tree_comb <- left_join(tree, veg_red, by = "parent_global_id")
+unique(tree_comb$tree_species)
+# Can remove parent id 
+tree_comb <- tree_comb %>% filter(!parent_global_id %in% c("82943a7a-df88-4201-be28-1ea293c143ab", # LGC-1
+                                                       "67d61f98-50c2-47e4-9301-a9c1ece108a0", # LGC-2
+                                                       "056a959c-40b6-4297-a94b-9c228516aa4f", # LGC-3
+                                                       "3286a2ef-c6ed-4e12-ae22-5b209a44ba62", # SRA-3
+                                                       "b0aef62a-0023-4403-8140-7d61d188ba39", # SRA-2
+                                                       "6fdf473b-48aa-4ee4-8d62-b03256bdf740", # SRA-1
+                                                       "3ba9681c-ea03-4908-a6d5-97616c6a4a58", # SRB-1
+                                                       "d732c359-610d-44cb-b916-2b2faacbe42a", # SRB-2
+                                                       "01a02c05-95ae-4c60-8c39-4ad30a916aa0", #SRB-3
+                                                       "819e0291-9369-4c34-b24f-eabd22fc1a7b", # Old SIP-1
+                                                       "eae7cc54-5b91-4574-b4d7-c3608a73fc13" # Old SIP-2
+))
+setdiff(veg$point_id,tree_comb$point_id)
   
 
+# TODO: create a shrub table and change UNSH based on comments
 shrub <- read.csv("./Data/Vegetation_Data/Raw_Data/ShrubCover_2.csv") %>% clean_names()
 shrub <- shrub %>% select(-c(object_id, 
                              for_each_shrub_species_choose_the_most_dominant_in_the_plot_up_to_8,
@@ -145,13 +195,107 @@ shrub <- shrub %>% select(-c(object_id,
                              edit_date,
                              editor)) %>% rename(child_global_id = global_id)
 
-# Read in the veg data and select global ID and point id
-veg_red <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-20.csv") 
-veg_red <- veg_red %>% select(global_id,point_id,site_id) %>% rename(parent_global_id = global_id)
-
 # Join by global_id to assign point ID to the veg and shrub data
-tree_comb <- left_join(tree, veg_red, by = "parent_global_id")
 shrub_comb <- left_join(shrub, veg_red, by = "parent_global_id")
+# First: replace the blank spaces with NA so they don't get removed in later calculations
+shrub_comb <- shrub_comb %>%
+  mutate(across(c(shrub_species,shrub_sp_other_collated),~na_if(., "")))
+# Can remove parent id 
+shrub_comb <- shrub_comb %>% filter(!parent_global_id %in% c("82943a7a-df88-4201-be28-1ea293c143ab", # LGC-1
+                                                       "67d61f98-50c2-47e4-9301-a9c1ece108a0", # LGC-2
+                                                       "056a959c-40b6-4297-a94b-9c228516aa4f", # LGC-3
+                                                       "3286a2ef-c6ed-4e12-ae22-5b209a44ba62", # SRA-3
+                                                       "b0aef62a-0023-4403-8140-7d61d188ba39", # SRA-2
+                                                       "6fdf473b-48aa-4ee4-8d62-b03256bdf740", # SRA-1
+                                                       "3ba9681c-ea03-4908-a6d5-97616c6a4a58", # SRB-1
+                                                       "d732c359-610d-44cb-b916-2b2faacbe42a", # SRB-2
+                                                       "01a02c05-95ae-4c60-8c39-4ad30a916aa0", #SRB-3
+                                                       "819e0291-9369-4c34-b24f-eabd22fc1a7b", # Old SIP-1
+                                                       "eae7cc54-5b91-4574-b4d7-c3608a73fc13" # Old SIP-2
+                                                       ))
+#unique(shrub_comb$point_id)
+setdiff(veg$point_id,shrub_comb$point_id)
+# Missing JDO-2 but this doesn't have any shrubs??? Just move on with it for now
+#veg %>% filter(total_percent_shrub_cover == 0)
+
+
+# Clean up the shrub "other" and UNSH based on comments and sp other column
+# Change based on notes for AME-1
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(point_id == "AME-1" & x_cover == 1.0,"TAMA",shrub_species))
+## Based on comments: GMW-3 change UNSH at .5 m high to RIBE and NA at 1m high to TAMA
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(point_id == "GMW-3" & shrub_height_m == 0.50,"RIBE",shrub_species))
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(point_id == "GMW-3" & shrub_height_m == 1.00,"TAMA",shrub_species))
+## Change UNSH LMA-2 to JUHO based on comments
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "6bf44fb3-2c46-41ac-861b-75e35fc5bde7","JUHO",shrub_species))
+## SNO-2 - change UNSH to LONI for honeysuckle spp
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(point_id == "SNO-2" & shrub_height_m == 0.50 & x_cover == 1.00,"LONI",shrub_species))
+## SNO-3 - change UNSH to LONI for honeysuckle
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(point_id == "SNO-3" & shrub_height_m == 0.75 & x_cover == 1.00,"LONI",shrub_species))
+## Change MISO-204 to SHAR for silver buffaloberry
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(point_id == "MISO-204" & shrub_height_m == 2.25,"SHAR",shrub_species))
+## MISO-150 - change UNSH to UNBR - look at the picture from the veg survey, this was counted as narrowleaf marshelder but their range isn't in MT
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(point_id == "MISO-150" & shrub_height_m == 1.00,"UNBR",shrub_species))
+## UNSH 5% at YELL-211 is TAMA and other is wormwood
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(point_id == "YELL-211" & x_cover == 5.00,"TAMA",shrub_species))
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(point_id == "YELL-211" & x_cover == 2.00,"ARAB",shrub_species))
+## Change MISO-152 based on comments
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "39e20095-1994-4228-8908-4a802bc409b1","ARAB",shrub_species))
+## Changing MISO-119 based on comments
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(point_id == "MISO-119" & x_cover == 3.00,"YUGA",shrub_species))
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "5d000c00-bb28-4807-8334-e6f5a5cac224","GUSA",shrub_species))
+## Changing MISO-187
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "acf4206c-9b06-41ab-8759-57a380d480be","ARLU",shrub_species))
+## Changing MISO-125 based on comments
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "7d216a8f-b9d3-446a-8f7e-92cc54231f59","ATCO",shrub_species))
+## Changing MISO-057 based on comments
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "5788e4b0-452b-4c93-b37d-fc0ad0061dec","YUGA",shrub_species))
+## Changing MISO-016 based on comments
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "da0f688c-1c06-4586-a26c-0d04fd8dd8ba","ATCO",shrub_species))
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "a467807f-e93e-427b-b498-7008307f4ec7","GUSA",shrub_species))
+## Changing MISO-015 based on comments
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "7770bf32-d881-48bc-b22b-a883876d8d85","ATCO",shrub_species))
+## Changing MISO-122 based on comments
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "77dc8087-7374-49ae-ba25-d125ae7a6c09","ATCO",shrub_species))
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "7acd2c43-c313-452f-b82a-09efe03bf67e","KRLA",shrub_species))
+## Changing MISO-098 based on comments
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "1a22ea3d-c008-4121-8152-af054d338d22","YUGA",shrub_species))
+## Changing MISO-094 based on comments
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "376e6452-1913-45fe-9c5c-b57cff977a83","KRLA",shrub_species))
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "c0583f1f-65e2-439a-b6a1-b696cfe59ee0","ATCO",shrub_species))
+## Changing MISO-188 based on comments
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "25f37262-202d-4999-adb2-0486c15cf5ec","ARLU",shrub_species))
+## Changing MISO-196 based on comments
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "790f1d75-636d-4e63-bd3a-02914dd0c47c","ARLU",shrub_species))
+## CHanging MISO-017 based on comments
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "291550b1-d873-4dd2-9b47-37006a869fcc","YUGA",shrub_species))
+## Changing MISO-177 based on comments
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "4328663f-af2b-45cc-b600-cd47307d6c15","ARLU",shrub_species))
+## Changing MISO-064 based on comments
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "6f24e66c-7389-440c-a9ef-b111ef30d256","GUSA",shrub_species))
+# Add tamarisk from the other YELL-024
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "bcdb0934-64cf-460c-9578-165b5c65a164","TAMA",shrub_species))
+## Add tamarisk from other YELL-217
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "fc54436e-14e2-4e29-9a4c-d4a75458bb61","TAMA",shrub_species))
+# Change MISO-062 to UNK Broadleaf
+shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "b4aaf2f8-1d49-446b-8c96-29b0ac4ab4dd","UNBR",shrub_species))
+
+## Remove bc herbaceous, not shrub
+## Ground cherry ## Sweet clover ## Licorice
+shrub_comb <- shrub_comb %>% filter(!child_global_id %in% c("13ec2366-696f-4aa7-808e-af5968a63100","59d77312-4429-4e77-a7a2-326af085f0cf","8b05d257-e3fa-43da-b4ca-95d67eed2e01" ))
+
+# Take a look at what is represented by the UNK species
+unk_only <- shrub_comb %>% filter(shrub_species == "UNSH") 
+# No UNSH left
+
+#unique(shrub_comb$shrub_species)
+
+
+##### LEFT OFF HERE *****************************************************************************
+## NOTE: not including Parthenocissus inserta since this is a vine and not woody veg/shrub
+
+# Mutate any rows that have values for cover and height but no spp to UNSH
+# After doing this, look and see what the total coverage/distribution of the UNSH is and potentially label them as misc_broadleaf or remove them
+
 # Write this to .csv
 #write.csv(tree_comb,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_TreeData_Cleaned5-20.csv", row.names = FALSE)
 #write.csv(shrub_comb,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_ShrubData_Cleaned5-20.csv", row.names = FALSE)
@@ -161,3 +305,6 @@ shrub_comb <- left_join(shrub, veg_red, by = "parent_global_id")
 
 #### CODE GRAVEYARD ####
 #veg[114,2] <- "MISO-032" # Spelled MIS0 rather than MISO
+# unk_shrub_plot <- unk_only %>% ggplot() +
+#   geom_histogram(x= x_cover)
+# unk_shrub_cover <- hist(unk_only$x_cover)

@@ -30,7 +30,15 @@ shrub_points <- unique(shrub$point_id)
 # Compare this to all the points
 point_dat <- read.csv("./Data/Monitoring_Points/2023_AllARUPoints_FromDeploymentData.csv")
 all_points <- unique(point_dat$point_id)
-
+veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-20.csv")
+all_veg <- unique(veg$point_id)
+# 195 veg points total
+# Which veg plots are missing from the tree points?
+# Values in veg that aren't in tree
+notree_points <- setdiff(all_veg, tree_points)
+veg %>% filter(site_id == "ISA")
+shrub %>% filter(is.na(shrub_species))
+# Go back and look at the veg surveys for these points to make sure they aren't supposed to have a tree
 # Figure out where the overlap is here ??????????????????????????????????
 
 #### Tree Data ######################################
@@ -103,43 +111,29 @@ dominant_shrub <- shrub %>% group_by(site_id) %>%
 # Look at the distribution of this covariate
 hist(dominant_shrub$max_x_cover)
 unique(shrub$shrub_species)
+# Look at the distribution of percent cover per species
+ggplot(data = shrub, mapping = aes(x = shrub_species, y = x_cover)) + 
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle = 45,hjust = 1))
+# Look at the distribution of height per species
+ggplot(data = shrub, mapping = aes(x = shrub_species, y = shrub_height_m)) + 
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle = 45,hjust = 1))
+# Save these plots?
 # Should I include ELAN in these????
 
-floodplain_spp <- c("SALI", "SAMY", "SAEX", "POPU", "PDEL", "PANG", "PTRI")
-misc_broadl_spp <- c("ELAN","ROSA", "SYAL", "PRVI", "RIBE","TOXI", "SHCA", "COST", "FRPE", "ACNE", "CRDO")
-upland_spp <- c("ARCA", "JUSC", "ARTR", "JUCO", "SAVE", "PIPO", "PSME")
-# ARCA: silver sagebrush - upland
-# ELAN: russian olive - other broadleaf
-# ROSA: rose spp - other broadleaf
-# SYAL: snowberry - other broadleaf
-# PRVI: choke cherry - other broadleaf
-# RIBE: currant spp - other broadleaf
-# TOXI: poison ivy - other broadleaf
-# RHTR????????? skunkbush sumac - rhus trilobata
-# POPU: cottonwood spp - floodplain
-# UNSH: unknown (exclude)
-# JUSC: rocky mtn juniper - upland
-# SHCA: Buffaloberry - other broadleaf
-# ARTR: big sagebrush - upland
-# SALI: willow spp - floodplain
-# COST: dogwood - other broadleaf
-# FRPE: green ash - other broadleaf
-# SAMY: peach leaf willow - floodplain
-# PDEL: plains cottonwood - floodplain
-# PANG: narrowleaf cottonwood - floodplain
-# SAEX: sandbar willow - floodplain
-# JUCO: common juniper - upland
-# ACNE: box elder - other broadleaf
-# PTRI: black cottonwood - floodplain
-# CRDO: black hawthorn -other broadleaf
-# SAVE: greasewood - upland 
-# PIPO: ponderosa pine- upland
-# PSME: doug fir - upland
-# other: ?????
-test <- shrub %>% mutate(shrub_comm = case_when(
+# Based on Veg_Codes_Cheatsheet in resources folder
+floodplain_spp <- c("PANG","PDEL","POPU","PTRI","SAEX","SALI","SAMY")
+misc_broadl_spp <- c("FRPE","CRDO","COST","ATCO","ACNE","LONI","PRUN","PRVI","RHTR","RIBE","ROSA","SHCA","SHAR","SYAL","TOXI","UNBR")
+upland_spp <- c("ARCA","ARTR","ARAB","ARLU","GUSA","JUSC","JUCO","JUHO","KRLA","PIPO","PSME","SAVE","YUGA")
+invasives <- c("ELAN","TAMA")
+broadleaf_winvasives <- c("FRPE","CRDO","COST","ATCO","ACNE","LONI","PRUN","PRVI","RHTR","RIBE","ROSA","SHCA","SHAR","SYAL","TOXI","UNBR","ELAN","TAMA")
+
+test1 <- shrub %>% mutate(shrub_comm = case_when(
   shrub_species %in% floodplain_spp ~ "floodplain",
   shrub_species %in% misc_broadl_spp ~ "misc_broadleaf",
-  shrub_species %in% upland_spp ~ "upland"
+  shrub_species %in% upland_spp ~ "upland",
+  shrub_species %in% olive ~ "russ_olive"
 ))
 
 test <- test %>% group_by(site_id,shrub_comm) %>% summarize(total_cover = sum(x_cover))
@@ -153,7 +147,7 @@ dominant_shrub <- test %>% group_by(site_id) %>%
 dominant_shrub %>% group_by(dominant_community) %>% summarize(n=n())
 # There are 23 + points for these
 
-
+# Make sure that ISA and YWM-1, MUSH-184, MUSH-060, MUSH-169 has data even though it didn't have any shrubs present
 
 
 #### ChatGPT Musings ######################
@@ -195,4 +189,39 @@ test <- shrub %>% group_by(point_id) %>%
 
 
 #### Code Graveyard ########################
+# Old designations
+# floodplain_spp <- c("SALI", "SAMY", "SAEX", "POPU", "PDEL", "PANG", "PTRI")
+# misc_broadl_spp <- c("ROSA", "SYAL", "PRVI", "RIBE","TOXI", "SHCA", "COST", "FRPE", "ACNE", "CRDO")
+# upland_spp <- c("ARCA", "JUSC", "ARTR", "JUCO", "SAVE", "PIPO", "PSME")
+# olive <- "ELAN"
+# all_other_broadleaf <- c("ELAN", "ROSA", "SYAL", "PRVI", "RIBE","TOXI", "SHCA", "COST", "FRPE", "ACNE", "CRDO")
 #tree_richness1 <- tree %>% group_by(site_id) %>% summarize(native_broadl_tree = sum(native_broadl))
+
+# ARCA: silver sagebrush - upland
+# ELAN: russian olive - other broadleaf
+# ROSA: rose spp - other broadleaf
+# SYAL: snowberry - other broadleaf
+# PRVI: choke cherry - other broadleaf
+# RIBE: currant spp - other broadleaf
+# TOXI: poison ivy - other broadleaf
+# RHTR????????? skunkbush sumac - rhus trilobata
+# POPU: cottonwood spp - floodplain
+# UNSH: unknown (exclude)
+# JUSC: rocky mtn juniper - upland
+# SHCA: Buffaloberry - other broadleaf
+# ARTR: big sagebrush - upland
+# SALI: willow spp - floodplain
+# COST: dogwood - other broadleaf
+# FRPE: green ash - other broadleaf
+# SAMY: peach leaf willow - floodplain
+# PDEL: plains cottonwood - floodplain
+# PANG: narrowleaf cottonwood - floodplain
+# SAEX: sandbar willow - floodplain
+# JUCO: common juniper - upland
+# ACNE: box elder - other broadleaf
+# PTRI: black cottonwood - floodplain
+# CRDO: black hawthorn -other broadleaf
+# SAVE: greasewood - upland 
+# PIPO: ponderosa pine- upland
+# PSME: doug fir - upland
+# other: ?????
