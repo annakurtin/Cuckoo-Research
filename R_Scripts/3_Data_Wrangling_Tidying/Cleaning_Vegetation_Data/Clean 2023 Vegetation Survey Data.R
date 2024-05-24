@@ -4,7 +4,7 @@
 
 # Created 10/24/2023
 
-# Last modified: 5/23/2024
+# Last modified: 5/24/2024
 
 
 #### Setup #################################
@@ -130,10 +130,10 @@ hab_chap_red <- hab_chap %>% select(point_id, long, lat)
 #write.csv(hab_chap_red,"./Data/Monitoring_Points/Outputs/2023_VegSurveyCoords_HabMMRGRTS_4-22.csv", row.names = FALSE)
 
 # write the cleaned data
-write.csv(veg,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-23.csv", row.names = FALSE)
+#write.csv(veg,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-24.csv", row.names = FALSE)
 
 # Checking cleaning:
-veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-23.csv")
+veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-24.csv")
 veg[duplicated(veg$point_id)==TRUE,]
 #Checking continuity 
 #old_veg <- read.csv("./Data/Vegetation_Data/Outputs/Archive/2023_VegSurvey_MainData_Cleaned5-20.csv")
@@ -154,11 +154,12 @@ setdiff(veg_pts,deployed_points)
 ############ Tree and Shrub Data Sheets ###########################
 
 # Cleaned veg:
-veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-23.csv")
+veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-24.csv")
 # Read in the veg data and select global ID and point id
-veg_red <- veg %>% select(global_id,point_id,site_id,notes) %>% rename(parent_global_id = global_id)
+veg_red <- veg %>% select(global_id,point_id,site_id,sampling_design,notes) %>% rename(parent_global_id = global_id)
 
-# Read in tree data and shrub data
+#### Tree #
+# Read in tree data
 tree <- read.csv("./Data/Vegetation_Data/Raw_Data/Trees_1.csv") %>% clean_names()
 tree <- tree %>% select(-c(object_id,
                            for_each_tree_species_choose_the_most_dominant_in_the_plot_up_to_4,
@@ -182,10 +183,10 @@ tree_comb <- tree_comb %>% filter(!parent_global_id %in% c("82943a7a-df88-4201-b
                                                        "819e0291-9369-4c34-b24f-eabd22fc1a7b", # Old SIP-1
                                                        "eae7cc54-5b91-4574-b4d7-c3608a73fc13" # Old SIP-2
 ))
+# Check if there are any in veg that aren't in tree
 setdiff(veg$point_id,tree_comb$point_id)
   
-
-# TODO: create a shrub table and change UNSH based on comments
+#### Shrub #
 shrub <- read.csv("./Data/Vegetation_Data/Raw_Data/ShrubCover_2.csv") %>% clean_names()
 shrub <- shrub %>% select(-c(object_id, 
                              for_each_shrub_species_choose_the_most_dominant_in_the_plot_up_to_8,
@@ -217,7 +218,7 @@ shrub_comb <- shrub_comb %>% filter(!parent_global_id %in% c("82943a7a-df88-4201
 setdiff(veg$point_id,shrub_comb$point_id)
 # Missing JDO-2 but this doesn't have any shrubs??? Just move on with it for now
 #veg %>% filter(total_percent_shrub_cover == 0)
-
+#veg[veg$point_id == "JDO-2",]
 
 # Clean up the shrub "other" and UNSH based on comments and sp other column
 # Change based on notes for AME-1
@@ -281,6 +282,7 @@ shrub_comb <- shrub_comb %>% mutate(shrub_species = ifelse(child_global_id == "b
 
 ## Remove bc herbaceous, not shrub
 ## Ground cherry ## Sweet clover ## Licorice
+## NOTE: not including Parthenocissus inserta (was listed in the comments) since this is a vine and not woody veg/shrub
 shrub_comb <- shrub_comb %>% filter(!child_global_id %in% c("13ec2366-696f-4aa7-808e-af5968a63100","59d77312-4429-4e77-a7a2-326af085f0cf","8b05d257-e3fa-43da-b4ca-95d67eed2e01" ))
 
 # Take a look at what is represented by the UNK species
@@ -290,15 +292,13 @@ unk_only <- shrub_comb %>% filter(shrub_species == "UNSH")
 #unique(shrub_comb$shrub_species)
 
 
-##### LEFT OFF HERE *****************************************************************************
-## NOTE: not including Parthenocissus inserta since this is a vine and not woody veg/shrub
 
 # Mutate any rows that have values for cover and height but no spp to UNSH
 # After doing this, look and see what the total coverage/distribution of the UNSH is and potentially label them as misc_broadleaf or remove them
 
 # Write this to .csv
-#write.csv(tree_comb,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_TreeData_Cleaned5-20.csv", row.names = FALSE)
-#write.csv(shrub_comb,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_ShrubData_Cleaned5-20.csv", row.names = FALSE)
+#write.csv(tree_comb,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_TreeData_Cleaned5-24.csv", row.names = FALSE)
+#write.csv(shrub_comb,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_ShrubData_Cleaned5-24.csv", row.names = FALSE)
 
 
 

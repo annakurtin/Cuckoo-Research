@@ -4,100 +4,84 @@
 
 # Created 5/20/2024
 
-# Last modified: 5/20/2024
-
-#TODO
-## Figure out why some of the entires don't have a point_id
-## Potentially use process of elimination to figure out which is the missing point
-## Then write the output to csv
+# Last modified: 5/242024
 
 #### Setup #################################
-packages <- c("tidyverse","janitor")
+packages <- c("tidyverse","janitor","forcats")
 source("./R_Scripts/6_Function_Scripts/Install_Load_Packages.R")
 source("./R_Scripts/6_Function_Scripts/Create_SiteColumn_fromPointID.R")
+source("./R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 load_packages(packages)
 
 
 
 #### Read in Data ###################################
-tree <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_TreeData_Cleaned5-20.csv")
-#### Why do some of these entries not have a point_id??????????????????????????
-tree_points <- unique(tree$point_id)
-shrub <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_ShrubData_Cleaned5-20.csv")
-#### Why do some of these entries not have a point_id??????????????????????????
-shrub_points <- unique(shrub$point_id)
+tree_orig <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_TreeData_Cleaned5-24.csv")
+#tree_points <- unique(tree$point_id)
+shrub_orig <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_ShrubData_Cleaned5-24.csv")
+#shrub_points <- unique(shrub$point_id)
 
-# Compare this to all the points
-point_dat <- read.csv("./Data/Monitoring_Points/2023_AllARUPoints_FromDeploymentData.csv")
-all_points <- unique(point_dat$point_id)
-veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-20.csv")
-all_veg <- unique(veg$point_id)
-# 195 veg points total
-# Which veg plots are missing from the tree points?
-# Values in veg that aren't in tree
-notree_points <- setdiff(all_veg, tree_points)
-veg %>% filter(site_id == "ISA")
-shrub %>% filter(is.na(shrub_species))
-# Go back and look at the veg surveys for these points to make sure they aren't supposed to have a tree
-# Figure out where the overlap is here ??????????????????????????????????
+# Remove the points that don't have an ARU at it
+veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-24.csv")
+veg_waru <- veg %>% filter(aru_present == "yes")
+points_waru <- veg_waru$point_id
+
+tree <- tree_orig %>% filter(point_id %in% points_waru)
+shrub <- shrub_orig %>% filter(point_id %in% points_waru)
+
+
 
 #### Tree Data ######################################
 # What are the unique values of species?
-unique(tree$tree_species) # 12 unique tree species
-## To include: Native Broadleaf Species
-# PDEL: plains cottonwood
-# PANG: narrowleaf cottonwood
-# ACNE: boxelder
-# POPU: unk cottonwood
-# FRPE: green ash
-# SAMY: peach leaf willow
-# PTRI: black cottonwood
-## To exclude: non natives and conifers
-# JUSC: Rocky Mtn Juniper
-# PIPO: ponderosa pine
-# PSME: douglas fir
-# ELAN: Russian Olive
-# UNTR: unknown (at YELL-182 and SRB-2)
-# *no data*
+length(unique(tree$tree_species)) # 13 unique tree species
+#tree[tree$tree_species == "UNTR",]
+#tree[tree$tree_species == "PIPO",]
 
-tree[tree$tree_species == "UNTR",]
-tree[tree$tree_species == "PIPO",]
-
-spp_freq_t <- tree %>%
-  group_by(tree_species) %>%
-  summarise(count = n()) %>%
-  arrange(desc(count))
-# This is sites with that tree, not trees in the data
-
-# What is the distribution of the data?
-ggplot(spp_freq_t, aes(x = reorder(tree_species, -count), y = count)) +
-  geom_bar(stat = "identity", fill = "skyblue") +
-  labs(title = "Frequency of Sites with Tree Species",
+# Look at how sampling design affects the distribution of the tree species
+tree_counts <- tree %>% group_by(site_id) %>% count(tree_species, sampling_design) %>% arrange(desc(n))
+# Reorder
+tree_counts <- tree_counts %>%
+  mutate(tree_species = fct_reorder(tree_species, -n))
+# Is there skew with non random points included?
+ggplot(tree_counts, aes(x = tree_species, y = n, fill = sampling_design)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Number of Sites with Tree Species",
        x = "Tree Species",
-       y = "Frequency") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+       y = "Number of Sites Present") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_manual(values = c("habitat_grts" = col1, "mmr_grts" = col2, "selectedcu_nonrand" = col4))
+#### Something seems off to me about this graph????????????????????????????????????????????????
 
-# Test if tree species is same as tree_sp_other_collated
-test <- tree %>% mutate(same = ifelse(tree_species == tree_sp_other_collated,"Y","N"))
-test[test$same == "N"]
-# Nothing, this is good 
-
+# See if the sampling design affects the distribution of the tree community 
 # Creating native broadleaf species richness
-native_broadleaf <-  c("PDEL", "PANG","ACNE", "POPU","FRPE", "SAMY", "PTRI")
-tree <- tree %>% mutate(native_broadl = ifelse(tree_species %in% native_broadleaf,1,0))
-tree2 <- tree %>% filter(native_broadl ==1)
-tree_richness <- tree2 %>% group_by(site_id) %>% summarize(native_broadl = n_distinct(tree_species))
-# Test out if it worked correctly
-tree2[tree2$site_id == "203",]
-tree_richness[tree_richness$site_id == "203",]
-# Looks good
-# Look at distribution
-hist(tree_richness$native_broadl)
+native_broadleaf <-  c("ACNE","FRPE", "PANG","PDEL","POPU","PTRI","SAMY") 
+non_native <- c("ELAN")
+conifer <- c("CRDO","JUSC","PIPO","PSME")
+tree <- tree %>% mutate(tree_comm = case_when(
+  tree_species %in% native_broadleaf ~ "native_broadleaf",
+  tree_species %in% non_native ~ "non_native",
+  tree_species %in% conifer ~ "conifer"
+))
+
+# Create count of species richness
+spp_rich_tree1 <- tree %>% filter(tree_comm == "native_broadleaf") %>% group_by(site_id) %>% reframe(spp_richness = length(unique(tree_species)))
+# Join the sampling design to this
+site_sampd <- tree %>% group_by(site_id) %>% reframe(sampling_design = first(sampling_design))
+spp_rich_tree <- left_join(spp_rich_tree1, site_sampd, by = "site_id")
+hist(spp_rich_tree$spp_richness)
 # Not as wide of a distribution, make sure there are multiple points for each number
-tree_richness %>% group_by(native_broadl) %>% summarize(n=n()) 
-# There are only two points with four different types of broadleaf species - is this enough?
+richness_table <- spp_rich_tree %>% group_by(spp_richness) %>% summarize(n=n()) 
+richness_table
+# Lots of points with only one species, only a handful with 3 or 4. Is there enough data to fit this?
+ggplot(spp_rich_tree, aes(x = spp_richness, fill = sampling_design)) +
+  geom_histogram(position = "dodge") +
+  labs(title = "Distribution of Tree Species Richness",
+       x = "Tree Species Richness") +
+  scale_fill_manual(values = c("habitat_grts" = col1, "mmr_grts" = col2, "selectedcu_nonrand" = col8))
+# It doesn't look like the nonrandom sites are introducing major bias into this
 
 # Write this to .csv
+write.csv(spp_rich_tree,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_TreeSppRich_5-24.csv",row.names = FALSE)
 
 
 
@@ -120,8 +104,12 @@ ggplot(data = shrub, mapping = aes(x = shrub_species, y = shrub_height_m)) +
   geom_boxplot()+
   theme(axis.text.x = element_text(angle = 45,hjust = 1))
 # Save these plots?
-# Should I include ELAN in these????
+# Make sure that ISA and YWM-1, MUSH-184, MUSH-060, MUSH-169 has data even though it didn't have any shrubs present
+# Looks good
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Where should invasive species go?
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Based on Veg_Codes_Cheatsheet in resources folder
 floodplain_spp <- c("PANG","PDEL","POPU","PTRI","SAEX","SALI","SAMY")
 misc_broadl_spp <- c("FRPE","CRDO","COST","ATCO","ACNE","LONI","PRUN","PRVI","RHTR","RIBE","ROSA","SHCA","SHAR","SYAL","TOXI","UNBR")
@@ -129,25 +117,98 @@ upland_spp <- c("ARCA","ARTR","ARAB","ARLU","GUSA","JUSC","JUCO","JUHO","KRLA","
 invasives <- c("ELAN","TAMA")
 broadleaf_winvasives <- c("FRPE","CRDO","COST","ATCO","ACNE","LONI","PRUN","PRVI","RHTR","RIBE","ROSA","SHCA","SHAR","SYAL","TOXI","UNBR","ELAN","TAMA")
 
-test1 <- shrub %>% mutate(shrub_comm = case_when(
+##### First: treating the invasives separately 
+shrub_invas_sep <- shrub %>% mutate(shrub_comm = case_when(
   shrub_species %in% floodplain_spp ~ "floodplain",
   shrub_species %in% misc_broadl_spp ~ "misc_broadleaf",
   shrub_species %in% upland_spp ~ "upland",
-  shrub_species %in% olive ~ "russ_olive"
+  shrub_species %in% invasives ~ "invasive"
 ))
-
-test <- test %>% group_by(site_id,shrub_comm) %>% summarize(total_cover = sum(x_cover))
-
-dominant_shrub <- test %>% group_by(site_id) %>%
+# Are there any sites that are majority invasive?
+shrub_cov_sum_sep <- shrub_invas_sep %>% group_by(site_id,shrub_comm) %>% summarize(total_cover = sum(x_cover))
+# Create dominant shrub community
+dominant_shrub_sep <- shrub_cov_sum_sep %>% group_by(site_id) %>%
   reframe(
     max_cover = max(total_cover),
     dominant_community = shrub_comm[which.max(total_cover)]
   )
-# Refine this once you know which species go in which communities for sure
-dominant_shrub %>% group_by(dominant_community) %>% summarize(n=n())
-# There are 23 + points for these
+shrub_samp <- shrub %>% group_by(site_id) %>% reframe(sampling_design = first(sampling_design))
+dominant_shrub_sep <- left_join(dominant_shrub_sep, shrub_samp, by = "site_id")
 
-# Make sure that ISA and YWM-1, MUSH-184, MUSH-060, MUSH-169 has data even though it didn't have any shrubs present
+# Plot this
+jpeg(paste("./Deliverables/Create_Habitat_Covariates/Habitat_Chapter/Shrub_Dominant_Community/Shrub_Community_Invasives_Separated.jpg"), width = 800, height = 600)
+ggplot(dominant_shrub_sep, aes(x = fct_relevel(dominant_community, "floodplain","misc_broadleaf","upland","invasive"), fill = dominant_community)) +
+  geom_histogram(stat = "count") +
+  labs(title = "Shrub Communities - Invasives Separated",
+       x = "Shrub Community",
+       y = "Number of Sites") +
+  theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+  scale_fill_manual(values = c("floodplain" = col1,"misc_broadleaf" = col2, "upland" = col3, "invasive" = col4)) +
+  scale_y_continuous(limits = c(0,60),breaks = c(10,20,30,40,50,60))
+dev.off()
+
+# Look at the distribution of sampling design
+jpeg(paste("./Deliverables/Create_Habitat_Covariates/Habitat_Chapter/Shrub_Dominant_Community/Shrub_Community_by_Sampling_Design_Invasives_Separated.jpg"), width = 800, height = 600)
+ggplot(dominant_shrub_sep, aes(x = fct_relevel(dominant_community, "floodplain","misc_broadleaf","upland","invasive"), fill = sampling_design)) +
+  geom_histogram(stat = "count", position = "dodge") +
+  labs(title = "Community by Sampling Design - Invasives Separated",
+       x = "Shrub Community",
+       y = "Number of Sites") +
+  theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+  scale_y_continuous(limits = c(0,60),breaks = c(10,20,30,40,50,60))+
+  scale_fill_manual(values = c("habitat_grts" = col5, "mmr_grts" = col6, "selectedcu_nonrand" = col8))
+dev.off()
+
+##### What about if we combine the invasives with the broadleaf, does this significantly change the communities?
+shrub_invas_comb <-  shrub %>% mutate(shrub_comm = case_when(
+  shrub_species %in% floodplain_spp ~ "floodplain",
+  shrub_species %in% broadleaf_winvasives ~ "broadleaf_winvasive",
+  shrub_species %in% upland_spp ~ "upland"
+))
+#
+shrub_cov_sum_comb <- shrub_invas_comb %>% group_by(site_id,shrub_comm) %>% summarize(total_cover = sum(x_cover))
+# Create dominant shrub community 
+dominant_shrub_comb <- shrub_cov_sum_comb %>% group_by(site_id) %>%
+  reframe(
+    max_cover = max(total_cover),
+    dominant_community = shrub_comm[which.max(total_cover)]
+  )
+dominant_shrub_comb <- left_join(dominant_shrub_comb, shrub_samp, by = "site_id")
+# Plot this
+jpeg(paste("./Deliverables/Create_Habitat_Covariates/Habitat_Chapter/Shrub_Dominant_Community/Shrub_Community_Invasives_Combined.jpg"), width = 800, height = 600)
+ggplot(dominant_shrub_comb, aes(x = fct_relevel(dominant_community, "floodplain","broadleaf_winvasive","upland"), fill = dominant_community)) +
+  geom_histogram(stat = "count") +
+  labs(title = "Shrub Communities - Invasives Included with Broadleaf",
+       x = "Shrub Community",
+       y = "Number of Sites") +
+  theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+  scale_fill_manual(values = c("floodplain" = col1,"broadleaf_winvasive" = col2, "upland" = col3)) +
+  scale_y_continuous(limits = c(0,60),breaks = c(10,20,30,40,50,60))
+dev.off()
+
+# Look at the distribution of sampling design
+jpeg(paste("./Deliverables/Create_Habitat_Covariates/Habitat_Chapter/Shrub_Dominant_Community/Shrub_Community_by_Sampling_Design_Invasives_Combined.jpg"), width = 800, height = 600)
+ggplot(dominant_shrub_comb, aes(x = fct_relevel(dominant_community, "floodplain","broadleaf_winvasive","upland"), fill = sampling_design)) +
+  geom_histogram(stat = "count", position = "dodge") +
+  labs(title = "Community by Sampling Design - Invasives in Broadleaf",
+       x = "Shrub Community",
+       y = "Number of Sites") +
+  theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+  scale_y_continuous(limits = c(0,60),breaks = c(10,20,30,40,50,60))+
+  scale_fill_manual(values = c("habitat_grts" = col5, "mmr_grts" = col6, "selectedcu_nonrand" = col8))
+dev.off()
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Invasives are the dominant shrub community at 10 sites
+# Since this is a fairly large category, it makes sense to me to leave this separate
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# Write the one you're going to use to .csv
+write.csv(dominant_shrub_sep,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_ShrubDominantCommunity_5-24.csv",row.names = FALSE)
+
+
+
+
 
 
 #### ChatGPT Musings ######################
@@ -189,6 +250,85 @@ test <- shrub %>% group_by(point_id) %>%
 
 
 #### Code Graveyard ########################
+
+# # Refine this once you know which species go in which communities for sure
+# dominant_shrub %>% group_by(dominant_community) %>% summarize(n=n())
+# # There are 23 + points for these
+
+# Old visualization code
+ggplot(dominant_shrub_sep, aes(x = dominant_community, fill = dominant_community)) +
+  geom_histogram(stat = "count") +
+  labs(title = "Distribution of Shrub Communities Invasives Separated",
+       x = "Shrub Community",
+       y = "Number of Sites") +
+  theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+  scale_fill_manual(values = c("floodplain" = col1,"misc_broadleaf" = col2, "upland" = col3, "invasive" = col4))
+
+
+# Looking at the distribution of the trees
+spp_freq_t <- tree %>%
+  group_by(tree_species) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+# This is sites with that tree, not trees in the data
+# What is the distribution of the data?
+ggplot(spp_freq_t, aes(x = reorder(tree_species, -count), y = count)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Frequency of Sites with Tree Species",
+       x = "Tree Species",
+       y = "Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# # Test if tree species is same as tree_sp_other_collated
+# test <- tree %>% mutate(same = ifelse(tree_species == tree_sp_other_collated,"Y","N"))
+# test[test$same == "N"]
+# # Nothing, this is good 
+
+# tree <- tree %>% mutate(native_broadl = ifelse(tree_species %in% native_broadleaf,1,0))
+# tree2 <- tree %>% filter(native_broadl ==1)
+# tree_richness <- tree2 %>% group_by(site_id) %>% summarize(native_broadl = n_distinct(tree_species))
+# # Test out if it worked correctly
+# tree2[tree2$site_id == "203",]
+# tree_richness[tree_richness$site_id == "203",]
+# Looks good
+# Look at distribution
+
+# tree_species <- c("ELAN","PDEL","PDEL","FRPE")
+# sampling_design <- c("nonrand","grts","grts","nonrand")
+#survey_met_spp <- tree %>% group_by(tree_species,sampling_design) %>% summarize(n=n()) %>% arrange(desc(n))
+# Better way
+
+#native_broadleaf <-  c("PDEL", "PANG","ACNE", "POPU","FRPE", "SAMY", "PTRI")
+## To include: Native Broadleaf Species
+# PDEL: plains cottonwood
+# PANG: narrowleaf cottonwood
+# ACNE: boxelder
+# POPU: unk cottonwood
+# FRPE: green ash
+# SAMY: peach leaf willow
+# PTRI: black cottonwood
+## To exclude: non natives and conifers
+# JUSC: Rocky Mtn Juniper
+# PIPO: ponderosa pine
+# PSME: douglas fir
+# ELAN: Russian Olive
+# UNTR: unknown (at YELL-182 and SRB-2)
+# *no data*
+
+# # Compare this to all the points
+# point_dat <- read.csv("./Data/Monitoring_Points/2023_AllARUPoints_FromDeploymentData.csv")
+# all_points <- unique(point_dat$point_id)
+# veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-24.csv")
+# all_veg <- unique(veg$point_id)
+# # 195 veg points total
+# # Which veg plots are missing from the tree points?
+# # Values in veg that aren't in tree
+# notree_points <- setdiff(all_veg, tree_points)
+# veg %>% filter(site_id == "ISA")
+# shrub %>% filter(is.na(shrub_species))
+# # Go back and look at the veg surveys for these points to make sure they aren't supposed to have a tree
+# # Figure out where the overlap is here ??????????????????????????????????
+
 # Old designations
 # floodplain_spp <- c("SALI", "SAMY", "SAEX", "POPU", "PDEL", "PANG", "PTRI")
 # misc_broadl_spp <- c("ROSA", "SYAL", "PRVI", "RIBE","TOXI", "SHCA", "COST", "FRPE", "ACNE", "CRDO")

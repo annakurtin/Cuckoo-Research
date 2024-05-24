@@ -195,6 +195,9 @@ library(ggmap)
 install.packages("bbsBayes")
 library(bbbsBayes)
 
+# For working with factors
+library(forcats)
+
 ```
 
 ```{r GitHub Interface}
@@ -1493,6 +1496,11 @@ daily <- group_by(flights, year, month, day)
 daily %>% ungroup() %>% summarize(flights = n())
 ## gives you just one value in return 
 
+# Can also use count() instead of group_by and summarize
+tree_counts <- tree %>% count(tree_species, sampling_design) %>% arrange(desc(n))
+
+# To just pull out the first instance of a character string:
+ex <- tree %>% group_by(site_id) %>% reframe(sampling_design = first(sampling_design))
 
 
 ## Combining ggplot and dplyr
@@ -2795,6 +2803,16 @@ ggplot(data = mpg, aes(x = class)) +
 ## geom_bar makes the heigh of the bar proportional to the number of cases in each group (or if the weight aesthetic is supplied, the sum of the weights)
 ## If you want the heights of the bars to represent values in the data, use geom_col() instead
 ## geom_bar() uses stat_count() by default: it counts the number of cases at each x position. geom_col() uses stat_identity(): it leaves the data as is
+
+
+# To change the order in which your categories/factors are displayed:
+ggplot(dominant_shrub_sep, aes(x = fct_relevel(dominant_community, "floodplain","misc_broadleaf","upland","invasive"), fill = dominant_community)) +
+  geom_histogram(stat = "count") +
+  labs(title = "Distribution of Shrub Communities Invasives Separated",
+       x = "Shrub Community",
+       y = "Number of Sites") +
+  theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+  scale_fill_manual(values = c("floodplain" = col1,"misc_broadleaf" = col2, "upland" = col3, "invasive" = col4))
 
 
 ```

@@ -21,5 +21,6 @@ col4 <- "#CC79A7"
 col5 <- "#D55E00"
 col6 <- "#0072B2"
 col7 <- "#F0E442"
+col8 <- "#000000"
 
 # Could add on YBCU if wanted
