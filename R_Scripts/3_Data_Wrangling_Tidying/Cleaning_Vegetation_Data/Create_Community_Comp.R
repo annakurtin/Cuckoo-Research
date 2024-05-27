@@ -49,7 +49,7 @@ ggplot(tree_counts, aes(x = tree_species, y = n, fill = sampling_design)) +
        x = "Tree Species",
        y = "Number of Sites Present") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  scale_fill_manual(values = c("habitat_grts" = col1, "mmr_grts" = col2, "selectedcu_nonrand" = col4))
+  scale_fill_manual(values = c("habitat_grts" = palette_5[1], "mmr_grts" = palette_5[3], "selectedcu_nonrand" = palette_5[5]))
 #### Something seems off to me about this graph????????????????????????????????????????????????
 
 # See if the sampling design affects the distribution of the tree community 
@@ -77,7 +77,7 @@ ggplot(spp_rich_tree, aes(x = spp_richness, fill = sampling_design)) +
   geom_histogram(position = "dodge") +
   labs(title = "Distribution of Tree Species Richness",
        x = "Tree Species Richness") +
-  scale_fill_manual(values = c("habitat_grts" = col1, "mmr_grts" = col2, "selectedcu_nonrand" = col8))
+  scale_fill_manual(values = c("habitat_grts" = palette_5[1], "mmr_grts" = palette_5[3], "selectedcu_nonrand" = palette_5[5]))
 # It doesn't look like the nonrandom sites are introducing major bias into this
 
 # Write this to .csv
@@ -143,7 +143,7 @@ ggplot(dominant_shrub_sep, aes(x = fct_relevel(dominant_community, "floodplain",
        x = "Shrub Community",
        y = "Number of Sites") +
   theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
-  scale_fill_manual(values = c("floodplain" = col1,"misc_broadleaf" = col2, "upland" = col3, "invasive" = col4)) +
+  scale_fill_manual(values = c("floodplain" = palette_8[2],"misc_broadleaf" = palette_8[4], "upland" = palette_8[6], "invasive" = palette_8[8])) +
   scale_y_continuous(limits = c(0,60),breaks = c(10,20,30,40,50,60))
 dev.off()
 
@@ -156,7 +156,7 @@ ggplot(dominant_shrub_sep, aes(x = fct_relevel(dominant_community, "floodplain",
        y = "Number of Sites") +
   theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
   scale_y_continuous(limits = c(0,60),breaks = c(10,20,30,40,50,60))+
-  scale_fill_manual(values = c("habitat_grts" = col5, "mmr_grts" = col6, "selectedcu_nonrand" = col8))
+  scale_fill_manual(values = c("habitat_grts" = palette_5[1], "mmr_grts" = palette_5[3], "selectedcu_nonrand" = palette_5[5]))
 dev.off()
 
 ##### What about if we combine the invasives with the broadleaf, does this significantly change the communities?
@@ -182,7 +182,7 @@ ggplot(dominant_shrub_comb, aes(x = fct_relevel(dominant_community, "floodplain"
        x = "Shrub Community",
        y = "Number of Sites") +
   theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
-  scale_fill_manual(values = c("floodplain" = col1,"broadleaf_winvasive" = col2, "upland" = col3)) +
+  scale_fill_manual(values = c("floodplain" = palette_8[2],"broadleaf_winvasive" = palette_8[4], "upland" = palette_8[6])) +
   scale_y_continuous(limits = c(0,60),breaks = c(10,20,30,40,50,60))
 dev.off()
 
@@ -195,7 +195,7 @@ ggplot(dominant_shrub_comb, aes(x = fct_relevel(dominant_community, "floodplain"
        y = "Number of Sites") +
   theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
   scale_y_continuous(limits = c(0,60),breaks = c(10,20,30,40,50,60))+
-  scale_fill_manual(values = c("habitat_grts" = col5, "mmr_grts" = col6, "selectedcu_nonrand" = col8))
+  scale_fill_manual(values = c("habitat_grts" = palette_5[1], "mmr_grts" = palette_5[3], "selectedcu_nonrand" = palette_5[5]))
 dev.off()
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~

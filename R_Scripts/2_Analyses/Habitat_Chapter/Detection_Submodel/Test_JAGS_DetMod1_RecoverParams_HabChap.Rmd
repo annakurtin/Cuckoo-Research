@@ -18,24 +18,62 @@ set.seed(123)
 ## Generate Data
 
 ```{R generate data}
-nP <- 107
-# number of points
+# b1/cov1: date - uniform, survey level
+# b2/cov2: veg density - normal, site level
+# b3/cov3: background noise - normal, survey level
+# b4/cov4: effort - normal - survey level 
+
+nP <- 107  # number of points
 nV <- 6    # number of repeated visits
 nC <- 4    # number of covariates
+survey_covs <- 3
 
 # create latent state (z) and detection (y) data storage
 z <- NULL        # point-level latent state
 y <- array(NA, dim = c(nP, nV))   # point-level observation data
 
 # create covariates
-# initialize empty array for x (covariates)
-x <- array(NA, dim = c(nP,nC))
-# Fill the array with randomly generated data
-x[,1] <- runif(nP,-2,2)
-for (j in 2:(nC)){
-  x[,j] <- rnorm(nP, 0, 1)
-}
 
+# Old - all site level
+# initialize empty array for x (covariates)
+#x <- array(NA, dim = c(nP,nC)) # orig
+# for (j in 2:(nC)){
+#   x[,j] <- rnorm(nP, 0, 1)
+# }
+# hist(x[,1])
+# hist(x[,2])
+# hist(x[,3])
+# hist(x[,4])
+# These all look good
+# Old
+#x <- array(NA, dim = c(nP,26)) # Change this to be flexible **********************************
+#x <- array(NA, dim = c(nP,nC+(survey_covs*nV)))
+# Fill in date - date = x[,1:6]
+#x[,1] <- runif(nP,-2,2)
+#x[,7] <- rnorm(nP, 0, 1)
+
+# New: create separate arrays for each covariate and fill with randomly generated data
+date_cov <- array(NA, dim = c(nP,nV))
+dates <- runif(nV, -2,2) # Pull six (standardized) values for date
+for (d in 1:nV){
+  date_cov[,d] <- dates[d]
+}
+# Fill in veg density
+veg_cov <- rnorm(nP, 0, 1)
+# Fill in background noise
+db_cov <- array(NA, dim = c(nP,nV))
+for (i in 1:nP){
+  for (j in 1:nV){
+    db_cov[i,j] <- rnorm(1, 0, 1)
+  }
+}
+# Fill in effort
+effort_cov <- array(NA, dim = c(nP,nV))
+for (i in 1:nP){
+  for (j in 1:nV){
+    effort_cov[i,j] <- rnorm(1, 0, 1)
+  }
+}
 
 # covariate effects (pull randomly for each covariate)
 beta <- rnorm(nC, 0, 1)
@@ -44,15 +82,22 @@ psi0 <- qlogis(0.2) # probability of presence
 p0 <- qlogis(0.6) # probability of detection
 
 # Calculate probability of presence from the beta values
+# psi <- NULL
+# for (i in 1:nP){
+#   psi[i] = plogis(psi0 + beta[1]* x[i,1] + beta[2] * x[i,2] + beta[3] * x[i,3] + beta[4] * x[i,4])
+# }
+# plot how probability of occupancy relates to the two covariates to see what the relationship is
+# plot(psi ~ x[,1])
+# plot(psi ~ x[,2])
+# plot(psi ~ x[,3])
+# plot(psi ~ x[,4])
+
+# Need to change this - we're not using x anymore, also this is the effects on presence not on detection
 psi <- NULL
 for (i in 1:nP){
-  psi[i] = plogis(psi0 + beta[1]* x[i,1] + beta[2] * x[i,2] + beta[3] * x[i,3] + beta[4] * x[i,4])
+  psi[i] = plogis(psi0)
 }
-# plot how probability of occupancy relates to the two covariates to see what the relationship is
-plot(psi ~ x[,1])
-plot(psi ~ x[,2])
-plot(psi ~ x[,3])
-plot(psi ~ x[,4])
+# Assume equal probability of presence at all sites with this simulation
 
 # get your true presence/non presence values from psi
 z <- rbinom(nP, 1, psi)
@@ -60,29 +105,22 @@ z <- rbinom(nP, 1, psi)
 # total number of detections across number of visits (nV)
 y <- matrix(NA, nP, nV)
 # fill in the detection matrix dependent on whether the animal was there (z) and whether it was detected (p0)
+# add covariate effects here
 for (i in 1:nP){
   for (j in 1:nV){
-    y[i,j] <- rbinom(1, z[i], plogis(p0))
+    y[i,j] <- rbinom(1, z[i], plogis(p0 + (beta[1]*date_cov[i,j]) + (beta[2]*veg_cov[i]) + (beta[3]*db_cov[i,j]) + (beta[4]*effort_cov[i,j])))
   }
 }
-
-# Create some holes in the samples to simulate NA data
-# select randomly which data will be NA
-mess_y <- sample(1:nP, 20)
-mess_x <- sample(1:nP, 5)
-# Change this data to NA
-y[mess_y, 3] <- NA
-x[mess_x, ] <- c(NA,NA)
 
 ```
 
 
 ```{R Set Up Model}
-# sampler settings that Thomas had (not currently used in model)
-nc <- 4 # number of chains
-nt <- 1 # number of thinning
-ni <- 5000 # number of iterations
-nb <- 1000 # number burnin
+# sampler settings that Thomas had (not currently used in model - trying the ones we used in the other document first)
+# nc <- 4 # number of chains
+# nt <- 1 # number of thinning
+# ni <- 5000 # number of iterations
+# nb <- 1000 # number burnin
 
 # Put the data into JAGS and run it on your previous model
 # Create the jags_model
@@ -124,13 +162,13 @@ jags_data <- list(
   # Detection/nondetection data
   det_data = y,
   # Date
-  cov1 = x[,1],
+  cov1 = date_cov,
   # Veg Density - site level
-  cov2 = x[,2],
+  cov2 = veg_cov,
   # Background noise
-  cov3 = x[,3],
+  cov3 = db_cov,
   # Effort 
-  cov4 = x[,4],
+  cov4 = effort_cov,
   n_unit = nP,
   n_rep = nV
 )
@@ -156,11 +194,41 @@ jags_fit_test <- jags(data = jags_data,
                  n.burnin = 2000, 
                  n.chains = 3,
                  inits = init_func)
-#saveRDS(jags_fit_global, file = "./R_Scripts/7_Model_Scripts/JAGS_Global_Detection_Model.Rdata")
+saveRDS(jags_fit_test, file = "./R_Scripts/7_Model_Scripts/Test_JAGS_RecoverParams_Global_DetectionModel1.Rdata")
+```
+
+```{R Evaluate Outputs}
+# Read in the model that we saved after running the above code
+jags_fit <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/7_Model_Scripts/Test_JAGS_RecoverParams_Global_DetectionModel1.Rdata")
+
+# Evaluate convergence
+# plot traceplots
+tracedens_jags(jags_fit)
+# all of the covariates converged
+
+# Get a summary of the results
+summary(jags_fit)
+# Did we recover our parameters?
+beta
+# jags_chains_global <- jags_df(jags_fit)
+# #jags_chains_global$b1
 ```
 
 
+```{R Add in Mess}
+# Now let's try the same model with some "messiness" i.e. holes for NAs in the data
+# Create some holes in the samples to simulate NA data
+# select randomly which data will be NA
+mess_y <- sample(1:nP, 20)
+mess_x <- sample(1:nP, 5)
+# Change this data to NA
+y[mess_y, 3] <- NA
+x[mess_x, ] <- c(NA,NA)
 
+
+```
+
+## Old Stuff
 ```{R generate data OLD}
 nP <- 107
 # number of points

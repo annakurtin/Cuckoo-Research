@@ -14,13 +14,59 @@ foliage_green2 <-"#656131"
 sunshine_yellow <- "#F6DD62"
 
 # Colorblind friendly hex codes
-col1 <- "#009E73"
-col2 <- "#E69F00"
-col3 <- "#56B4E9"
-col4 <- "#CC79A7"
-col5 <- "#D55E00"
-col6 <- "#0072B2"
-col7 <- "#F0E442"
-col8 <- "#000000"
+# Resources: https://davidmathlogic.com/colorblind/#%23648FFF-%23785EF0-%23DC267F-%23FE6100-%23FFB000 
+col1_8p <- "#332288"
+# col2_8p <- "#117733"
+# col3_8p <- "#44AA99"
+# col4_8p <- "#88CCEE"
+# col5_8p <- "#DDCC77"
+# col6_8p <- "#CC6677"
+# col7_8p <- "#AA4499"
+# col8_8p <- "#882255"
+palette_8 <- c("#332288","#117733","#44AA99","#88CCEE","#DDCC77","#CC6677","#AA4499","#882255")
+
+
+# Palette for 5 colors
+# col1_5p <- "#648FFF"
+# col2_5p <- "#785EF0"
+# col3_5p <- "#DC267F"
+# col4_5p <- "#FE6100"
+# col5_5p <- "#FFB000"
+palette_5 <- c("#648FFF","#785EF0","#DC267F","#FE6100","#FFB000")
+
+
 
 # Could add on YBCU if wanted
+
+
+### Old
+# col1_8p <- "#009E73"
+# col2_8p <- "#E69F00"
+# col3_8p <- "#56B4E9"
+# col4_8p <- "#CC79A7"
+# col5_8p <- "#D55E00"
+# col6_8p <- "#0072B2"
+# col7_8p <- "#F0E442"
+# col8_8p <- "#000000"
+
+# col1_8p <- "#009E73"
+# col2_8p <- "#FFB000"
+# col3_8p <- "#56B4E9"
+# col4_8p <- "#CC79A7"
+# col5_8p <- "#D55E00"
+# col6_8p <- "#0072B2"
+# col7_8p <- "#F0E442"
+# col8_8p <- "#000000"
+
+# Testing
+# categories <- rep(c("Category1", "Category2", "Category3", "Category4", "Category5", "Category6", "Category7", "Category8"), each = 30)
+# values <- rnorm(240, mean = rep(1:8, each = 30), sd = 1) # 30 samples per category, different means
+# 
+# simulated_data <- data.frame(
+#   Category = categories,
+#   Value = values
+# )
+# ggplot(simulated_data, aes(x = Category, y = Value, fill = Category)) +
+#   geom_boxplot() +
+#   scale_fill_manual(values = c("#332288","#117733","#44AA99","#88CCEE","#DDCC77","#CC6677","#AA4499","#882255")) +
+#   theme_minimal()
