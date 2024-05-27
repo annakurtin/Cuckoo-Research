@@ -316,6 +316,27 @@ print(paste("F value for Effort:", effort_fval))
 
 - What does it mean that some of the model didn't converge? Can I fix this or should I not rely on the output from this model?
 
+
+# Running the Same Model Without the End Period
+```{R Omitting End of Period}
+# How many NAs are there?
+full_dat %>% filter(is.na(det_survey1)|is.na(det_survey2)|is.na(det_survey3)|is.na(det_survey4)|is.na(det_survey5)|is.na(det_survey6))
+# 16 rows
+
+# What about in each survey period?
+nrow(full_dat %>% filter(is.na(det_survey1)))
+nrow(full_dat %>% filter(is.na(det_survey2)))
+nrow(full_dat %>% filter(is.na(det_survey3)))
+nrow(full_dat %>% filter(is.na(det_survey4)))
+nrow(full_dat %>% filter(is.na(det_survey5)))
+nrow(full_dat %>% filter(is.na(det_survey6)))
+# adding about three NAs for each survey period
+
+# Try removing the last two?
+# Try removing different amounts of data and seeing how it affects your estimates and uncertainty 
+
+```
+
 ```{R Here Lies my Failed Attempts and Stuff I Dont Need, include = FALSE, eval = FALSE}
 # Extract MCMC chains
 #chains <- as.mcmc(jags_fit_global)

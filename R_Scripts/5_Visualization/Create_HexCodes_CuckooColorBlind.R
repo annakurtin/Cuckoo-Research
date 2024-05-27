@@ -1,4 +1,5 @@
 ### Hex codes for cuckoo colors and colorblind friendly colors
+cuckoo_palette <- c("#B75F4A","#656131","#4C2C13","#CD9F6E","#B9C6BB")
 
 # Black-Billed Cuckoo
 eyering_red1 <- "#B75F4A"
@@ -15,7 +16,7 @@ sunshine_yellow <- "#F6DD62"
 
 # Colorblind friendly hex codes
 # Resources: https://davidmathlogic.com/colorblind/#%23648FFF-%23785EF0-%23DC267F-%23FE6100-%23FFB000 
-col1_8p <- "#332288"
+# col1_8p <- "#332288"
 # col2_8p <- "#117733"
 # col3_8p <- "#44AA99"
 # col4_8p <- "#88CCEE"

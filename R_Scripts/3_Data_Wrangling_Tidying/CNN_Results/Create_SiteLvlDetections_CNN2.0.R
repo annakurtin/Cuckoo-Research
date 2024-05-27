@@ -4,7 +4,7 @@
 
 # Created 4/9/2024
 
-# Last modified: 4/9/2024
+# Last modified: 5/27/2024
 
 #### Setup #################################
 packages <- c("data.table","tidyverse","janitor","chron")
@@ -20,11 +20,12 @@ miso_032_red <- miso_032 %>% filter(hour %in% c(10000,70000,90000,230000))
 # clip extraction already only looked at the hours within 1000,7000,9000,and 230000
 unique(clips_23$hour) # looks good 
 # Remove the hours that aren't in the specified values
-test <- clips_23 %>% filter(hour %in% c(10000,70000,90000,230000))
-test2 <- test %>% filter(point_id == "MISO-032")
-test3 <- clips_23 %>% filter(point_id == "MISO-032")
-unique(test3$hour)
+# test <- clips_23 %>% filter(hour %in% c(10000,70000,90000,230000))
+# test2 <- test %>% filter(point_id == "MISO-032")
+# test3 <- clips_23 %>% filter(point_id == "MISO-032")
+# unique(test3$hour)
 
+# Create site-level presence and absence
 clips_new <- clips_23 %>%
   mutate(site_id = case_when(
     # If point_id has four letters then a dash then three numbers
@@ -41,6 +42,8 @@ nrow(site_det_23)
 sum(site_det_23$bbcu)
 # Write it
 #write.csv(site_det_23, "./Data/Classifier_Results/Model2.0/Outputs/SiteLevelBBCU_2023.csv", row.names = FALSE)
+
+
 clips_22 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2022_AllCollab_topclips_filteredPBYBCU_4-24.csv") %>% mutate(datetime = as_datetime(datetime,  tz = "America/Denver")) %>% mutate(date_formatted = as.Date(date_formatted, format = "%Y-%m-%d"))
 # Summarize this
 site_det_22 <- clips_22 %>% group_by(point_id) %>% summarize(bbcu = max(annotation))

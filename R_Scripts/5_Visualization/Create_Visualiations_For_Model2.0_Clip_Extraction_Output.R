@@ -12,21 +12,6 @@ load_packages(packages)
 # Read in cuckoo color palette
 source("./R_Scripts/5_Visualization/Create_CuckooColor_HexCodes.R")
 
-#### Code: Preliminary Data #####
-fwpr6_scores <- read.csv('F:/Cuckoo_Acoustic_Data/2023/2023_FWPR6_Data/2023_FWPR6_Clips/2023_FWPR6_topclip_perperiod/2023_FWPR6_topclips_perSiteperPeriod.csv')
-# 7378 clips = 36,890 seconds = 10 hours
-test1 <- fwpr6_scores %>% filter(!(score < -1))
-# filtering out those with a score less than -1, there are 4302 (.58 of the original data) for Region 6
-# Does this vary from Region 5, where we had our lowest levels of cuckoo activity?
-test2 <- fwpr6_scores %>% filter(!(score < -3))
-# filtering out those with a score less than -3, there are 5686 (.77 of the original data) for Region 6
-
-fwpr5_scores <- read.csv('F:/Cuckoo_Acoustic_Data/2023/2023_FWPR5_Data/2023_FWPR5_Clips/2023_FWPR5_topclip_perperiod/2023_FWPR5_topclips_perSiteperPeriod.csv') # 5990
-
-test3 <- fwpr5_scores %>% filter(!(score < 0))
-# filtering out those with a score less than -3, there are 4807 (.80 of the original data) for Region 6
-# Filtering out those with score less than 0, we would be going through 2907 out of 5412 clips (.53 of data)
-
 
 
 #### Add on with finished data ####
@@ -166,6 +151,23 @@ ggplot(daily_det_forgraphic, aes(x = date_formatted, y = detection)) +
   theme(axis.text.x = element_text(angle = 90,hjust = 1)) +
   labs(x = "Date",y = "Detection",title = "Daily Detections At 2023 Sites") +
   facet_wrap(~ site_id, nrow = 10)
+
+
+#### Archive Code: Preliminary Data #####
+fwpr6_scores <- read.csv('F:/Cuckoo_Acoustic_Data/2023/2023_FWPR6_Data/2023_FWPR6_Clips/2023_FWPR6_topclip_perperiod/2023_FWPR6_topclips_perSiteperPeriod.csv')
+# 7378 clips = 36,890 seconds = 10 hours
+test1 <- fwpr6_scores %>% filter(!(score < -1))
+# filtering out those with a score less than -1, there are 4302 (.58 of the original data) for Region 6
+# Does this vary from Region 5, where we had our lowest levels of cuckoo activity?
+test2 <- fwpr6_scores %>% filter(!(score < -3))
+# filtering out those with a score less than -3, there are 5686 (.77 of the original data) for Region 6
+
+fwpr5_scores <- read.csv('F:/Cuckoo_Acoustic_Data/2023/2023_FWPR5_Data/2023_FWPR5_Clips/2023_FWPR5_topclip_perperiod/2023_FWPR5_topclips_perSiteperPeriod.csv') # 5990
+
+test3 <- fwpr5_scores %>% filter(!(score < 0))
+# filtering out those with a score less than -3, there are 4807 (.80 of the original data) for Region 6
+# Filtering out those with score less than 0, we would be going through 2907 out of 5412 clips (.53 of data)
+
 
 ##### Code Graveyard ####
 # timeperiod2 <- spread(timeperiod, time_period, num_detections)

@@ -26,7 +26,7 @@ set.seed(123)
 nP <- 107  # number of points
 nV <- 6    # number of repeated visits
 nC <- 4    # number of covariates
-survey_covs <- 3
+#survey_covs <- 3
 
 # create latent state (z) and detection (y) data storage
 z <- NULL        # point-level latent state
@@ -212,23 +212,257 @@ summary(jags_fit)
 beta
 # jags_chains_global <- jags_df(jags_fit)
 # #jags_chains_global$b1
+
+
+# Plot it
+
+jags_chains_global <- jags_df(jags_fit)
+
+chains_viol <- jags_chains_global %>% select(b1,b2,b3,b4)
+colnames(chains_viol) <- c("date","veg_density","background_noise","effort")
+true_vals <- data.frame(beta,covariate=c("date","veg_density","background_noise","effort"))
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("date","veg_density","background_noise","effort"),names_to = "Parameter", values_to = "Values")
+
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "MCMC Chains Simulated Data No NAs") +
+  scale_fill_manual(values = c("date"=palette_5[1], "background_noise"=palette_5[2], "effort" = palette_5[3], "veg_density" = palette_5[4])) + theme(axis.text.x = element_blank())+
+  geom_point(data = true_vals, aes(x=covariate, y = beta))+
+  theme_minimal()
 ```
 
 
-```{R Add in Mess}
+## Add in NA values to the data
+
+```{R Add in Mess and Sub Random Data for NAs}
+# Copy over values for latent state from previous data
+psi0_2 <- psi0
+p0_2 <- p0
+beta2 <- beta
+# covariate effects (pull randomly for each covariate)
+# beta <- rnorm(nC, 0, 1)
+# psi0 <- qlogis(0.2) # probability of presence
+# p0 <- qlogis(0.6)
+
 # Now let's try the same model with some "messiness" i.e. holes for NAs in the data
 # Create some holes in the samples to simulate NA data
 # select randomly which data will be NA
-mess_y <- sample(1:nP, 20)
-mess_x <- sample(1:nP, 5)
+mess_y <- sample(1:nP, 16)
+sort(mess_y)
+y2 <- y
 # Change this data to NA
-y[mess_y, 3] <- NA
-x[mess_x, ] <- c(NA,NA)
+y2[mess_y, 3:6] <- NA
 
+# Create new covariate values with some "mess" in them
+date_cov2 <- date_cov
+veg_cov2 <- veg_cov
+db_cov2 <- db_cov
+db_cov2[mess_y, 3:6] <- NA
+effort_cov2 <- effort_cov
+effort_cov2[mess_y, 3:6] <- NA
+
+# Copy over probability of presence and actual presence
+psi2 <- psi
+z2 <- z
+
+# total number of detections across number of visits (nV)
+y <- matrix(NA, nP, nV)
+# fill in the detection matrix dependent on whether the animal was there (z) and whether it was detected (p0)
+# add covariate effects here
+for (i in 1:nP){
+  for (j in 1:nV){
+    y2[i,j] <- rbinom(1, z2[i], plogis(p0_2 + (beta2[1]*date_cov2[i,j]) + (beta2[2]*veg_cov2[i]) + (beta2[3]*db_cov2[i,j]) + (beta2[4]*effort_cov2[i,j])))
+  }
+}
+
+# Call the model again
+# Create a list of data for JAGS
+jags_data2 <- list(
+  # True presence at sites with confirmed presences
+  Z = z2,
+  # Detection/nondetection data
+  det_data = y2,
+  # Date
+  cov1 = date_cov2,
+  # Veg Density - site level
+  cov2 = veg_cov2,
+  # Background noise
+  cov3 = db_cov2,
+  # Effort 
+  cov4 = effort_cov2,
+  n_unit = nP,
+  n_rep = nV
+)
+
+# Run JAGS model
+jags_fit_test_mess <- jags(data = jags_data2, 
+                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models/Test_JAGS_Occ_DetectionModel1.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
+                 n.iter = 10000, 
+                 n.burnin = 2000, 
+                 n.chains = 3,
+                 inits = init_func)
+saveRDS(jags_fit_test_mess, file = "./R_Scripts/7_Model_Scripts/Test_JAGS_RecoverParams_WMess_Global_DetectionModel1.Rdata")
+```
+
+
+```{R}
+jags_fit2 <-readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/7_Model_Scripts/Test_JAGS_RecoverParams_WMess_Global_DetectionModel1.Rdata")
+
+# Evaluate convergence
+tracedens_jags(jags_fit2)
+# all of the covariates converged
+
+# Get a summary of the results
+summary(jags_fit2)
+# Did we recover our parameters?
+beta
+# Retrieved the parameters but not as well?
+# Add on violin plots
+
+jags_chains_global2 <- jags_df(jags_fit2)
+
+chains_viol2 <- jags_chains_global2 %>% select(b1,b2,b3,b4)
+colnames(chains_viol2) <- c("date","veg_density","background_noise","effort")
+true_vals2 <- data.frame(beta2,covariate=c("date","veg_density","background_noise","effort"))
+chains_viol_long2 <- chains_viol2 %>% pivot_longer(cols = c("date","veg_density","background_noise","effort"),names_to = "Parameter", values_to = "Values")
+
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_viol_long2, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "MCMC Chains Simulated Data w/ NAs") +
+  scale_fill_manual(values = c("date"=palette_5[1], "background_noise"=palette_5[2], "effort" = palette_5[3], "veg_density" = palette_5[4])) + theme(axis.text.x = element_blank())+
+  geom_point(data = true_vals2, aes(x=covariate, y = beta))+
+  theme_minimal()
 
 ```
 
+From this, it looks like the NAs are biasing the parameter towards no effect and failing to find significance when the underlying parameter was already small 
+
+```{R Excluding NA Data Instead}
+get_na <- function(x){(max(which(!is.na(x))))}
+# Apply this to our data
+miss <- apply(y2, 1, get_na)
+
+cat("
+  model{
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0
+      
+      for(j in 1:miss[i]){
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0 + b1*cov1[i,j] + b2*cov2[i] + b3*cov3[i,j] + b4*cov4[i,j]
+        
+      }
+    }
+    
+    # Priors
+    a0 ~ dnorm(0, 0.01)
+    b0 ~ dnorm(0, 0.01)
+    b1 ~ dunif(-2, 2)
+    b2 ~ dnorm(0, 1)
+    b3 ~ dnorm(0, 1)
+    b4 ~ dnorm(0, 1)
+  }
+  ", file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models/Test_JAGS_Occ_DetectionModel2-SkipNA.txt")
+
+# Create a list of data for JAGS
+jags_data3 <- list(
+  # True presence at sites with confirmed presences
+  Z = z2,
+  # Detection/nondetection data
+  det_data = y2,
+  # Date
+  cov1 = date_cov2,
+  # Veg Density - site level
+  cov2 = veg_cov2,
+  # Background noise
+  cov3 = db_cov2,
+  # Effort 
+  cov4 = effort_cov2,
+  n_unit = nP,
+  miss = miss
+)
+
+# Run JAGS model
+jags_fit_test_mess2 <- jags(data = jags_data3, 
+                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models/Test_JAGS_Occ_DetectionModel2-SkipNA.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
+                 n.iter = 10000, 
+                 n.burnin = 2000, 
+                 n.chains = 3,
+                 inits = init_func)
+saveRDS(jags_fit_test_mess2, file = "./R_Scripts/7_Model_Scripts/Test_JAGS_RecoverParams_WMess_Global_DetectionModel2-SkipNA.Rdata")
+```
+
+```{R}
+jags_fit3 <-readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/7_Model_Scripts/Test_JAGS_RecoverParams_WMess_Global_DetectionModel2-SkipNA.Rdata")
+
+# Evaluate convergence
+tracedens_jags(jags_fit3)
+# all of the covariates converged
+
+# Get a summary of the results
+summary(jags_fit3)
+# Did we recover our parameters?
+beta2
+# Retrieved the parameters but not as well?
+# Add on violin plots
+
+jags_chains_global3 <- jags_df(jags_fit3)
+
+chains_viol3 <- jags_chains_global3 %>% select(b1,b2,b3,b4)
+colnames(chains_viol3) <- c("date","veg_density","background_noise","effort")
+true_vals3 <- data.frame(beta2,covariate=c("date","veg_density","background_noise","effort"))
+chains_viol_long3 <- chains_viol3 %>% pivot_longer(cols = c("date","veg_density","background_noise","effort"),names_to = "Parameter", values_to = "Values")
+
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_viol_long3, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "MCMC Chains Simulated Data w/ NAs Skipped") +
+  scale_fill_manual(values = c("date"=palette_5[1], "background_noise"=palette_5[2], "effort" = palette_5[3], "veg_density" = palette_5[4])) + theme(axis.text.x = element_blank())+
+  geom_point(data = true_vals3, aes(x=covariate, y = beta))+
+  theme_minimal()
+
+```
+
+It doesn't look like subbing in NAs vs just skipping the NA values makes a huge difference. Skipping the NAs just pulls the posterior distribution towards the center of that distribution. 
+
+It does, however, look like having 16/107 (~15%) NAs is masking our ability to see an effect. In the data with no NAs, all parameters showed a significant effect, but once we masked out the NAs, background dB (the one with the lowest true effect size) now overlapped zero more strongly, with an f value going from 0.96 to 0.67, meaning that if we just had the data with the NAs masked, we would have a false negative after running the models. 
+
+
 ## Old Stuff
+```{R Thomas model}
+cat("
+      model {
+
+      for (j in 1:(nC+1)){
+        beta[j] ~ dlogis(0,1)
+      }
+      p ~ dbeta(1,1)
+      for (i in 1:nP){
+    
+      # Method 1: specify a distribution to draw from when there are NAs in the data 
+        x[i,1] ~ dnorm(0,1)
+        x[i,2] ~ dnorm(0,1)
+      
+        logit(psi[i]) = beta[1] + beta[2:(nC+1)] %*% x[i,]
+            z[i] ~ dbern(psi[i])      
+      
+          for (j in 1:miss[i]){ # Method 2:iterate through only the values that don't have NAs
+            y[i,j] ~ dbern(z[i] * p)
+          }
+          
+        }
+      }
+      
+      ",fill = TRUE)
+sink()
+
+```
 ```{R generate data OLD}
 nP <- 107
 # number of points
