@@ -225,7 +225,7 @@ jags_fit_global <- jags(data = jags_data,
 #saveRDS(jags_fit_global, file = "./R_Scripts/7_Model_Scripts/JAGS_Global_Detection_Model.Rdata")
 ```
 
-# Evaluate Model Convergence and Output
+# Evaluate Model Convergence and Output for Initial Model
 
 ```{r look at JAGS Model 1 Results}
 # b1/cov1: date
@@ -322,7 +322,6 @@ print(paste("F value for Effort:", effort_fval))
 # How many NAs are there?
 full_dat %>% filter(is.na(det_survey1)|is.na(det_survey2)|is.na(det_survey3)|is.na(det_survey4)|is.na(det_survey5)|is.na(det_survey6))
 # 16 rows
-
 # What about in each survey period?
 nrow(full_dat %>% filter(is.na(det_survey1)))
 nrow(full_dat %>% filter(is.na(det_survey2)))
@@ -333,11 +332,86 @@ nrow(full_dat %>% filter(is.na(det_survey6)))
 # adding about three NAs for each survey period
 
 # Try removing the last two?
-# Try removing different amounts of data and seeing how it affects your estimates and uncertainty 
+# Try removing different amounts of data and seeing how it affects your estimates and uncertainty
 
+# Removing just the last survey period
+full_dat_1rem <- full_dat %>% select(-matches("6"))
+
+# Pull out the detections so that you have n_unit and n_site
+detections_only_1rem <- full_dat_1rem[,2:6]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat_1rem <- rowSums(detections_only_1rem, na.rm = T)
+z_dat_1rem[z_dat_1rem > 1] <- 1
+z_dat_1rem[z_dat_1rem == 0] <- NA
+#z_dat
+
+# Create a list of data for JAGS
+jags_data_1rem <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat_1rem,
+  # Detection/nondetection data
+  det_data = detections_only_1rem,
+  # Date
+  cov1 = as.matrix(full_dat_1rem %>% select(matches("date"))),
+  # Veg Density - site level
+  cov2 = full_dat_1rem[,12],
+  # Background noise
+  cov3 = as.matrix(full_dat_1rem %>% select(matches("backdb"))),
+  # Effort 
+  cov4 = as.matrix(full_dat_1rem %>% select(matches("effort"))),
+  n_unit = nrow(detections_only_1rem),
+  n_rep = ncol(detections_only_1rem)
+)
+# Set initial values (optional)
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = runif(1, min = -2, max = 2),
+    b2 = rnorm(1, 0, 1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
+  )
+}
+# Run JAGS model
+jags_fit_global_1rem <- jags(data = jags_data_1rem, 
+                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models/JAGS_Occ_DetectionModel1.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
+                 n.iter = 10000, 
+                 n.burnin = 2000, 
+                 n.chains = 3,
+                 inits = init_func)
+saveRDS(jags_fit_global_1rem, file = "./R_Scripts/7_Model_Scripts/JAGS_Global_Detection_Model_LastSurveyRemoved.Rdata")
+#jags_chains_global <- jags_df(jags_fit_global_1rem)
+tracedens_jags(jags_fit_global_1rem)
+summary(jags_fit_global_1rem)
+
+diagnose_model(jags_fit_global_1rem)
 ```
 
+What to do when the model is not converging: 
+- try running it for more iterations
+- specify more precise initial values
+
+```{r Trying to get convergence}
+jags_fit_global_1rem2 <- jags(data = jags_data_1rem, 
+                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models/JAGS_Occ_DetectionModel1.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
+                 n.iter = 20000, 
+                 n.burnin = 2000, 
+                 n.chains = 3,
+                 inits = init_func)
+saveRDS(jags_fit_global_1rem2, file = "./R_Scripts/7_Model_Scripts/JAGS_Global_Detection_Model_LastSurveyRemoved_2xIter.Rdata")
+tracedens_jags(jags_fit_global_1rem2)
+summary(jags_fit_global_1rem2)
+```
+More iterations: didn't help, model looks maybe closer to converging but isn't there. I think I need to specify better initial values. 
+
+How do I choose which initial values to use?
 ```{R Here Lies my Failed Attempts and Stuff I Dont Need, include = FALSE, eval = FALSE}
+#detections_only_1rem <- as.matrix(full_dat_1rem %>% select(matches("det")))
+
 # Extract MCMC chains
 #chains <- as.mcmc(jags_fit_global)
 
