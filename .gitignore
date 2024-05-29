@@ -15,6 +15,7 @@
 *.mp3
 *.jpg
 *.pdf
+*.Rdata
 
 # Folders
 Data/
@@ -22,4 +23,5 @@ Archive/
 External_R_Code/
 Python_Scripts/BBCU_YBCU_Call_Training/Training_Packet
 Python_Scripts/BBCU_YBCU_Call_Training/.ipynb_checkpoints/*.ipynb
+R_Scripts/7_Model_Files/
 #Do this for raw data and for outputs
