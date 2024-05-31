@@ -17,6 +17,7 @@ library(jagsUI)
 library(tidyverse)
 library(jagshelper)
 library(ggplot2)
+library(coda)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 ```
 
@@ -70,6 +71,9 @@ full_dat <- full_dat %>% mutate(start_date_s1 = 152,
                      start_date_s6 = 222)
 full_dat <- full_dat %>% select(-c(session_name, sampling_design))
 
+# center and scale variables
+test <- scale(full_dat$veg_density_avg)
+
 #saveRDS(full_dat, file ="./Data/Habitat_Model_Covariates/Full_DetectionData_JAGSModels_HabChap.Rdata")
 ```
 
@@ -90,29 +94,32 @@ full_dat <- readRDS(file ="C:/Users/annak/OneDrive/Documents/UM/Research/Coding_
 # NEW average dB
 db <- full_dat[,8:13]
 db_long <- db %>% pivot_longer(cols = c(backdb_survey1,backdb_survey2,backdb_survey3,backdb_survey4,backdb_survey5,backdb_survey6), names_to = "survey_period",values_to = "db" )
-hist(scale(db_long$db), xlab = "Background dB", main = "Scaled Histogram of Background Noise", col = eyering_red1)
+hist(scale(db_long$db), xlab = "Background dB", main = "Scaled Histogram of Background Noise", col = cuckoo_palette[1])
 ## Looks like a normal distribution around the scaled variable should be good for a prior
 
 # Veg density
 hist(full_dat$veg_density_avg, xlab = "Average Composite Density at a Site", main = "Histogram of Vegetation Density", col = eyering_red1)
-hist(scale(full_dat$veg_density_avg), xlab = "Average Composite Density at a Site", main = "Scaled Histogram of Vegetation Density", col = eyering_red1)
+hist(scale(full_dat$veg_density_avg), xlab = "Average Composite Density at a Site", main = "Scaled Histogram of Vegetation Density", col = cuckoo_palette[1])
 ## This is a distribution with a left skew - gamma? but it goes below zero --> use normal instead?
 
 # Date
 # uniform distribution between 152-208 - does this include those values?
 dates <- full_dat[,21:26]
 dates_long <- dates %>% pivot_longer(cols = c(start_date_s1,start_date_s2,start_date_s3,start_date_s4,start_date_s5,start_date_s6), names_to = "survey_period",values_to = "date" )
-hist(scale(dates_long$date), xlab = "Date", main = "Scaled Histogram of Survey Start Date", col = eyering_red1)
+min(scale(dates_long$date)) # -1.46
+max(scale(dates_long$date)) # 1.46
+hist(scale(dates_long$date), xlab = "Date", main = "Scaled Histogram of Survey Start Date", col = cuckoo_palette[1])
 
 # Effort
 efforts <- full_dat[,15:20]
 efforts_long <- efforts %>% pivot_longer(cols = c(effort_survey1,effort_survey2,effort_survey3,effort_survey4,effort_survey5,effort_survey6), names_to = "survey_period",values_to = "effort" )
-hist(scale(efforts_long$effort), xlab = "Effort", main = "Scaled Histogram of Survey Effort", col = eyering_red1)
+hist(scale(efforts_long$effort), xlab = "Effort", main = "Scaled Histogram of Survey Effort", col = cuckoo_palette[1])
 
 ```
 
 # JAGS Model
 
+## Formulas: 
 **Global Detection Model and Priors:** 
 $$
 z_i \sim Bernoulli(\psi)
@@ -126,12 +133,11 @@ $$x_{avgdb} \sim normal(\mu = 0, \sigma = 1)$$
 $$x_{vegdensity} \sim normal(\mu = 0, \sigma = 1)$$
 $$x_{date} \sim uniform(lower = -2, upper = 2)$$
 $$x_{effort} \sim normal(\mu = 0, \sigma = 1)$$
+## Fit Model
 
-To add: test to see if you can recover simulated variables from your jags model 
-**ADD IN HERE LATER**
+Model 1: Global detection model with all covariates on my data
 
-
-```{r Run JAGS Model 1, eval = FALSE}
+```{r Create JAGS Model 1, eval = FALSE}
 # b1/cov1: date
 # b2/cov2: veg density
 # b3/cov3: background noise
@@ -166,15 +172,16 @@ cat("
     }
     
     # Priors
-    a0 ~ dnorm(0, 0.01)
-    b0 ~ dnorm(0, 0.01)
+    a0 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
     b1 ~ dunif(-2, 2)
     b2 ~ dnorm(0, 1)
     b3 ~ dnorm(0, 1)
     b4 ~ dnorm(0, 1)
   }
   ", file = "JAGS_Occ_DetectionModel1.txt")
-
+```
+```{R Run JAGS Model 1}
 # Pull out the detections so that you have n_unit and n_site
 detections_only <- full_dat[,2:7]
 
@@ -223,6 +230,14 @@ jags_fit_global <- jags(data = jags_data,
                  n.chains = 3,
                  inits = init_func)
 #saveRDS(jags_fit_global, file = "./R_Scripts/7_Model_Scripts/JAGS_Global_Detection_Model.Rdata")
+
+# From Thomas
+# > tmp <- rnorm(10000, 0, 10)
+# > hist(tmp)
+# > hist(plogis(tmp))
+# > tmp <- rlogis(10000, 0, 1)
+# > hist(tmp)
+# > hist(plogis(tmp))
 ```
 
 # Evaluate Model Convergence and Output for Initial Model
@@ -234,13 +249,19 @@ jags_fit_global <- jags(data = jags_data,
 # b4/cov4: effort
 
 # Read in the model that we saved after running the above code
-jags_fit_global <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research//R_Scripts/7_Model_Scripts/JAGS_Global_Detection_Model.Rdata")
+jags_fit_global <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model.Rdata")
+print(jags_fit_global)
+#traceplot(jags_fit_global)
 # I think I need to try saving the mcmc chains instead
 jags_chains_global <- jags_df(jags_fit_global)
+# Look at the traceplot from coda
+jags_fit_mcmc <- as.mcmc(jags_fit_global)
+traceplot(jags_fit_mcmc)
+# Only takes mcmc objects
 #jags_chains_global$b1
 # Get a summary of the results
 summary(jags_fit_global)
-
+## How do you transform these outputs into probability of detection???
 # plot traceplots
 tracedens_jags(jags_fit_global)
 ```
@@ -375,40 +396,208 @@ init_func <- function(){
   )
 }
 # Run JAGS model
-jags_fit_global_1rem <- jags(data = jags_data_1rem, 
-                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models/JAGS_Occ_DetectionModel1.txt",
-                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
-                 n.iter = 10000, 
-                 n.burnin = 2000, 
-                 n.chains = 3,
-                 inits = init_func)
-saveRDS(jags_fit_global_1rem, file = "./R_Scripts/7_Model_Scripts/JAGS_Global_Detection_Model_LastSurveyRemoved.Rdata")
+# jags_fit_global_1rem <- jags(data = jags_data_1rem, 
+#                  model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models/JAGS_Occ_DetectionModel1.txt",
+#                  parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
+#                  n.iter = 10000, 
+#                  n.burnin = 2000, 
+#                  n.chains = 3,
+#                  inits = init_func)
+saveRDS(jags_fit_global_1rem, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model_LastSurveyRemoved.Rdata")
 #jags_chains_global <- jags_df(jags_fit_global_1rem)
 tracedens_jags(jags_fit_global_1rem)
 summary(jags_fit_global_1rem)
 
 diagnose_model(jags_fit_global_1rem)
 ```
+This just further reduced the effective sample sizes and didn't help with convergence.
+
 
 What to do when the model is not converging: 
 - try running it for more iterations
 - specify more precise initial values
 
-```{r Trying to get convergence}
-jags_fit_global_1rem2 <- jags(data = jags_data_1rem, 
-                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models/JAGS_Occ_DetectionModel1.txt",
+```{r Increasing Iterations}
+# jags_fit_global_1rem2 <- jags(data = jags_data_1rem, 
+#                  model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models/JAGS_Occ_DetectionModel1.txt",
+#                  parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
+#                  n.iter = 20000, 
+#                  n.burnin = 2000, 
+#                  n.chains = 3,
+#                  inits = init_func)
+saveRDS(jags_fit_global_1rem2, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model_LastSurveyRemoved_2xIter.Rdata")
+tracedens_jags(jags_fit_global_1rem2)
+summary(jags_fit_global_1rem2)
+```
+More iterations: didn't help, model looks maybe closer to converging but isn't there. I think I need to specify better initial values or thin the values to reduce correlation. 
+
+```{R Increase Thinning}
+# Run JAGS model
+jags_fit_global_5xthin <- jags(data = jags_data, 
+                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_Occ_DetectionModel1.txt",
                  parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
                  n.iter = 20000, 
                  n.burnin = 2000, 
                  n.chains = 3,
+                 n.thin = 5,
                  inits = init_func)
-saveRDS(jags_fit_global_1rem2, file = "./R_Scripts/7_Model_Scripts/JAGS_Global_Detection_Model_LastSurveyRemoved_2xIter.Rdata")
-tracedens_jags(jags_fit_global_1rem2)
-summary(jags_fit_global_1rem2)
+saveRDS(jags_fit_global_5xthin, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model_5xThin.Rdata")
+print(jags_fit_global_5xthin)
+tracedens_jags(jags_fit_global_5xthin)
+summary(jags_fit_global_5xthin)
+print(jags_fit_global)
 ```
-More iterations: didn't help, model looks maybe closer to converging but isn't there. I think I need to specify better initial values. 
-
 How do I choose which initial values to use?
+
+
+## Trying again with new initial values
+```{R Trying Model with Different Initial Values}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections_only,
+  # Date
+  cov1 = full_dat[,21:26],
+  # Veg Density - site level
+  cov2 = full_dat[,14],
+  # Background noise
+  cov3 = full_dat[,8:13],
+  # Effort 
+  cov4 = full_dat[,15:20],
+  n_unit = nrow(detections_only),
+  n_rep = ncol(detections_only)
+)
+
+# Set initial values (optional)
+init_func2 <- function(){
+  list(
+    a0 = .2, #set this to what our estimate for occupancy is
+    b0 = .3, # set this to what I expect detection probability is
+    b1 = runif(1, min = -2, max = 2),
+    b2 = rnorm(1, 0, 1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
+  )
+}
+
+# Run JAGS model
+jags_fit_global_newinits <- jags(data = jags_data, 
+                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_Occ_DetectionModel1.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
+                 n.iter = 10000, 
+                 n.burnin = 2000, 
+                 n.chains = 3,
+                 inits = init_func2)
+print(jags_fit_global_newinits)
+tracedens_jags(jags_fit_global_newinits)
+```
+
+I keep getting this error "node inconsistent with parameters". I'm troubleshooting this based off of [this page](https://stackoverflow.com/questions/71174973/in-rjags-runjags-what-causes-the-node-inconsistent-with-parents-error-when-us).
+
+```{R Change Priors}
+# Create the jags_model
+cat("
+  model{
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0
+      
+      cov2[i] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+      
+      for(j in 1:n_rep){
+        cov1[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        cov3[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        cov4[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0 + b1*cov1[i,j] + b2*cov2[i] + b3*cov3[i,j] + b4*cov4[i,j]
+        
+      }
+    }
+    
+    # Priors
+    a0 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+    b1 ~ dnorm(0, 1)
+    b2 ~ dnorm(0, 1)
+    b3 ~ dnorm(0, 1)
+    b4 ~ dnorm(0, 1)
+  }
+  ", file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_Occ_DetectionModel1_ModifiedDatePriorInit.txt")
+
+# Pull out the detections so that you have n_unit and n_site
+detections_only <- full_dat[,2:7]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections_only, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+#z_dat
+
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections_only,
+  # Date
+  cov1 = scale(full_dat[,21:26]),
+  # Veg Density - site level
+  cov2 = scale(full_dat[,14]),
+  # Background noise
+  cov3 = scale(full_dat[,8:13]),
+  # Effort 
+  cov4 = scale(full_dat[,15:20]),
+  n_unit = nrow(detections_only),
+  n_rep = ncol(detections_only)
+)
+
+# Set initial values (optional)
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b2 = rnorm(1, 0, 1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
+  )
+}
+
+# Run JAGS model
+jags_fit_modifiedpriorinit <- jags(data = jags_data, 
+                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_Occ_DetectionModel1_ModifiedDatePriorInit.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
+                 n.iter = 30000, 
+                 n.burnin = 10000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 parallel = TRUE,
+                 inits = init_func)
+#saveRDS(jags_fit_global, file = "./R_Scripts/7_Model_Scripts/JAGS_Global_Detection_Model.Rdata")
+print(jags_fit_modifiedpriorinit)
+tracedens_jags(jags_fit_modifiedpriorinit)
+
+#Plot posterior for b1 against posterior for b3 and intercept - if it looks like a "track", the covariates are pulling on each other too much
+plot(jags_fit_modifiedpriorinit$sims.list$b0 ~ jags_fit_modifiedpriorinit$sims.list$b3)
+plot(jags_fit_modifiedpriorinit$sims.list$b0 ~ jags_fit_modifiedpriorinit$sims.list$b1)
+plot(jags_fit_modifiedpriorinit$sims.list$b3 ~ jags_fit_modifiedpriorinit$sims.list$b1)
+```
+I'm still getting the error node inconsistent with parameters
+
+What the issue was: I was reading in data that wasn't scaled, but my data was specified to pull values for NAs that were scaled, which created an odd distribution in the data for things like date, which has unscaled values in the hundreds. When the model was trying to multiply the effect of these covariates times the covariate value and relate that to a presence/absence value, it was multiplying it by very large (date) and very small (decibel) numbers. Therefore, when it was trying to transform to a logit scale, it would be very confident that a later date (*222 or something like that) would be a very high probability of presence, then unable to converge why it was a zero. 
+
+```
+
+
+
+
+
+
+
 ```{R Here Lies my Failed Attempts and Stuff I Dont Need, include = FALSE, eval = FALSE}
 #detections_only_1rem <- as.matrix(full_dat_1rem %>% select(matches("det")))
 

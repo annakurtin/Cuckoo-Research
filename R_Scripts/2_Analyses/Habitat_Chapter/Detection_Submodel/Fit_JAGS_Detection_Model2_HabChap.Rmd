@@ -1,0 +1,326 @@
+---
+title: "Habitat Chapter JAGS Detection Model 2"
+author: "Anna Kurtin"
+date: "5/31/2024"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(coda)
+library(janitor)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Create_SiteColumn_fromPointID.R")
+```
+
+## Data Reading and Formatting
+
+I'm going to read in the data, look at it's distribution, and format it for use in JAGS. As part of this formatting, I will be centering and scaling the data, so that each covariate has a mean of 0 and standard deviation of 1. This means that the covariates are interpretable compared to one another and allows us to pull from a normal distribution for our priors and initial values. 
+
+Format detection data, which has been separated into two-week survey periods. This data represents a 1 if any BBCU vocalizations were confirmed at any point within the site within the two week survey period. 
+
+*Scripts: ./R_Scripts/3_Data_Wrangling_Tidying/Detection_History/CreateDetectionHistoryPeriods_camtrapR.R & /Create_Datasheets_forDetectionHistory.R*
+
+```{r Detection Data}
+# y data: read in a dataframe that has a row for every point and a column for every detection period
+detections_orig <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Detection_History/2023_All_ARUs/Outputs/DetectionHist_CamTrapR/bbcu__detection_history__with_effort__14_days_per_occasion__2024-04-29.csv") %>% clean_names
+survey_startdate <- colnames(detections_orig)
+# Make a copy of the data
+detections <- detections_orig
+colnames(detections) <- c("site_session","det_survey1","det_survey2","det_survey3","det_survey4","det_survey5","det_survey6")
+# Split apart the detections into site and point
+detections <- detections %>% separate(site_session, into = c("site_id","session_name"), sep = "__")
+
+```
+
+Format the date covariate. This is a survey-level covariate that represents the start date of each survey period. We can see from the distribution that this follows a uniform distribution. 
+
+```{R Date}
+# Create the values for date
+# Remove the value with just "x", remove "x" from the rest, reformat dates
+surveys_cleaned <- survey_startdate[-1] %>% 
+  gsub("^x", "", .) %>%            # Remove the leading "x"
+  gsub("_", "-", .)                # Replace underscores with hyphens
+# then convert it into a dataframe
+# Convert to a dataframe
+surveys_df <- data.frame(survey_period = surveys_cleaned)
+# Split the survey_period into start_date and end_date 
+surveys_df <- surveys_df %>%
+  separate(survey_period, into = c("start_date", "end_date"),sep = "(?<=\\d{4}-\\d{2}-\\d{2})-")
+# Convert it to date
+surveys_df <- surveys_df %>% mutate(start_date = as.Date(start_date, format = "%Y-%m-%d"),
+                                    end_date = as.Date(end_date, format = "%Y-%m-%d"))
+# Convert to Julian Date
+surveys_df <- surveys_df %>% mutate(start_julian = yday(start_date),
+                                        end_julian = yday(end_date))
+# Scale the start date
+surveys_df$startdate_scaled <- scale(surveys_df$start_julian, center = TRUE)[,1]
+# Pivot wider then rename the columns
+start_dates <- surveys_df$startdate_scaled
+# Plot the distribution
+hist(surveys_df$startdate_scaled, col = cuckoo_palette[1], main = "Distribution of Scaled Date Covariate")
+```
+
+Format the covariate for vegetation density. This is a composite index of vegetation density at the site derived from the total shrub cover and total number of trees present within the plot. For each site, I took the total percent shrub cover and standardized it to the maximum percent shrub cover across all sites. Then, I took the total number of trees present and standardized it to the maximum total number of trees across all sites. Then I summed these two values to create a composite vegetation density index. This covariate follows a normal distribution. 
+
+*Script: ./R_Scripts/3_Data_Wrangling_Tidying/Detection_Covariates/Combine_Veg_Survey_Plant_Data.R*
+
+```{R Vegetation Density }
+# Site-level covariates
+# Read in vegetation density for each site
+vegdense <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Detection_Covariates/ShrubTreeDensityComposite_2023_ARUPoints.csv")
+vegdense <- vegdense %>% create_site_col()
+# take the average of this across the site
+vegdense_avg <- vegdense %>% group_by(site_id,sampling_design) %>% summarize(veg_density_avg = round(mean(composite_dense,na.rm = TRUE),2))
+vegdense_avg <- as.data.frame(vegdense_avg)
+# Scale this covariate
+vegdense_avg$veg_density_avg_scaled <- scale(vegdense_avg$veg_density_avg)[,1]
+vegdense_fin <- vegdense_avg %>% select(site_id,veg_density_avg_scaled)
+# Look at the distribution 
+hist(vegdense_avg$veg_density_avg_scaled, col = cuckoo_palette[1], main = "Distribution of Scaled Veg Density Covariate")
+```
+
+Format the background noise covariate. This covariate represents the average background noise in decibels during each survey period at the site. To create this covariate, I calculated the average decibels within the bandpass filter used by the cuckoo classifier (200-3500 Hz) for each audio file. Then, I assigned each audio file to a survey period, based on the same date intervals used for detection history. I grouped by site ID and survey period, then calculated the average decibel value. This covariate follows a normal distribution. 
+
+*Script: ./R_Scripts/3_Data_Wrangling_Tidying/Detection_Covariates/Create_Survey_Level_BackgrounddB.R*
+
+```{R Background Noise}
+# background noise
+background_db <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Detection_Covariates/BackgroundNoiseBandpass_2023_ARUPoints.csv")
+colnames(background_db) <- c("site_id","backdb_survey1","backdb_survey2","backdb_survey3","backdb_survey4","backdb_survey5","backdb_survey6")
+# Pivot longer for scaling
+db_long <- background_db %>% pivot_longer(cols = c(backdb_survey1,backdb_survey2,backdb_survey3,backdb_survey4,backdb_survey5,backdb_survey6), names_to = "survey_period",values_to = "db" )
+# Checking why they have [,1] after all the names when I use scale
+# test <- scale(db_long$db, center = TRUE, scale = TRUE)
+# test[,1]
+# test[,2] # Why can't I query the other items of the list?
+# test[1,]
+# test
+# Looks like scale() returns a list of lists where the first value is the actual scaled data and the second value is the quantity to which the data was centered and sclaed to
+# Scale it
+db_long$db_scaled <- scale(db_long$db, center = TRUE)[,1]
+# Check the distribution
+hist(db_long$db_scaled, xlab = "Background dB", main = "Distribution of Scaled Background Noise", col = cuckoo_palette[1])
+# Pivot wider for use in model
+db_fin <- db_long %>% select(-db) %>% pivot_wider(names_from = survey_period, values_from = db_scaled)
+```
+
+Format the effort data. This data was created along with the two-week detection periods. I created an effort covariate by extracting the size of each audio file and writing that to a datasheet. Then, I counted a unit as active only if it had an audio file from a given day and if that audio file met the correct size threshold. I screened out audio files that were the proper size but had issues within the recording so that you could not detect sounds in the range of cuckoo vocalizations (200-3500 Hz). With this record of audio files recorded per day for each recording unit, I then used package camtrapR to calculate effort to represent the hours of audio recorded per day/percentage of the 2 hours per day successfully recorded. In camtrapR, I grouped recording units by site and summed up the effort per site across each survey period.  
+
+*Scripts: ./R_Scripts/3_Data_Wrangling_Tidying/Detection_History/CreateDetectionHistoryPeriods_camtrapR.R & /Create_Datasheets_forDetectionHistory.R*
+
+```{R Effort}
+# Read in detection and effort data 
+effort <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Detection_History/2023_All_ARUs/Outputs/DetectionHist_CamTrapR/bbcu__effort__not_scaled_14_days_per_occasion__2024-04-29.csv") %>% clean_names
+#survey_periods <- colnames(effort)
+# Rename columns
+colnames(effort) <- c("site_session","effort_survey1","effort_survey2","effort_survey3","effort_survey4","effort_survey5","effort_survey6")
+# Clean up the columns
+effort <- effort %>% separate(site_session, into = c("site_id","session_name"), sep = "__") %>% select(-session_name)
+# Pivot longer for scaling
+effort_long <- effort %>% pivot_longer(cols = c(effort_survey1,effort_survey2,effort_survey3,effort_survey4,effort_survey5,effort_survey6), names_to = "survey_period",values_to = "effort" )
+# Sclae it
+effort_long$effort_scaled <- scale(effort_long$effort, center = TRUE)[,1]
+# Look at the distribution
+hist(effort_long$effort_scaled, xlab = "Effort", main = "Distribution of Scaled Survey Effort", col = cuckoo_palette[1])
+# Pivot wider for use in model 
+# Pivot wider for use in model
+effort_fin <- effort_long %>% select(-effort) %>% pivot_wider(names_from = survey_period, values_from = effort_scaled)
+```
+
+After all of my covariates were formatted and scaled, I combined them into one dataframe to use in my model. 
+```{R Combine Data, eval = FALSE}
+# Combine them
+full_dat <- left_join(detections,db_fin, by = "site_id")
+full_dat <- left_join(full_dat,vegdense_fin, by = "site_id")
+full_dat <- left_join(full_dat, effort_fin, by = "site_id")
+full_dat <- full_dat %>% mutate(start_date_s1 = start_dates[1],
+                     start_date_s2 = start_dates[2],
+                     start_date_s3 = start_dates[3],
+                     start_date_s4 = start_dates[4],
+                     start_date_s5 = start_dates[5],
+                     start_date_s6 = start_dates[6])
+# Remove unwanted column
+full_dat <- full_dat %>% select(-c(session_name))
+# Save for future use
+#saveRDS(full_dat, file ="./Data/Habitat_Model_Covariates/Full_DetectionDataSCALED_JAGSModels_HabChap.Rdata")
+```
+
+Let's load in the data that I just formatted and scaled. 
+
+```{r Load in Data}
+full_dat <- readRDS(file ="C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Full_DetectionDataSCALED_JAGSModels_HabChap.Rdata")
+```
+
+## New and Improved (Fixed) Model
+
+Next, I am going to run a JAGS model that I've specified for a single season, single species occupancy model. The actual model file includes the likelihood statement and the prior distributions for each covariate. 
+
+With Thomas R.'s input, I changed my priors to reflect the fact that these inform the probability distribution for the covariate effects, not the values of the covariates themselves and corrected the priors for the intercept of occupancy and detection probability.
+
+Note also that this model fills in values drawn from the prior distribution for NAs in the data. It does this for missing detection data as well as missing covariates. 
+
+```{R Set Up and Run Model, eval = FALSE}
+# b1/cov1: date
+# b2/cov2: veg density
+# b3/cov3: background noise
+# b4/cov4: effort
+
+# Create the jags_model
+cat("
+  model{
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0
+      
+      cov2[i] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+      
+      for(j in 1:n_rep){
+        cov1[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        cov3[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        cov4[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0 + b1*cov1[i,j] + b2*cov2[i] + b3*cov3[i,j] + b4*cov4[i,j]
+        
+      }
+    }
+    
+    # Priors
+    a0 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+    b1 ~ dnorm(0, 1)
+    b2 ~ dnorm(0, 1)
+    b3 ~ dnorm(0, 1)
+    b4 ~ dnorm(0, 1)
+  }
+  ", file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod2.txt")
+```
+
+I also specify which parts of my data correspond to which covariates or detections and specify the distribution from which to pull the initial values. Note also that I created a separate value `z_dat` to tell the model which sites had true presence based on our detection data. If you don't specify this value, the model may simulate that a cuckoo was absent at a site where you had a detection, which will break the model. 
+
+```{R Specify Data for Model, eval = FALSE}
+# Pull out the detections so that you have n_unit and n_site
+detections_only <- full_dat[,2:7]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections_only, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections_only,
+  # Date
+  cov1 = full_dat[,21:26],
+  # Veg Density - site level
+  cov2 = full_dat[,14],
+  # Background noise
+  cov3 = full_dat[,8:13],
+  # Effort 
+  cov4 = full_dat[,15:20],
+  n_unit = nrow(detections_only),
+  n_rep = ncol(detections_only)
+)
+
+# Set initial values (optional)
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b2 = rnorm(1, 0, 1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
+  )
+}
+```
+
+Next, I establish the parameters for running the model itself. I specify the number of chains, which is the number of times that JAGS will create independent posterior distributions. The use of multiple chains is to ensure that they arrive to the same conclusion - they are "evenly mixed" as we will see in the traceplots. Next, I specify the total number of iterations. This is the number of times the MCMC sampler will run and draw new posterior values. Next, I specify the burnin period, which is the number of iterations JAGS will "throw out" before keeping the posterior draws in the chain. This is because we randomize our starting/initial values for each covariate, so if one of these initial values is very far off, the MCMC sampler will have some time to get it into a more normal range before we actually start monitoring the chains. Finally, I specify the number of thinning. This means that the MCMC sampler will keep out every other value it draws from the posterior distribution. Thinning the chains in this way reduces the amount of correlation between values in the posterior distribution and increases their independence. 
+
+```{R Run Model, eval = FALSE}
+# Run JAGS model
+habdet_m2 <- jags(data = jags_data, 
+                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod2.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
+                 n.iter = 20000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 parallel = TRUE,
+                 inits = init_func)
+saveRDS(habdet_m2, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model.Rdata")
+```
+
+## Evaluate Model Outputs 
+
+Once I've run the model, I'm going to take a look at the output to evaluate whether the model converged.
+
+```{R Evaluating Convergence}
+# Read in the model that we saved after running the above code
+habdet_m2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model.Rdata")
+
+# Evaluating convergence
+print(habdet_m2)
+tracedens_jags(habdet_m2)
+```
+
+Each chain looks evenly "mixed" with the others, meaning that there is high degrees of overlap. We also see this in our scale reduction factor (Rhat), which is close to 1 for all variables. The effective sample size also looks good (n_eff > 100 * n_chains), meaning that we have appropriately independent samples in our posterior distribution. 
+
+When I was running into issues with some covariates not converging, it was because I didn't have my variables scaled. Therefore I was getting weird values when I plotted the posterior distributions for one covariate against the other, specifically when I was plotting date against background decibels. These plots were looking like a linear "track", which indicated that the strongly negative unscaled values for b3 (background decibels) and strongly positive unscaled values for Julian date were pulling around the estimate too much. Now that I've fixed the data to be scaled, we can see that there is no correlation between the effects of the two covariates, which is what we want.  
+
+```{R Plotting Posterior Tracks}
+#Plot posterior for b1 against posterior for b3 and intercept - if it looks like a "track", the covariates are pulling on each other too much
+#plot(habdet_m2$sims.list$b0 ~ habdet_m2$sims.list$b3)
+#plot(habdet_m2$sims.list$b0 ~ habdet_m2$sims.list$b1)
+plot(habdet_m2$sims.list$b3 ~ habdet_m2$sims.list$b1)
+```
+
+When we looked at our summary, we saw that the only covariate whose effect didn't overlap zero (is "significant" in Bayesian terms) was date. However, when we look more closely at the other covariates, we see that the f statistics (percentage of the samples from the posterior distribution that are on the same side of zero as the mean) for b3 (background noise) and b4 (effort) are fairly high. Let's visualize these distributions to evaluate whether they are also having a substantial enough effect on detection to warrant keeping them in the model. 
+
+```{R Create Violin Plots}
+# Plot posterior distribution
+chains_m2 <- jags_df(habdet_m2)
+# Select the chains for our covariates of interest
+chains_viol <- chains_m2 %>% select(b1,b2,b3,b4)
+# Rename them to be more interpretable
+colnames(chains_viol) <- c("date","veg_density","background_noise","effort")
+# Pivot this longer so that we can visualize it
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("date","veg_density","background_noise","effort"),names_to = "Parameter", values_to = "Values")
+
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Detection Covariates") +
+  scale_fill_manual(values = c("date"=palette_5[1], "background_noise"=palette_5[2], "effort" = palette_5[3], "veg_density" = palette_5[4])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  theme_minimal()
+```
+
+From this plot, we can see that background noise, effort, and vegetation density overlap zero, but it background noise and effort overlap zero less than vegetation density. Let's zero in on these covariates and also take a look at the distribution for date. 
+
+```{R Visualize Independently}
+hist(chains_viol$date, col = palette_5[1], main = "Posterior Distribution of Date")
+abline(v = 0, col = "black")
+
+hist(chains_viol$background_noise, col = palette_5[2], main = "Posterior Distribution of Background Noise")
+abline(v = 0, col = "black")
+
+hist(chains_viol$effort, col = palette_5[3], main = "Posterior Distribution of Effort")
+abline(v = 0, col = "black")
+```
+
+If we go back and reference our summary table, we see that the f statistic (the percentage of the posterior distribution that falls on the same side of zero as the mean) is 0.904 for background noise and 0.868 for effort. The general rule of thumb is that if covariate effects overlap zero but not by much (f > 0.7), they can and probably should still be considered for inclusion in your model. I think background noise and survey effort make sense to include in our detection model. However, if we use this threshold for inclusion of covariates, I would assume this means we also need to apply this when we build the occupancy submodel. I'm not sure if we're worried about this leading us to include too many covariates or if we have a way to tell before actually building the model. My current plan is to continue forward with a detection submodel for the ARU occupancy model that includes date, survey effort, and background noise. 
+
+```{R Code Graveyard, include = FALSE, eval = FALSE}
+# nI <- length(chains_viol$date)
+# length(which(test$beta_det[,1] < 0))/nI
+```

@@ -2,17 +2,17 @@
 cuckoo_palette <- c("#B75F4A","#656131","#4C2C13","#CD9F6E","#B9C6BB")
 
 # Black-Billed Cuckoo
-eyering_red1 <- "#B75F4A"
-eyering_red2 <- "#CC3F1F"
-primaries_brown1 <- "#6A5424"
-primaries_brown2 <- "#4C2C13"
-head_cinnamon <- "#CD9F6E"
-chest_cream1 <- "#F0E4CA"
-chest_cream2 <- "#F6EFDE"
-chest_cream3 <- "#E3DAD1"
-foilage_green1 <- "#B9C6BB"
-foliage_green2 <-"#656131"
-sunshine_yellow <- "#F6DD62"
+# eyering_red1 <- "#B75F4A"
+# eyering_red2 <- "#CC3F1F"
+# primaries_brown1 <- "#6A5424"
+# primaries_brown2 <- "#4C2C13"
+# head_cinnamon <- "#CD9F6E"
+# chest_cream1 <- "#F0E4CA"
+# chest_cream2 <- "#F6EFDE"
+# chest_cream3 <- "#E3DAD1"
+# foilage_green1 <- "#B9C6BB"
+# foliage_green2 <-"#656131"
+# sunshine_yellow <- "#F6DD62"
 
 # Colorblind friendly hex codes
 # Resources: https://davidmathlogic.com/colorblind/#%23648FFF-%23785EF0-%23DC267F-%23FE6100-%23FFB000 
@@ -33,7 +33,8 @@ palette_8 <- c("#332288","#117733","#44AA99","#88CCEE","#DDCC77","#CC6677","#AA4
 # col3_5p <- "#DC267F"
 # col4_5p <- "#FE6100"
 # col5_5p <- "#FFB000"
-palette_5 <- c("#648FFF","#785EF0","#DC267F","#FE6100","#FFB000")
+#palette_5 <- c("#648FFF","#785EF0","#DC267F","#FE6100","#FFB000")
+palette_5 <- c("#88CCEE","#785EF0","#DC267F","#FE6100","#FFB000")
 
 
 

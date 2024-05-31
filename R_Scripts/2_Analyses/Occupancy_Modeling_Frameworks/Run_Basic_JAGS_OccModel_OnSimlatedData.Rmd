@@ -27,6 +27,8 @@ JAGS doesn't, however, allow you to build your own MCMC sampler. **Which one doe
 knitr::opts_chunk$set(echo = TRUE)
 library(unmarked)
 library(jagsUI)
+# for assessing model convergence and looking at output
+library(coda)
 library(tidyverse)
 ```
 
