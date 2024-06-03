@@ -1,7 +1,7 @@
 ---
-title: "Recover Params JAGS Detection Model1"
+title: "Test JAGS Model 2 on Simulated Data"
 author: "Anna Kurtin"
-date: "`r Sys.Date()`"
+date: "6/3/2024"
 output: html_document
 ---
 
@@ -14,16 +14,21 @@ library(tidyverse)
 library(jagshelper)
 library(ggplot2)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
-set.seed(123)
+# set.seed(123)
+# sample(1:5,5)
+# set.seed(123)
+# sample(1:5,5)
+# Have to set the seed before each one
+# So why does this give me a different slection of numbers each time?
 ```
-
-## Generate Data
 
 In order to determine if my model will perform well, I will first be simulating data using specified values for probability of occupancy and probability of detection. Then I will run my detection sub model on that data to see if it can recover the correct parameters. 
 
 I am simulating this data with a 20% probability of occupancy (based on naive estimates from our data) and a probability of detection of 60% (fairly high, so that we can test our model performance). 
 
-```{R generate data}
+## Generate Data
+
+```{R generate data, out.width = "50%", out.height = "50%"}
 # b1/cov1: date - uniform, survey level
 # b2/cov2: veg density - normal, site level
 # b3/cov3: background noise - normal, survey level
@@ -40,6 +45,7 @@ y <- array(NA, dim = c(nP, nV))   # point-level observation data
 
 # create separate arrays for each covariate and fill with randomly generated data
 date_cov <- array(NA, dim = c(nP,nV))
+set.seed(1)
 dates <- runif(nV, -2,2) # Pull six (standardized) values for date
 for (d in 1:nV){
   date_cov[,d] <- dates[d]
@@ -47,11 +53,13 @@ for (d in 1:nV){
 hist(date_cov, col = cuckoo_palette[1], main = "Distribution of Scaled Date")
 
 # Fill in veg density
+set.seed(2)
 veg_cov <- rnorm(nP, 0, 1)
 hist(veg_cov, col = cuckoo_palette[1], main = "Distribution of Simulated Scaled Veg Density")
 
 # Fill in background noise
 db_cov <- array(NA, dim = c(nP,nV))
+set.seed(3)
 for (i in 1:nP){
   for (j in 1:nV){
     db_cov[i,j] <- rnorm(1, 0, 1)
@@ -61,6 +69,7 @@ hist(db_cov, col = cuckoo_palette[1], main = "Distribution of Simulated Scaled B
 
 # Fill in effort
 effort_cov <- array(NA, dim = c(nP,nV))
+set.seed(4)
 for (i in 1:nP){
   for (j in 1:nV){
     effort_cov[i,j] <- rnorm(1, 0, 1)
@@ -69,6 +78,7 @@ for (i in 1:nP){
 hist(effort_cov, col = cuckoo_palette[1], main = "Distribution of Simulated Scaled Effort")
 
 # covariate effects (pull randomly for each covariate)
+set.seed(5)
 beta <- rnorm(nC, 0, 1)
 
 psi0 <- qlogis(0.2) # probability of presence
@@ -81,18 +91,24 @@ for (i in 1:nP){
 # Assume equal probability of presence at all sites with this simulation
 
 # get your true presence/non presence values from psi
+set.seed(8) # I changed this around until I got a value of presence/absence that looked good to me
 z <- rbinom(nP, 1, psi)
 
 # total number of detections across number of visits (nV)
 y <- matrix(NA, nP, nV)
 # fill in the detection matrix dependent on whether the animal was there (z) and whether it was detected (p0)
 # add covariate effects here
+set.seed(7)
 for (i in 1:nP){
   for (j in 1:nV){
     y[i,j] <- rbinom(1, z[i], plogis(p0 + (beta[1]*date_cov[i,j]) + (beta[2]*veg_cov[i]) + (beta[3]*db_cov[i,j]) + (beta[4]*effort_cov[i,j])))
   }
 }
 
+# b1/beta[1] : date
+# b2/beta[2] : vegetation density
+# b3/beta[3] : db
+# b4/beta[4] : effort
 ```
 
 ## Set up model 
@@ -131,7 +147,7 @@ cat("
   ", file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/Test_JAGS_Occ_DetectionModel2.txt")
 ```
 
-Next, I establish the parameters for running the model itself. I specify first the number of chains, which is the number of times that JAGS will create independent posterior distributions. The use of multiple chains is to ensure that they arrive to the same conclusion - they are "evenly mixed" as we will see in the traceplots. Next, I specify the total number of iterations. This is the number of times the MCMC sampler will run and draw new posterior values. Next, I specify the burnin period, which is the number of iterations JAGS will "throw out" before keeping the posterior draws in the chain. This is becuase we randomize our starting/initial values for the each covariate, so if one of these initial values is very far off, the MCMC sampler will have some time to get it into a more normal range before we actually start monitoring the chains. Finally, I specify the number of thinning. This means that the MCMC sampler will keep out every other value it draws from the posterior distribution. Thinning the chains in this way reduces the amount of correlation between values in the posterior distribution and increases their independence. 
+Next, I establish the parameters for running the model itself. I specify first the number of chains, which is the number of times that JAGS will create independent posterior distributions. The use of multiple chains is to ensure that they arrive to the same conclusion - they are "evenly mixed" as we will see in the traceplots. Next, I specify the total number of iterations. This is the number of times the MCMC sampler will run and draw new posterior values. Next, I specify the burnin period, which is the number of iterations JAGS will "throw out" before keeping the posterior draws in the chain. This is becuase we randomize our starting/initial values for the each covariate, so if one of these initial values is very far off, the MCMC sampler will have some time to get it into a more normal range before we actually start monitoring the chains. Finally, I specify the number of thinning. This means that the MCMC sampler will keep every other value it draws from the posterior distribution. Thinning the chains in this way reduces the amount of correlation between values in the posterior distribution and increases their independence. 
 
 ```{R Establish Parameters for Running Models}
 # sampler settings that I use in my main model
@@ -197,7 +213,7 @@ sim_fit1 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Worksp
 # Evaluate convergence
 print(sim_fit1)
 # plot traceplots
-tracedens_jags(sim_fit1)
+tracedens_jags(sim_fit1, parmfrow = c(3,3))
 ```
 
 It looks like this model converged nicely. Let's check and see if it effectively recovered the parameters. I'm going to take a look at the values themselves, then plot the true values on top of the posterior distribution to see how close to the center they are. 
@@ -217,20 +233,87 @@ true_vals <- data.frame(beta,covariate=c("date","veg_density","background_noise"
 chains_viol_long1 <- chains_viol1 %>% pivot_longer(cols = c("date","veg_density","background_noise","effort"),names_to = "Parameter", values_to = "Values")
 
 # Create the violin plot
-ggplot() +
+plot1 <- ggplot() +
   geom_violin(data=chains_viol_long1, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
   labs(title = "Posterior Distributions and True Parameters") +
   scale_fill_manual(values = c("date"=palette_5[1], "background_noise"=palette_5[2], "effort" = palette_5[3], "veg_density" = palette_5[4])) + theme(axis.text.x = element_blank())+
   geom_point(data = true_vals, aes(x=covariate, y = beta))+
   theme_minimal()
+plot1
 ```
 
 
-So it looks like my model is performing well on the data I simulated. But the real data that I have has NA values, either from where a vegetation survey wasn't conducted or where the ARU cut out early in the season. Let's try running the same model but with a little bit of "mess" in the data. 
+So it looks like my model is performing fairly well on the data I simulated. The only parameter that was not well recovered was vegetation density, but the true value still fell within the 95% credible interval. This could have been because the simulated data for vegetation density was the most "non normal" out of all of them. 
+
+
+
+```{R Veg Density Estimate, include = FALSE, eval = FALSE}
+# Let's try to run this on vegetation data that is more "normal" looking.
+# Fill in veg density
+set.seed(123)
+veg_cov1.5 <- rnorm(nP, 0, 1)
+hist(veg_cov1.5, col = cuckoo_palette[1], main = "Distribution of Simulated Scaled Veg Density")
+
+# Create a list of data for JAGS
+jags_data1.5 <- list(
+  # True presence at sites with confirmed presences
+  Z = z,
+  # Detection/nondetection data
+  det_data = y,
+  # Date
+  cov1 = date_cov,
+  # Veg Density - site level
+  cov2 = veg_cov1.5,
+  # Background noise
+  cov3 = db_cov,
+  # Effort 
+  cov4 = effort_cov,
+  n_unit = nP,
+  n_rep = nV
+)
+
+# Run JAGS model on the same model we specify in the Fit_JAGS_Detection_Model2_HabChap markdown
+sim_fit1.5 <- jags(data = jags_data1.5, 
+                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod2.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
+                 n.iter = ni, 
+                 n.burnin = nb, 
+                 n.chains = nc,
+                 n.thin = nt,
+                 parallel = TRUE,
+                 inits = init_func)
+# plot traceplots
+tracedens_jags(sim_fit1.5, parmfrow = c(3,3))
+
+# Get a summary of the results
+summary(sim_fit1.5)
+# Did we recover our parameters?
+beta
+
+# Plot posterior distribution
+jags_chains1.5 <- jags_df(sim_fit1)
+
+chains_viol1.5 <- jags_chains1.5 %>% select(b1,b2,b3,b4)
+colnames(chains_viol1.5) <- c("date","veg_density","background_noise","effort")
+true_vals <- data.frame(beta,covariate=c("date","veg_density","background_noise","effort"))
+chains_viol_long1.5 <- chains_viol1.5 %>% pivot_longer(cols = c("date","veg_density","background_noise","effort"),names_to = "Parameter", values_to = "Values")
+
+# Create the violin plot
+plot1.5 <- ggplot() +
+  geom_violin(data=chains_viol_long1, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distributions and True Parameters") +
+  scale_fill_manual(values = c("date"=palette_5[1], "background_noise"=palette_5[2], "effort" = palette_5[3], "veg_density" = palette_5[4])) + theme(axis.text.x = element_blank())+
+  geom_point(data = true_vals, aes(x=covariate, y = beta))+
+  theme_minimal()
+plot1.5
+```
+
+
+The real data that I have has NA values, either from where a vegetation survey wasn't conducted or where the ARU cut out early in the season. Let's try running the same model but with a little bit of "mess" in the data. 
 
 ## Add in NA values to the data
 
-```{R Add in Mess and Sub Random Data for NAs, eval = FALSE}
+```{R Add in Mess and Sub Random Data for NAs}
 # Copy over values for latent state from previous data
 psi0_2 <- psi0
 p0_2 <- p0
@@ -239,6 +322,7 @@ beta2 <- beta
 # Now let's try the same model with some "messiness" i.e. holes for NAs in the data
 # Create some holes in the samples to simulate NA data
 # select randomly which data will be NA
+set.seed(1)
 mess_y <- sample(1:nP, 16)
 sort(mess_y)
 y2 <- y
@@ -275,7 +359,8 @@ jags_data2 <- list(
   n_unit = nP,
   n_rep = nV
 )
-
+```
+```{R Run JAGS Model with Mess, eval = FALSE}
 # Run JAGS model
 jags_fit_test_mess <- jags(data = jags_data2, 
                  model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod2.txt",
@@ -286,7 +371,7 @@ jags_fit_test_mess <- jags(data = jags_data2,
                  n.thin = nt,
                  parallel = TRUE,
                  inits = init_func)
-saveRDS(jags_fit_test_mess, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Simulations/Test_JAGS_RecoverParams_WMess_GlobalDetMod2.Rdata")
+#saveRDS(jags_fit_test_mess, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Simulations/Test_JAGS_RecoverParams_WMess_GlobalDetMod2.Rdata")
 ```
 
 Once again, let's evaluate the convergence and outputs of the model. 
@@ -294,7 +379,7 @@ Once again, let's evaluate the convergence and outputs of the model.
 sim_fit2 <-readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Simulations/Test_JAGS_RecoverParams_WMess_GlobalDetMod2.Rdata")
 
 # Evaluate convergence
-tracedens_jags(sim_fit2)
+tracedens_jags(sim_fit2, parmfrow = c(3,3))
 # all of the covariates converged
 
 # Get a summary of the results
@@ -312,16 +397,17 @@ true_vals2 <- data.frame(beta2,covariate=c("date","veg_density","background_nois
 chains_viol_long2 <- chains_viol2 %>% pivot_longer(cols = c("date","veg_density","background_noise","effort"),names_to = "Parameter", values_to = "Values")
 
 # Create the violin plot
-ggplot() +
+plot2 <- ggplot() +
   geom_violin(data=chains_viol_long2, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
-  labs(title = "Posterior Distribution w/ NAs") +
+  labs(title = "Posterior Distributions w/ NAs") +
   scale_fill_manual(values = c("date"=palette_5[1], "background_noise"=palette_5[2], "effort" = palette_5[3], "veg_density" = palette_5[4])) + theme(axis.text.x = element_blank())+
   geom_point(data = true_vals2, aes(x=covariate, y = beta))+
   theme_minimal()
-
+plot2
 ```
 
-From this, it looks like the NAs are biasing the parameter towards no effect and failing to find significance, especially when the underlying parameter was already small.
+From this, it looks like the NAs are only very slightly affecting the posterior distributions, these graphs look pretty much identical to the first ones.
+
 
 However, the way we treated NA values in the previous simulation was to sample from a distribution to fill them in. Another way to handle them is to simply skip over them in the model. Let's try this and see what we get. 
 
@@ -384,14 +470,14 @@ jags_fit_test_mess2 <- jags(data = jags_data3,
                  n.thin = nt,
                  parallel = TRUE,
                  inits = init_func)
-saveRDS(jags_fit_test_mess2, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Simulations/Test_JAGS_RecoverParams_WMess_GlobalDetMod2-SkipNA.Rdata")
+#saveRDS(jags_fit_test_mess2, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Simulations/Test_JAGS_RecoverParams_WMess_GlobalDetMod2-SkipNA.Rdata")
 ```
 
 ```{R Evaluate Convergence Outputs Sim3}
 sim_fit3 <-readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Simulations/Test_JAGS_RecoverParams_WMess_GlobalDetMod2-SkipNA.Rdata")
 
 # Evaluate convergence
-tracedens_jags(sim_fit3)
+tracedens_jags(sim_fit3, parmfrow = c(3,3))
 # all of the covariates converged
 
 # Get a summary of the results
@@ -409,16 +495,124 @@ true_vals3 <- data.frame(beta2,covariate=c("date","veg_density","background_nois
 chains_viol_long3 <- chains_viol3 %>% pivot_longer(cols = c("date","veg_density","background_noise","effort"),names_to = "Parameter", values_to = "Values")
 
 # Create the violin plot
-ggplot() +
+plot3 <- ggplot() +
   geom_violin(data=chains_viol_long3, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
-  labs(title = "MCMC Chains Simulated Data w/ NAs Skipped") +
+  labs(title = "Posterior Distributions w/ NAs Skipped") +
   scale_fill_manual(values = c("date"=palette_5[1], "background_noise"=palette_5[2], "effort" = palette_5[3], "veg_density" = palette_5[4])) + theme(axis.text.x = element_blank())+
   geom_point(data = true_vals3, aes(x=covariate, y = beta))+
   theme_minimal()
-
+plot3
 ```
 
-It doesn't look like subbing in NAs vs just skipping the NA values makes a huge difference. Skipping the NAs just pulls the posterior distribution towards the center of that distribution. 
+It looks like skipping the NAs just pulls the posterior distribution very slightly towards the center of that distribution. It doesn't look like subbing in NAs vs just skipping the NA values makes a  difference.
 
-It does, however, look like having 16/107 (~15%) NAs is masking our ability to see an effect. In the data with no NAs, all parameters showed a significant effect, but once we masked out the NAs, background dB (the one with the lowest true effect size) now overlapped zero more strongly, with an f value going from 0.96 to 0.67, meaning that if we just had the data with the NAs masked, we would have a false negative after running the models. 
+### Looking at all plots together:
+```{R Final Plotting, echo = FALSE, out.width = "33%"}
+plot1
+plot2
+plot3
+```
 
+It looks like with a 15% rate of NAs (approximately what we have in our data), neither way of accounting for NAs is affecting our output significantly. Just to check that the model is working correctly, I simulated a new dataset with 50% NAs to see what affect that would have. 
+
+```{R Add in More NAs, eval= FALSE}
+#What if we had many times the number of NAs?
+# Copy over values for latent state from previous data
+psi0_2 <- psi0
+p0_2 <- p0
+beta2 <- beta
+
+# Now let's try the same model with some "messiness" i.e. holes for NAs in the data
+# Create some holes in the samples to simulate NA data
+# select randomly which data will be NA
+set.seed(1)
+mess_y4 <- sample(1:nP, 54)
+sort(mess_y4)
+y4 <- y
+# Change this data to NA
+y4[mess_y4, 3:6] <- NA
+
+# Create new covariate values with some "mess" in them
+date_cov2 <- date_cov
+veg_cov2 <- veg_cov
+db_cov4 <- db_cov
+db_cov4[mess_y4, 3:6] <- NA
+effort_cov4 <- effort_cov
+effort_cov4[mess_y4, 3:6] <- NA
+
+# Copy over probability of presence and actual presence
+psi2 <- psi
+z2 <- z
+
+# Call the model again
+# Create a list of data for JAGS
+jags_data4 <- list(
+  # True presence at sites with confirmed presences
+  Z = z2,
+  # Detection/nondetection data
+  det_data = y4,
+  # Date
+  cov1 = date_cov2,
+  # Veg Density - site level
+  cov2 = veg_cov2,
+  # Background noise
+  cov3 = db_cov4,
+  # Effort 
+  cov4 = effort_cov4,
+  n_unit = nP,
+  n_rep = nV
+)
+```
+```{R Run JAGS Model with Half NAs, eval = FALSE}
+# Run JAGS model
+jags_mess4 <- jags(data = jags_data4, 
+                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod2.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
+                 n.iter = ni, 
+                 n.burnin = nb, 
+                 n.chains = nc,
+                 n.thin = nt,
+                 parallel = TRUE,
+                 inits = init_func)
+saveRDS(jags_mess4, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Simulations/Test_JAGS_RecoverParams_WMess_GlobalDetMod2-HalfNA.Rdata")
+```
+```{R Evaluate Graph Half NAs}
+sim_fit4 <-readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Simulations/Test_JAGS_RecoverParams_WMess_GlobalDetMod2-HalfNA.Rdata")
+# From this we should see less convergence and greater uncertainty in the estimates
+tracedens_jags(sim_fit4, parmfrow = c(3,3))
+jags_chains_global4 <- jags_df(sim_fit4)
+
+chains_viol4 <- jags_chains_global4 %>% select(b1,b2,b3,b4)
+colnames(chains_viol4) <- c("date","veg_density","background_noise","effort")
+true_vals4 <- data.frame(beta2,covariate=c("date","veg_density","background_noise","effort"))
+chains_viol_long4 <- chains_viol4 %>% pivot_longer(cols = c("date","veg_density","background_noise","effort"),names_to = "Parameter", values_to = "Values")
+
+# Create the violin plot
+plot4 <- ggplot() +
+  geom_violin(data=chains_viol_long4, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distributions w/ 50% NAs") +
+  scale_fill_manual(values = c("date"=palette_5[1], "background_noise"=palette_5[2], "effort" = palette_5[3], "veg_density" = palette_5[4])) + theme(axis.text.x = element_blank())+
+  geom_point(data = true_vals4, aes(x=covariate, y = beta))+
+  theme_minimal()
+plot4
+```
+
+It seems that once we get to very high amounts of NAs in our data (50%), the posterior distributions are pulled towards zero ever so slightly but are still relatively unaffected. This is a bit puzzling for me, I'm still figuring out why exactly the model converges fine and isn't affected even by very high rates of NAs. 
+ 
+
+```{R Code Graveyard Old Stuff, include = FALSE, eval = FALSE}
+# # Fill in background noise
+# db_cov <- array(NA, dim = c(nP,nV))
+# #set.seed(123)
+# for (i in 1:nP){
+#   for (j in 1:nV){
+#     db_cov[i,j] <- rnorm(1, 0, 1)
+#   }
+# }
+# hist(db_cov, col = cuckoo_palette[1], main = "Distribution of Simulated Scaled Background Noise")
+#dv_cov1 <- db_cov # No set seed
+#dv_cov2 <- db_cov # set seed only before the for loop
+#dv_cov3 <- db_cov # This will always draw the same number
+#dv_cov4 <- db_cov # Set seed before the for loop - this gives me the same thing as before
+
+```
