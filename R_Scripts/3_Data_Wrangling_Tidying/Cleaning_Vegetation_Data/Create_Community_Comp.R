@@ -1,6 +1,6 @@
 #### Create Community Comp Metric from Veg Survey Data ###################
 
-## Purpose: to read in the cleaned data and try creating a variable for community composition of trees (and shrubs?)
+## Purpose: to read in the cleaned data and create a variable for community composition of trees and shrubs at sites with ARUs for my habitat chapter
 
 # Created 5/20/2024
 

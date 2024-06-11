@@ -1,9 +1,10 @@
 ---
-title: "Habitat Chapter JAGS Detection Model 2"
+title: "JAGS Detection Model 3"
 author: "Anna Kurtin"
-date: "5/31/2024"
+date: "`r Sys.Date()`"
 output: html_document
 ---
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -40,7 +41,7 @@ detections <- detections %>% separate(site_session, into = c("site_id","session_
 
 Format the date covariate. This is a survey-level covariate that represents the start date of each survey period. We can see from the distribution that this follows a uniform distribution. 
 
-```{R Date}
+```{R Date, out.width = "50%", out.height = "50%"}
 # Create the values for date
 # Remove the value with just "x", remove "x" from the rest, reformat dates
 surveys_cleaned <- survey_startdate[-1] %>% 
@@ -70,7 +71,7 @@ Format the covariate for vegetation density. This is a composite index of vegeta
 
 *Script: ./R_Scripts/3_Data_Wrangling_Tidying/Detection_Covariates/Combine_Veg_Survey_Plant_Data.R*
 
-```{R Vegetation Density }
+```{R Vegetation Density, out.width = "50%", out.height = "50%"}
 # Site-level covariates
 # Read in vegetation density for each site
 vegdense <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Detection_Covariates/ShrubTreeDensityComposite_2023_ARUPoints.csv")
@@ -89,19 +90,12 @@ Format the background noise covariate. This covariate represents the average bac
 
 *Script: ./R_Scripts/3_Data_Wrangling_Tidying/Detection_Covariates/Create_Survey_Level_BackgrounddB.R*
 
-```{R Background Noise}
+```{R Background Noise, out.width = "50%", out.height = "50%"}
 # background noise
 background_db <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Detection_Covariates/BackgroundNoiseBandpass_2023_ARUPoints.csv")
 colnames(background_db) <- c("site_id","backdb_survey1","backdb_survey2","backdb_survey3","backdb_survey4","backdb_survey5","backdb_survey6")
 # Pivot longer for scaling
 db_long <- background_db %>% pivot_longer(cols = c(backdb_survey1,backdb_survey2,backdb_survey3,backdb_survey4,backdb_survey5,backdb_survey6), names_to = "survey_period",values_to = "db" )
-# Checking why they have [,1] after all the names when I use scale
-# test <- scale(db_long$db, center = TRUE, scale = TRUE)
-# test[,1]
-# test[,2] # Why can't I query the other items of the list?
-# test[1,]
-# test
-# Looks like scale() returns a list of lists where the first value is the actual scaled data and the second value is the quantity to which the data was centered and sclaed to
 # Scale it
 db_long$db_scaled <- scale(db_long$db, center = TRUE)[,1]
 # Check the distribution
@@ -114,7 +108,7 @@ Format the effort data. This data was created along with the two-week detection 
 
 *Scripts: ./R_Scripts/3_Data_Wrangling_Tidying/Detection_History/CreateDetectionHistoryPeriods_camtrapR.R & /Create_Datasheets_forDetectionHistory.R*
 
-```{R Effort}
+```{R Effort, out.width = "50%", out.height = "50%"}
 # Read in detection and effort data 
 effort <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Detection_History/2023_All_ARUs/Outputs/DetectionHist_CamTrapR/bbcu__effort__not_scaled_14_days_per_occasion__2024-04-29.csv") %>% clean_names
 #survey_periods <- colnames(effort)
@@ -157,15 +151,9 @@ Let's load in the data that I just formatted and scaled.
 full_dat <- readRDS(file ="C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Full_DetectionDataSCALED_JAGSModels_HabChap.Rdata")
 ```
 
-## New and Improved (Fixed) Model
+## Quadratic effect for date
 
-Next, I am going to run a JAGS model that I've specified for a single season, single species occupancy model. The actual model file includes the likelihood statement and the prior distributions for each covariate. 
-
-With Thomas R.'s input, I changed my priors to reflect the fact that these inform the probability distribution for the covariate effects, not the values of the covariates themselves and corrected the priors for the intercept of occupancy and detection probability.
-
-Note also that this model fills in values drawn from the prior distribution for NAs in the data. It does this for missing detection data as well as missing covariates. 
-
-```{R Set Up and Run Model, eval = FALSE}
+```{R Set Up Quadratic Model, eval = FALSE}
 # b1/cov1: date
 # b2/cov2: veg density
 # b3/cov3: background noise
@@ -187,7 +175,7 @@ cat("
         cov4[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
         
         det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
-        logit(theta[i,j]) <- b0 + b1*cov1[i,j] + b2*cov2[i] + b3*cov3[i,j] + b4*cov4[i,j]
+        logit(theta[i,j]) <- b0 + b1*cov1[i,j]^2 + b2*cov2[i] + b3*cov3[i,j] + b4*cov4[i,j]
         
       }
     }
@@ -200,10 +188,9 @@ cat("
     b3 ~ dnorm(0, 1)
     b4 ~ dnorm(0, 1)
   }
-  ", file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod2.txt")
+  ", file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod3_QuadDate.txt")
 ```
 
-I also specify which parts of my data correspond to which covariates or detections and specify the distribution from which to pull the initial values. Note also that I created a separate value `z_dat` to tell the model which sites had true presence based on our detection data. If you don't specify this value, the model may simulate that a cuckoo was absent at a site where you had a detection, which will break the model. 
 
 ```{R Specify Data for Model, eval = FALSE}
 # Pull out the detections so that you have n_unit and n_site
@@ -245,12 +232,11 @@ init_func <- function(){
 }
 ```
 
-Next, I establish the parameters for running the model itself. I specify the number of chains, which is the number of times that JAGS will create independent posterior distributions. The use of multiple chains is to ensure that they arrive to the same conclusion - they are "evenly mixed" as we will see in the traceplots. Next, I specify the total number of iterations. This is the number of times the MCMC sampler will run and draw new posterior values. Next, I specify the burnin period, which is the number of iterations JAGS will "throw out" before keeping the posterior draws in the chain. This is because we randomize our starting/initial values for each covariate, so if one of these initial values is very far off, the MCMC sampler will have some time to get it into a more normal range before we actually start monitoring the chains. Finally, I specify the number of thinning. This means that the MCMC sampler will keep out every other value it draws from the posterior distribution. Thinning the chains in this way reduces the amount of correlation between values in the posterior distribution and increases their independence. 
 
-```{R Run Model, eval = FALSE}
+```{R Run Quadratic Model, eval = FALSE}
 # Run JAGS model
-habdet_m2 <- jags(data = jags_data, 
-                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod2.txt",
+habdet_m3 <- jags(data = jags_data, 
+                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod3_QuadDate.txt",
                  parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
                  n.iter = 20000, 
                  n.burnin = 4000, 
@@ -258,71 +244,53 @@ habdet_m2 <- jags(data = jags_data,
                  n.thin = 2,
                  parallel = TRUE,
                  inits = init_func)
-saveRDS(habdet_m2, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model.Rdata")
+saveRDS(habdet_m3, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model_QuadDate.Rdata")
 ```
 
-## Evaluate Model Outputs 
-
-Once I've run the model, I'm going to take a look at the output to evaluate whether the model converged.
-
-```{R Evaluating Convergence}
+```{R Evaluating Convergence QuadMod}
 # Read in the model that we saved after running the above code
-habdet_m2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model.Rdata")
+habdet_m3 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model_QuadDate.Rdata")
 
 # Evaluating convergence
-print(habdet_m2)
-tracedens_jags(habdet_m2, parmfrow = c(3,3))
+print(habdet_m3)
+tracedens_jags(habdet_m3, parmfrow = c(3,3))
 ```
 
-Each chain looks evenly "mixed" with the others, meaning that there is high degrees of overlap. We also see this in our scale reduction factor (Rhat), which is close to 1 for all variables. The effective sample size also looks good (n_eff > 100 * n_chains), meaning that we have appropriately independent samples in our posterior distribution. 
-
-When I was running into issues with some covariates not converging, it was because I didn't have my variables scaled. Therefore I was getting weird values when I plotted the posterior distributions for one covariate against the other, specifically when I was plotting date against background decibels. These plots were looking like a linear "track", which indicated that the strongly negative unscaled values for b3 (background decibels) and strongly positive unscaled values for Julian date were pulling around the estimate too much. Now that I've fixed the data to be scaled, we can see that there is no correlation between the effects of the two covariates, which is what we want.  
-
-```{R Plotting Posterior Tracks}
-#Plot posterior for b1 against posterior for b3 and intercept - if it looks like a "track", the covariates are pulling on each other too much
-#plot(habdet_m2$sims.list$b0 ~ habdet_m2$sims.list$b3)
-#plot(habdet_m2$sims.list$b0 ~ habdet_m2$sims.list$b1)
-plot(habdet_m2$sims.list$b3 ~ habdet_m2$sims.list$b1)
-```
-
-When we looked at our summary, we saw that the only covariate whose effect didn't overlap zero (is "significant" in Bayesian terms) was date. However, when we look more closely at the other covariates, we see that the f statistics (percentage of the samples from the posterior distribution that are on the same side of zero as the mean) for b3 (background noise) and b4 (effort) are fairly high. Let's visualize these distributions to evaluate whether they are also having a substantial enough effect on detection to warrant keeping them in the model. 
-
-```{R Create Violin Plots}
+```{R Create Violin Plots Quad Mod}
 # Plot posterior distribution
-chains_m2 <- jags_df(habdet_m2)
+chains_m3 <- jags_df(habdet_m3)
 # Select the chains for our covariates of interest
-chains_viol <- chains_m2 %>% select(b1,b2,b3,b4)
+chains_viol3 <- chains_m3 %>% select(b1,b2,b3,b4)
 # Rename them to be more interpretable
-colnames(chains_viol) <- c("date","veg_density","background_noise","effort")
+colnames(chains_viol3) <- c("date","veg_density","background_noise","effort")
 # Pivot this longer so that we can visualize it
-chains_viol_long <- chains_viol %>% pivot_longer(cols = c("date","veg_density","background_noise","effort"),names_to = "Parameter", values_to = "Values")
+chains_viol_long3 <- chains_viol3 %>% pivot_longer(cols = c("date","veg_density","background_noise","effort"),names_to = "Parameter", values_to = "Values")
 
 # Create the violin plot
 ggplot() +
-  geom_violin(data=chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  geom_violin(data=chains_viol_long3, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
   labs(title = "Posterior Distribution of Detection Covariates") +
   scale_fill_manual(values = c("date"=palette_5[1], "background_noise"=palette_5[2], "effort" = palette_5[3], "veg_density" = palette_5[4])) + 
   geom_hline(yintercept = 0, linetype = "solid", color = "black") +
   theme_minimal()
 ```
+What changed?
 
-From this plot, we can see that background noise, effort, and vegetation density overlap zero, but it background noise and effort overlap zero less than vegetation density. Let's zero in on these covariates and also take a look at the distribution for date. 
+* base probability of detection is lower (58% with this model versis 70% with the initial model)
 
-```{R Visualize Independently}
-hist(chains_viol$date, col = palette_5[1], main = "Posterior Distribution of Date")
-abline(v = 0, col = "black")
+* weaker effect of date
 
-hist(chains_viol$background_noise, col = palette_5[2], main = "Posterior Distribution of Background Noise")
-abline(v = 0, col = "black")
+* 
 
-hist(chains_viol$effort, col = palette_5[3], main = "Posterior Distribution of Effort")
-abline(v = 0, col = "black")
-```
+How do I know which model fits better?
 
-If we go back and reference our summary table, we see that the f statistic (the percentage of the posterior distribution that falls on the same side of zero as the mean) is 0.904 for background noise and 0.868 for effort. The general rule of thumb is that if covariate effects overlap zero but not by much (f > 0.7), they can and probably should still be considered for inclusion in your model. I think background noise and survey effort make sense to include in our detection model. However, if we use this threshold for inclusion of covariates, I would assume this means we also need to apply this when we build the occupancy submodel. I'm not sure if we're worried about this leading us to include too many covariates or if we have a way to tell before actually building the model. My current plan is to continue forward with a detection submodel for the ARU occupancy model that includes date, survey effort, and background noise. 
+* Conduct a posterior predictive check 
 
+* look at Rsquared or root mean r squared
 
-```{R Code Graveyard, include = FALSE, eval = FALSE}
-# nI <- length(chains_viol$date)
-# length(which(test$beta_det[,1] < 0))/nI
+```{R Posterior Predictive Checks}
+#test <- as.data.frame(habdet_m3$sims.list)
+# Just using chains m3 instead since I already made that
+loglikemat_3 <- as.matrix(chains_m3)
+loo(loglikemat_3)
 ```

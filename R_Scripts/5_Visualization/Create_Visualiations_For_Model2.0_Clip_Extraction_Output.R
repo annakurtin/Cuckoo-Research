@@ -30,6 +30,8 @@ clips_23 <- clips_23 %>%
       grepl("^[[:alpha:]]{3}-[[:digit:]]{1}$", point_id) ~ gsub("-.*", "", point_id)
   ))
 
+# Trying to read in formatted data 
+full_23 <- readRDS("./Data/Detection_History/2023_All_ARUs/Outputs/2023_BBCUDetections.Rdata")
 
 # What did detections look like over the deployment time?
 date_sums <- clips_23 %>% group_by(date_formatted) %>% summarize(num_detections = sum(annotation))
@@ -152,6 +154,12 @@ ggplot(daily_det_forgraphic, aes(x = date_formatted, y = detection)) +
   labs(x = "Date",y = "Detection",title = "Daily Detections At 2023 Sites") +
   facet_wrap(~ site_id, nrow = 10)
 
+
+# Visualizing the formatted data
+## What is the distribution of calls throughout the breeding season?
+test <- full_23 %>% group_by(date_formatted) %>% summarize(bbcu_sum = sum(annotation))
+ggplot(test) + geom_bar(aes(x = date_formatted, y = bbcu_sum), stat = "identity")
+# We would want this to be a negative quadratic
 
 #### Archive Code: Preliminary Data #####
 fwpr6_scores <- read.csv('F:/Cuckoo_Acoustic_Data/2023/2023_FWPR6_Data/2023_FWPR6_Clips/2023_FWPR6_topclip_perperiod/2023_FWPR6_topclips_perSiteperPeriod.csv')
