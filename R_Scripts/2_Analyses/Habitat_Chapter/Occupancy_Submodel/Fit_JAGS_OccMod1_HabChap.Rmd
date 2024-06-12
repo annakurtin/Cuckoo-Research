@@ -5,6 +5,8 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
+*NOTE:* You'll need to re run the scripts that are creating the vegetation metrics before running the model. This will incorporate the fixes for the extremely tall rose at ELI-2 and the duplicate on AME-1 (still pending)
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(jagsUI)
@@ -65,22 +67,26 @@ hist(subcan_metrics$height_sd_scale, col = cuckoo_palette[1], main = "Distributi
 
 # Select covariates for use in model 
 shrub_metrics_fin <- subcan_metrics %>% select(site_id,avg_height_scale, shrub_cover_scale, height_sd_scale)
+# How to simulate this data later?
+test <- rnbinom(n=107, size=50, mu=3)
+hist(test)
+# As size increases, the "peak" of the graph gets more spread out
+# as mu increases, the max of the graph increases and the peak is centered around that number
 ```
 
-#### Cov 5: Overall Veg Density
-```{R Read in Cov 5}
-
-
-```
-
-#### Cov 6: Canopy Height
+#### Cov 6: Overall Veg Density
 ```{R Read in Cov 6}
 
+```
+
+#### Cov 7: Canopy Height
+```{R Read in Cov 7}
+
 
 ```
 
-#### Cov 7: Canopy Density
-```{R Read in Cov 7}
+#### Cov 8: Canopy Density
+```{R Read in Cov 8}
 
 
 ```

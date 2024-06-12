@@ -289,12 +289,25 @@ shrub_comb <- shrub_comb %>% filter(!child_global_id %in% c("13ec2366-696f-4aa7-
 unk_only <- shrub_comb %>% filter(shrub_species == "UNSH") 
 # No UNSH left
 
-#unique(shrub_comb$shrub_species)
-
-
-
 # Mutate any rows that have values for cover and height but no spp to UNSH
 # After doing this, look and see what the total coverage/distribution of the UNSH is and potentially label them as misc_broadleaf or remove them
+
+# Correct heights that were entered wrong
+# ELI-2 says it has a rose bush 15 m tall, correcting this to 1.5
+shrub_comb <- shrub_comb %>% mutate(shrub_height_m = ifelse(child_global_id == "cb8f3782-6acf-4be6-bcf2-805057a486eb", 1.5, shrub_height_m))
+
+# Visualize the distributions to see if something is weird or outlier from a data entry error 
+hist(shrub_comb$x_cover)
+# Hard to see those on the upper end, removing the lower values
+large_cov <- shrub_comb %>% filter(x_cover > 10.0)
+hist(large_cov$x_cover)
+hist(shrub_comb$shrub_height_m)
+low_h <- shrub_comb %>% filter(shrub_height_m < 3)  
+hist(low_h$shrub_height_m)
+hi_h <- shrub_comb %>% filter(shrub_height_m > 3)
+hist(hi_h$shrub_height_m)
+shrub_comb %>% filter(shrub_height_m > 6)
+# Looking at this data, I would buy that FRPE could be 7 m high and still a shrub, same with the very tall PDEL at SIP-3, however I'm not sure I buy the SALI and SAMY at 10 and 12 m respectively. I feel like I've only seen SAMY get that tall when it has a broad trunk instead of being thin. However, I don't have a justification for changing these observations, so I'll be leaving them in. 
 
 # Write this to .csv
 #write.csv(tree_comb,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_TreeData_Cleaned5-24.csv", row.names = FALSE)
