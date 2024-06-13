@@ -111,8 +111,45 @@ for (i in 1:nP){
   }
 }
 
-# b1/beta[1] : date
-# b2/beta[2] : vegetation density
-# b3/beta[3] : db
-# b4/beta[4] : effort
+# b1/beta[1] : 
+# b2/beta[2] : 
+# b3/beta[3] : 
+# b4/beta[4] : 
 ```
+
+```{R Set Up Model,eval = FALSE}
+cat("
+  model{
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0
+      
+      cov2[i] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+      
+      for(j in 1:n_rep){
+        cov1[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        cov3[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        cov4[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0 + b1*cov1[i,j] + b2*cov2[i] + b3*cov3[i,j] + b4*cov4[i,j]
+        
+      }
+    }
+    
+    # Priors
+    a0 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+    b1 ~ dnorm(0, 1)
+    b2 ~ dnorm(0, 1)
+    b3 ~ dnorm(0, 1)
+    b4 ~ dnorm(0, 1)
+  }
+  ", file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/Test_JAGS_Occ_DetectionModel2.txt")
+```
+
+*Next up:* Figure out what the parameterization of these models means
+
+
+
