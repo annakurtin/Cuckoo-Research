@@ -10,23 +10,34 @@ knitr::opts_chunk$set(echo = TRUE)
 library(jagsUI)
 ```
 
+This presents an example for overdispersed Poisson data. This is examining hare abundance across landcover type with a random effect for site. This invove adding into the linar predictor for the Poisson intensity a normally distributed random effect, which then creates a Poisson generalized linear mixed model. 
+
+## Overdistributed Poisson Model
+
 ```{R Data Simulation}
 # Specify the number of sites
 n.site <- 10
 # pull data from the two land cover types you are studying
-x <- gl(n = 2, k = n.site, labels = c("grassland", "arable"))
+x <- gl(n = 2, k = n.site, labels = c("grassland", "arable")) # GL used for generate levels
+# Random effect for site to create overdispersion
 eps <- rnorm(2*n.site, mean = 0, sd = 0.5)# Normal random effect
-# Calculate populations growth rate with overdispersion caused by site-specific differences in hare density
+# Value for intensity (both central tendency and variance within a poisson distribution) with overdispersion caused by site-specific differences in hare density
 lambda.OD <- exp(0.69 +(0.92*(as.numeric(x)-1) + eps) )
-# Calculate pop growth rate without overdispersion
+# These values are different across sites - will create more dispersion in the count data
+# Value for intensity (both central tendency and variance within a poisson distribution) with no overdispersion
 lambda.Poisson <- exp(0.69 +(0.92*(as.numeric(x)-1)) ) # For comparison
+# These values are the same across sites
 
-# With overdispersion
+# Count at sites With overdispersion
+## Pulling from a poisson distribution with lambdas specified above
 C.OD <- rpois(n = 2*n.site, lambda = lambda.OD)
 # Without overdispersion
 C.Poisson <- rpois(n = 2*n.site, lambda = lambda.Poisson)
 
 # Visualize these
+hist(C.OD, main = "Hare Counts - Overdispersed")
+hist(C.Poisson, main = "Hare Counts - Not Overdispersed")
+
 par(mfrow = c(1,2))
 boxplot(C.OD ~ x, col = "grey", xlab = "Land-use", main = "With OD", 
 ylab = "Hare count", las = 1, ylim = c(0, max(C.OD)))
@@ -37,14 +48,12 @@ ylab = "Hare count", las = 1, ylim = c(0, max(C.OD)) )
 
 
 ```{R Analysis in R}
-
 glm.fit.no.OD <- glm(C.OD ~ x, family = poisson)
 glm.fit.with.OD <- glm(C.OD ~ x, family = quasipoisson)
 summary(glm.fit.no.OD)
 summary(glm.fit.with.OD)
 anova(glm.fit.no.OD, test = "Chisq")
 anova(glm.fit.with.OD, test = "F")
-
 ```
 
 ```{R Analysis in JAGS}
@@ -52,7 +61,7 @@ anova(glm.fit.with.OD, test = "F")
 str(bdata <- list(C.OD = C.OD, x = as.numeric(x)-1, n = length(x)))
 
 # Specify model in BUGS language
-cat(file = "PoissonEx_TTest.txt", "
+cat(file = "./R_Scripts/2_Analyses/Poisson_Modeling_Frameworks/PoissonEx_TTest.txt", "
 model {
 # Priors
  alpha ~ dnorm(0,0.001)
@@ -70,7 +79,9 @@ model {
 ")
 
 # Inits function
-inits <- function(){ list(alpha=rlnorm(1), beta=rlnorm(1), sigma = rlnorm(1))}
+inits <- function(){ list(alpha=rlnorm(1), 
+                          beta=rlnorm(1), 
+                          sigma = rlnorm(1))}
 
 # Parameters to estimate
 params <- c("lambda","alpha", "beta", "sigma")
@@ -79,10 +90,104 @@ params <- c("lambda","alpha", "beta", "sigma")
 na <- 1000  ;  nc <- 3  ;  ni <- 3000  ;  nb <- 1000  ;  nt <- 5
 
 # Call JAGS, check convergence and summarize posteriors
-out <- jags(bdata, inits, params, "PoissonEx_TTest.txt", n.adapt = na, n.thin = nt, n.chains = nc, 
-n.burnin = nb, n.iter = ni, parallel = TRUE)
+# Fit JAGS model with a random effect for site
+out <- jags(bdata, 
+            inits, 
+            params, 
+            "./R_Scripts/2_Analyses/Poisson_Modeling_Frameworks/PoissonEx_TTest.txt", 
+            n.adapt = na, 
+            n.thin = nt, 
+            n.chains = nc, 
+            n.burnin = nb, 
+            n.iter = ni, 
+            parallel = TRUE)
 par(mfrow = c(3, 3))  ;  traceplot(out)  ;  par(mfrow = c(1, 1))
 print(out, dig = 3)
+```
 
+
+
+## Zero-inflated Poisson Model
+
+Zero inflation is a specific case of overdispersion where there is more zeros in the data than expected. 
+
+The way you treat this in the models is having hierarchical models - one for whether the habitat is suitable and one for the count given that it is suitable.
+
+This way, you can have some sites with a zero count if they are suitable. However, you can't have account for sites that were suitable that seemed unsuitable because they didn't have any animals present. (I think, but might need to double check this).
+
+**As a side note, occupancy models are just a zero inflated general linear model.**
+
+```{R Data Generation Zero-Inflated}
+# Establish latent state - probability of habitat being suitable
+psi <- 0.8
+# Establish number of sites
+n.site <- 20
+# Create data for site land use as a factor with 2 levels 
+x <- gl(n = 2, k = n.site, labels = c("grassland", "arable"))
+# Suitability of a site - can hares be there at all?
+w <- rbinom(n = 2*n.site, size = 1, prob = psi)
+# Establish vector of overdispersion parameter
+lambda <- exp(0.69 +(0.92*(as.numeric(x)-1)) )
+# Count at the site - how many hares were there?
+C <- rpois(n = 2*n.site, lambda = w *lambda)
+cbind(x, w, C)
+
+```
+
+
+```{R Analysis in R}
+library(pscl)
+fm <- zeroinfl(C ~ x | 1, dist = "poisson")
+summary(fm)
+```
+
+
+```{R Analysis Using JAGS}
+# Bundle and summarize the data set passed to JAGS
+str(bdata <- list(C = C, x = as.numeric(x)-1, n = length(x)))
+
+# Specify model in BUGS language
+cat(file = "./R_Scripts/2_Analyses/Poisson_Modeling_Frameworks/ZeroInflatedPoissonEx.txt", "
+model {
+# Priors
+ psi ~ dunif(0,1)
+ alpha ~ dnorm(0,0.001)
+ beta ~ dnorm(0,0.001)
+
+# Likelihood
+ for (i in 1:n) {
+    w[i] ~ dbern(psi) # Suitability parameters
+    C[i] ~ dpois(eff.lambda[i]) # Count parameter
+    eff.lambda[i] <- w[i]*lambda[i] # Effective dispersion - based on suitability?
+    log(lambda[i]) <- alpha + beta *x[i]
+ }
+
+# Derived quantity
+ R.lpsi <- logit(1-psi)
+}
+")
+
+# Inits function
+inits <- function(){ list(alpha=rlnorm(1), beta=rlnorm(1), w = rep(1, 2*n.site))}
+
+# Parameters to estimate
+params <- c("lambda", "alpha", "beta", "w", "psi", "R.lpsi")
+
+# MCMC settings
+na <- 1000  ;  nc <- 3  ;  ni <- 50000  ;  nb <- 10000  ;  nt <- 4
+
+# Call JAGS, check convergence and summarize posteriors
+out <- jags(bdata, 
+            inits, 
+            params, 
+            "./R_Scripts/2_Analyses/Poisson_Modeling_Frameworks/ZeroInflatedPoissonEx.txt", 
+            n.adapt = na, 
+            n.thin = nt, 
+            n.chains = nc, 
+            n.burnin = nb, 
+            n.iter = ni, 
+            parallel = TRUE)
+par(mfrow = c(3, 3))  ;  traceplot(out)  ;  par(mfrow = c(1, 1))
+print(out, dig = 3)
 
 ```

@@ -9,6 +9,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(jagsUI)
+library(rjags)
 library(tidyverse)
 library(jagshelper)
 library(ggplot2)
@@ -244,6 +245,11 @@ habdet_m3 <- jags(data = jags_data,
                  n.thin = 2,
                  parallel = TRUE,
                  inits = init_func)
+# Try running this in the rjags package
+habdet_m3t <- jags.model(data = jags_data, 
+                 file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod3_QuadDate.txt",
+                 n.chains = 3,
+                 n.adapt = 1000)
 saveRDS(habdet_m3, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model_QuadDate.Rdata")
 ```
 
@@ -289,8 +295,38 @@ How do I know which model fits better?
 * look at Rsquared or root mean r squared
 
 ```{R Posterior Predictive Checks}
-#test <- as.data.frame(habdet_m3$sims.list)
-# Just using chains m3 instead since I already made that
-loglikemat_3 <- as.matrix(chains_m3)
-loo(loglikemat_3)
+# From this post on applying loo() to JAGS: https://sourceforge.net/p/mcmc-jags/discussion/610037/thread/37101d431b/
+# Using loo() to evaluate model
+library(rjags)
+# # load a JAGS module from rjags
+# load.module("glm")
+# # create a model specified with BUGS language description
+# m <- jags.model("logistic.bugs", data=standata, n.chain=4)
+# # Update the model for a specified number of iterations
+# update(m, 1000)
+# # Extract random samples from the posterior distribution of the parameters of a jags model 
+# ## In this case it looks like we're extracting the log likelihood, we're extracting 1000 random samples
+# s <- jags.samples(m, variable.names="log_lik", n.iter=1000)
+# log_lik_2 <- aperm(s$log_lik, c(2,3,1))
+# r_eff2 <- relative_eff(exp(log_lik_2), cores=5)
+# loo_2 <- loo(log_lik_2, r_eff = r_eff2, cores=5)
+# 
+# 
+# # applying this to my model
+# samps <- jags.samples(habdet_m3t, variable.names=c("log_lik"), n.iter = 1000)
+
+# I also might be able to extract the waic from the jags output
+#https://gist.github.com/oliviergimenez/68ad17910a62635ff6a062f8ec34292f
+samples_m3 <- jags.samples(habdet_m3$model,
+                           c("WAIC","deviance"),
+                           type = "mean",
+                           n.iter = 20000,
+                           n.burnin = 4000,
+                           n.thin = 2)
+# Look at Github for the rest - why is this saying inalid JAGS file?
+
+# Can get DIC 
+# Summary of everything in the model
+names(habdet_m3)
+habdet_m3$DIC
 ```

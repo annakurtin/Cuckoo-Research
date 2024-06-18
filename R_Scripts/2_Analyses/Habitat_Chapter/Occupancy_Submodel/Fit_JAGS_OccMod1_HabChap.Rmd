@@ -7,6 +7,8 @@ output: html_document
 
 *NOTE:* You'll need to re run the scripts that are creating the vegetation metrics before running the model. This will incorporate the fixes for the extremely tall rose at ELI-2 and the duplicate on AME-1 (still pending)
 
+Also, I would go back and take the average species richness per point within the sites with 3 monitoring points, otherwise I feel like these points will be biased to have a higher tree species richness
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(jagsUI)
