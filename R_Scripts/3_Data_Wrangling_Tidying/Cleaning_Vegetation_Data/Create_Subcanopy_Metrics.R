@@ -4,7 +4,8 @@
 
 # Created 6/11/2024
 
-# Last modified: 6/11/2024
+# Last modified: 6/19/2024
+# Updatd after removing duplicate AME-1
 
 #### Setup #################################
 packages <- c("tidyverse","janitor","forcats")
@@ -15,11 +16,11 @@ load_packages(packages)
 
 
 #### Read in Data ###################################
-shrub_orig <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_ShrubData_Cleaned5-24.csv")
+shrub_orig <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_ShrubData_Cleaned6-19.csv")
 #shrub_points <- unique(shrub$point_id)
 
 # Remove the points that don't have an ARU at it
-veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-24.csv")
+veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned6-19.csv")
 veg_waru <- veg %>% filter(aru_present == "yes")
 points_waru <- veg_waru$point_id
 
@@ -44,7 +45,7 @@ shrub_metrics1 <- left_join(shrub_height,shrub_dense, by = "site_id")
 shrub_metrics <- left_join(shrub_metrics1,shrub_cplx, by = "site_id")
 
 # Write this to csv
-write.csv(shrub_metrics,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_SubCanopyMetrics_5-24.csv",row.names = FALSE)
+write.csv(shrub_metrics,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_SubCanopyMetrics_6-19.csv",row.names = FALSE)
 
 
 #test <- cbind(shrub_height,shrub_dense,shrub_cplx, by = "site_id")

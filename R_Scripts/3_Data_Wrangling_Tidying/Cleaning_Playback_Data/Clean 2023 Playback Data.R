@@ -4,7 +4,7 @@
 
 # Created 8/23/2023
 
-# Last modified: 3/25/2023
+# Last modified: 6/19/2024
 
 # Playback data:
 # need to go through a change interval from 1-5 to M1-M5
@@ -144,21 +144,25 @@ temp <- pb_all %>% separate(col = survey_id, into = c("site","ID"), sep = "#")
 all_sites <- unique(temp$site) # total of 33 sites, 95 surveys
 
 # pull in 2023_playbackpoints-FWP and UMBEL and filter out only the sites with their site in the list of points used in 2023
-points_fwp <- read.csv("./Data/Monitoring_Points/2023_PlaybackPoints_FWP.csv") %>% rename(long = x, lat = y) %>% select(point_id, lat,long)
-points_umbel <- read.csv("./Data/Monitoring_Points/2023_Playback_Survey_Points_UMBEL.csv") %>% rename(lat = latitude,long = longitude) %>% select(point_id,lat,long) 
-# remove the sites that aren't formatted correctly and weren't used
-#points_umbel <- points_umbel[-c(60:65),]
-points_umbel <- points_umbel %>% filter(!point_id %in% c("SIP-1_old",
-                                         "SIP-2_old",
-                                         "Playback Site 2",
-                                         "Playback Site 3",
-                                         "Playback Site 5",
-                                         "Playback Site 6",
-                                         "Playback Site 7",
-                                         "Playback Site 8") )
-points_umbel$point_id <- str_replace(points_umbel$point_id,"_new", "")
-# Bind fwp and umbel points together
-points_all <- rbind(points_fwp,points_umbel)
+## THESE SCRIPTS WERE MOVED INTO THE ARCHIVE FOLDER
+# points_fwp <- read.csv("./Data/Monitoring_Points/2023_PlaybackPoints_FWP.csv") %>% rename(long = x, lat = y) %>% select(point_id, lat,long)
+# points_umbel <- read.csv("./Data/Monitoring_Points/2023_Playback_Survey_Points_UMBEL.csv") %>% rename(lat = latitude,long = longitude) %>% select(point_id,lat,long) 
+# # remove the sites that aren't formatted correctly and weren't used
+# #points_umbel <- points_umbel[-c(60:65),]
+# points_umbel <- points_umbel %>% filter(!point_id %in% c("SIP-1_old",
+#                                          "SIP-2_old",
+#                                          "Playback Site 2",
+#                                          "Playback Site 3",
+#                                          "Playback Site 5",
+#                                          "Playback Site 6",
+#                                          "Playback Site 7",
+#                                          "Playback Site 8") )
+# points_umbel$point_id <- str_replace(points_umbel$point_id,"_new", "")
+# # Bind fwp and umbel points together
+# points_all <- rbind(points_fwp,points_umbel)
+# export this to the monitoring points folder
+#write.csv(points_all, "./Data/Monitoring_Points/2023_PlaybackPoints_FWP_UMBEL.csv", row.names = FALSE)
+points_all <- read.csv("./Data/Monitoring_Points/2023_PlaybackPoints_FWP_UMBEL.csv")
 
 
 # Separate points all into site and point

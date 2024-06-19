@@ -1416,7 +1416,12 @@ txhousing %>% mutate_if(is.character, toupper)
 
 
 
-
+# Testing if values are approximately equal to each other (diffrent than == or !=) using all.equal()
+merged_df <- aru_23 %>%
+  inner_join(pb_23, by = "point_id", suffix = c("_df1", "_df2"))
+# Check if they're approximately equal (using != or == will return nearly all of them because of difference in floating point numbers)
+all.equal(merged_df$long_df1,merged_df$long_df2)
+all.equal(merged_df$lat_df1,merged_df$lat_df2)
 
 
 # summarize()

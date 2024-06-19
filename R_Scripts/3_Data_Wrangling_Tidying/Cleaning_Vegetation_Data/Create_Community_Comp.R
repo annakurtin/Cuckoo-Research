@@ -4,7 +4,8 @@
 
 # Created 5/20/2024
 
-# Last modified: 5/242024
+# Last modified: 6/16/2024
+# Updated after removing duplicat AME-1
 
 #### Setup #################################
 packages <- c("tidyverse","janitor","forcats")
@@ -16,13 +17,13 @@ load_packages(packages)
 
 
 #### Read in Data ###################################
-tree_orig <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_TreeData_Cleaned5-24.csv")
+tree_orig <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_TreeData_Cleaned6-19.csv")
 #tree_points <- unique(tree$point_id)
-shrub_orig <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_ShrubData_Cleaned5-24.csv")
+shrub_orig <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_ShrubData_Cleaned6-19.csv")
 #shrub_points <- unique(shrub$point_id)
 
 # Remove the points that don't have an ARU at it
-veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-24.csv")
+veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned6-19.csv")
 veg_waru <- veg %>% filter(aru_present == "yes")
 points_waru <- veg_waru$point_id
 
@@ -81,7 +82,7 @@ ggplot(spp_rich_tree, aes(x = spp_richness, fill = sampling_design)) +
 # It doesn't look like the nonrandom sites are introducing major bias into this
 
 # Write this to .csv
-write.csv(spp_rich_tree,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_TreeSppRich_5-24.csv",row.names = FALSE)
+write.csv(spp_rich_tree,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_TreeSppRich_6-19.csv",row.names = FALSE)
 
 
 
@@ -204,7 +205,7 @@ dev.off()
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Write the one you're going to use to .csv
-write.csv(dominant_shrub_sep,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_ShrubDominantCommunity_5-24.csv",row.names = FALSE)
+write.csv(dominant_shrub_sep,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_ShrubDominantCommunity_6-19.csv",row.names = FALSE)
 
 
 
@@ -212,72 +213,72 @@ write.csv(dominant_shrub_sep,"./Data/Habitat_Model_Covariates/Occupancy_Covariat
 
 
 #### ChatGPT Musings ######################
-# Simulate data
-point_id <- c("PRD-1","PRD-1","SNO-2","SNO-2","SNO-2")
-shrub_species <- c("ARCA","ELAN","ROSA","SYAL","ELAN") # want a factor for each combination of species at a point
-x_cover <- c(1,3,14,2,20) # want the sum
-shrub_height_m <- c(0.50,0.75,1,0.5,2) # Want the standard deviation and the mean by point 
-shrub_dat <- data.frame(point_id,shrub_species,x_cover,shrub_height_m)
-
-# Testing chatgpts code
-# Define a function to create the species combination factor
-species_combination <- function(species) {
-  # Define all possible species
-  all_species <- c("ARCA", "ELAN", "ROSA", "SYAL")
-  # Create a binary indicator for the presence of each species
-  binary_vector <- as.integer(all_species %in% species)
-  # Collapse to a single string
-  paste(binary_vector, collapse = "")
-}
-
-# Summarize the data
-result <- shrub_dat %>%
-  group_by(point_id) %>%
-  summarise(
-    sum_x_cover = sum(x_cover),
-    sd_shrub_height_m = sd(shrub_height_m),
-    mean_shrub_height_m = mean(shrub_height_m),
-    species_combination = species_combination(shrub_species)
-  )
-# Would a factor for species present be more informative or would a species diversity metric?
-# Create metric by summarizing across point ID (other sheet)
-
-test <- shrub %>% group_by(point_id) %>%
-  summarise(
-    max_x_cover = max(x_cover),
-    shrub_species_max_x_cover = shrub_species[which.max(x_cover)]
-  )
+# # Simulate data
+# point_id <- c("PRD-1","PRD-1","SNO-2","SNO-2","SNO-2")
+# shrub_species <- c("ARCA","ELAN","ROSA","SYAL","ELAN") # want a factor for each combination of species at a point
+# x_cover <- c(1,3,14,2,20) # want the sum
+# shrub_height_m <- c(0.50,0.75,1,0.5,2) # Want the standard deviation and the mean by point 
+# shrub_dat <- data.frame(point_id,shrub_species,x_cover,shrub_height_m)
+# 
+# # Testing chatgpts code
+# # Define a function to create the species combination factor
+# species_combination <- function(species) {
+#   # Define all possible species
+#   all_species <- c("ARCA", "ELAN", "ROSA", "SYAL")
+#   # Create a binary indicator for the presence of each species
+#   binary_vector <- as.integer(all_species %in% species)
+#   # Collapse to a single string
+#   paste(binary_vector, collapse = "")
+# }
+# 
+# # Summarize the data
+# result <- shrub_dat %>%
+#   group_by(point_id) %>%
+#   summarise(
+#     sum_x_cover = sum(x_cover),
+#     sd_shrub_height_m = sd(shrub_height_m),
+#     mean_shrub_height_m = mean(shrub_height_m),
+#     species_combination = species_combination(shrub_species)
+#   )
+# # Would a factor for species present be more informative or would a species diversity metric?
+# # Create metric by summarizing across point ID (other sheet)
+# 
+# test <- shrub %>% group_by(point_id) %>%
+#   summarise(
+#     max_x_cover = max(x_cover),
+#     shrub_species_max_x_cover = shrub_species[which.max(x_cover)]
+#   )
 
 
 #### Code Graveyard ########################
-
-# # Refine this once you know which species go in which communities for sure
-# dominant_shrub %>% group_by(dominant_community) %>% summarize(n=n())
-# # There are 23 + points for these
-
-# Old visualization code
-ggplot(dominant_shrub_sep, aes(x = dominant_community, fill = dominant_community)) +
-  geom_histogram(stat = "count") +
-  labs(title = "Distribution of Shrub Communities Invasives Separated",
-       x = "Shrub Community",
-       y = "Number of Sites") +
-  theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
-  scale_fill_manual(values = c("floodplain" = col1,"misc_broadleaf" = col2, "upland" = col3, "invasive" = col4))
-
-
-# Looking at the distribution of the trees
-spp_freq_t <- tree %>%
-  group_by(tree_species) %>%
-  summarise(count = n()) %>%
-  arrange(desc(count))
-# This is sites with that tree, not trees in the data
-# What is the distribution of the data?
-ggplot(spp_freq_t, aes(x = reorder(tree_species, -count), y = count)) +
-  geom_bar(stat = "identity", fill = "skyblue") +
-  labs(title = "Frequency of Sites with Tree Species",
-       x = "Tree Species",
-       y = "Frequency") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+# 
+# # # Refine this once you know which species go in which communities for sure
+# # dominant_shrub %>% group_by(dominant_community) %>% summarize(n=n())
+# # # There are 23 + points for these
+# 
+# # Old visualization code
+# ggplot(dominant_shrub_sep, aes(x = dominant_community, fill = dominant_community)) +
+#   geom_histogram(stat = "count") +
+#   labs(title = "Distribution of Shrub Communities Invasives Separated",
+#        x = "Shrub Community",
+#        y = "Number of Sites") +
+#   theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+#   scale_fill_manual(values = c("floodplain" = col1,"misc_broadleaf" = col2, "upland" = col3, "invasive" = col4))
+# 
+# 
+# # Looking at the distribution of the trees
+# spp_freq_t <- tree %>%
+#   group_by(tree_species) %>%
+#   summarise(count = n()) %>%
+#   arrange(desc(count))
+# # This is sites with that tree, not trees in the data
+# # What is the distribution of the data?
+# ggplot(spp_freq_t, aes(x = reorder(tree_species, -count), y = count)) +
+#   geom_bar(stat = "identity", fill = "skyblue") +
+#   labs(title = "Frequency of Sites with Tree Species",
+#        x = "Tree Species",
+#        y = "Frequency") +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 # # Test if tree species is same as tree_sp_other_collated
 # test <- tree %>% mutate(same = ifelse(tree_species == tree_sp_other_collated,"Y","N"))

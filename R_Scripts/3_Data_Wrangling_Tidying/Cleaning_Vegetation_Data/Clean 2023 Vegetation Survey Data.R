@@ -4,7 +4,7 @@
 
 # Created 10/24/2023
 
-# Last modified: 5/24/2024
+# Last modified: 6/16/2024
 
 
 #### Setup #################################
@@ -51,7 +51,8 @@ veg[103,2] <- "CLA-2"
 # Fix the error that labeled MISO-091 as MISO-097 (found out by looking at the coordinates from the deployment data)
 veg[172,2] <- "MISO-091"
 #veg$point_id == "YELL-032"
-# Asked Daniel about the AME-1 duplication ********PENDING**********
+# AME-1 - there were two entries for this point, identical except one had 94% canopy cover and the other had 5% canopy cover. Looking at the pictures, it looks like it could have gone either way depending on which way the surveyor was facing when they read the densiometer. However, the veg survey for AME-2 says 0 canopy cover, when there was a large tree overhead of the point in the photos. I'm assuming the surveyors were counting the tree out either because it was outside of the plot or because they were facing a gap. Therefore, I'll be going with the 94% cover entry for AME-1 to ensure that the average for this site is most accurately representing the vegetation across all three points.  
+veg <- veg %>% filter(!global_id == "019ce044-1203-4f88-afa4-a27a01eba71f")
 
 # Remove the points that were collected at Seacross Ranch
 veg <- veg %>% filter(!point_id %in% c("SRA-1","SRA-2","SRA-3","SRB-1","SRB-2","SRB-3","LGC-1","LGC-2","LGC-3"))
@@ -130,10 +131,11 @@ hab_chap_red <- hab_chap %>% select(point_id, long, lat)
 #write.csv(hab_chap_red,"./Data/Monitoring_Points/Outputs/2023_VegSurveyCoords_HabMMRGRTS_4-22.csv", row.names = FALSE)
 
 # write the cleaned data
-#write.csv(veg,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-24.csv", row.names = FALSE)
+#write.csv(veg,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned6-19.csv", row.names = FALSE)
+
 
 # Checking cleaning:
-veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-24.csv")
+veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned6-19.csv")
 veg[duplicated(veg$point_id)==TRUE,]
 #Checking continuity 
 #old_veg <- read.csv("./Data/Vegetation_Data/Outputs/Archive/2023_VegSurvey_MainData_Cleaned5-20.csv")
@@ -154,7 +156,7 @@ setdiff(veg_pts,deployed_points)
 ############ Tree and Shrub Data Sheets ###########################
 
 # Cleaned veg:
-veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned5-24.csv")
+veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned6-19.csv")
 # Read in the veg data and select global ID and point id
 veg_red <- veg %>% select(global_id,point_id,site_id,sampling_design,notes) %>% rename(parent_global_id = global_id)
 
@@ -181,11 +183,15 @@ tree_comb <- tree_comb %>% filter(!parent_global_id %in% c("82943a7a-df88-4201-b
                                                        "d732c359-610d-44cb-b916-2b2faacbe42a", # SRB-2
                                                        "01a02c05-95ae-4c60-8c39-4ad30a916aa0", #SRB-3
                                                        "819e0291-9369-4c34-b24f-eabd22fc1a7b", # Old SIP-1
-                                                       "eae7cc54-5b91-4574-b4d7-c3608a73fc13" # Old SIP-2
+                                                       "eae7cc54-5b91-4574-b4d7-c3608a73fc13", # Old SIP-2
+                                                       "019ce044-1203-4f88-afa4-a27a01eba71f" # Duplicate AME-1
 ))
 # Check if there are any in veg that aren't in tree
-setdiff(veg$point_id,tree_comb$point_id)
-  
+notree <- setdiff(veg$point_id,tree_comb$point_id)
+# make sure these have a canopy cover of 0
+veg %>% filter(point_id %in% notree) %>% select(point_id,canopy_cover)
+
+
 #### Shrub #
 shrub <- read.csv("./Data/Vegetation_Data/Raw_Data/ShrubCover_2.csv") %>% clean_names()
 shrub <- shrub %>% select(-c(object_id, 
@@ -212,7 +218,8 @@ shrub_comb <- shrub_comb %>% filter(!parent_global_id %in% c("82943a7a-df88-4201
                                                        "d732c359-610d-44cb-b916-2b2faacbe42a", # SRB-2
                                                        "01a02c05-95ae-4c60-8c39-4ad30a916aa0", #SRB-3
                                                        "819e0291-9369-4c34-b24f-eabd22fc1a7b", # Old SIP-1
-                                                       "eae7cc54-5b91-4574-b4d7-c3608a73fc13" # Old SIP-2
+                                                       "eae7cc54-5b91-4574-b4d7-c3608a73fc13", # Old SIP-2
+                                                       "019ce044-1203-4f88-afa4-a27a01eba71f" # Duplicate AME-1
                                                        ))
 #unique(shrub_comb$point_id)
 setdiff(veg$point_id,shrub_comb$point_id)
@@ -309,9 +316,11 @@ hist(hi_h$shrub_height_m)
 shrub_comb %>% filter(shrub_height_m > 6)
 # Looking at this data, I would buy that FRPE could be 7 m high and still a shrub, same with the very tall PDEL at SIP-3, however I'm not sure I buy the SALI and SAMY at 10 and 12 m respectively. I feel like I've only seen SAMY get that tall when it has a broad trunk instead of being thin. However, I don't have a justification for changing these observations, so I'll be leaving them in. 
 
+
+
 # Write this to .csv
-#write.csv(tree_comb,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_TreeData_Cleaned5-24.csv", row.names = FALSE)
-#write.csv(shrub_comb,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_ShrubData_Cleaned5-24.csv", row.names = FALSE)
+#write.csv(tree_comb,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_TreeData_Cleaned6-19.csv", row.names = FALSE)
+#write.csv(shrub_comb,"./Data/Vegetation_Data/Outputs/2023_VegSurvey_ShrubData_Cleaned6-19.csv", row.names = FALSE)
 
 
 
