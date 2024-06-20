@@ -256,7 +256,7 @@ habdet_m2 <- jags(data = jags_data,
                  n.burnin = 4000, 
                  n.chains = 3,
                  n.thin = 2,
-                 parallel = TRUE,
+                 #parallel = TRUE,
                  inits = init_func)
 saveRDS(habdet_m2, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model.Rdata")
 ```
@@ -321,6 +321,23 @@ abline(v = 0, col = "black")
 
 If we go back and reference our summary table, we see that the f statistic (the percentage of the posterior distribution that falls on the same side of zero as the mean) is 0.904 for background noise and 0.868 for effort. The general rule of thumb is that if covariate effects overlap zero but not by much (f > 0.7), they can and probably should still be considered for inclusion in your model. I think background noise and survey effort make sense to include in our detection model. However, if we use this threshold for inclusion of covariates, I would assume this means we also need to apply this when we build the occupancy submodel. I'm not sure if we're worried about this leading us to include too many covariates or if we have a way to tell before actually building the model. My current plan is to continue forward with a detection submodel for the ARU occupancy model that includes date, survey effort, and background noise. 
 
+
+## Evaluate Performance
+```{R}
+habdet_m2 <- jags.samples(habdet_m2$model,
+                           c("WAIC","deviance"),
+                           type = "mean",
+                           n.iter = 5000,
+                           n.burnin = 1000,
+                           n.thin = 2)
+
+habdet_m2$p_waic <- habdet_m2$WAIC
+habdet_m2$waic <- habdet_m2$deviance + habdet_m2$p_waic
+tmp <- sapply(habdet_m2, sum)
+waic_m2 <- round(c(waic = tmp[["waic"]], p_waic = tmp[["p_waic"]]),1)
+# WAIC is 5625.7
+
+```
 
 ```{R Code Graveyard, include = FALSE, eval = FALSE}
 # nI <- length(chains_viol$date)

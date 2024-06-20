@@ -243,13 +243,13 @@ habdet_m3 <- jags(data = jags_data,
                  n.burnin = 4000, 
                  n.chains = 3,
                  n.thin = 2,
-                 parallel = TRUE,
+                 #parallel = TRUE,
                  inits = init_func)
 # Try running this in the rjags package
-habdet_m3t <- jags.model(data = jags_data, 
-                 file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod3_QuadDate.txt",
-                 n.chains = 3,
-                 n.adapt = 1000)
+# habdet_m3t <- jags.model(data = jags_data, 
+#                  file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod3_QuadDate.txt",
+#                  n.chains = 3,
+#                  n.adapt = 1000)
 saveRDS(habdet_m3, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model_QuadDate.Rdata")
 ```
 
@@ -323,7 +323,14 @@ samples_m3 <- jags.samples(habdet_m3$model,
                            n.iter = 20000,
                            n.burnin = 4000,
                            n.thin = 2)
-# Look at Github for the rest - why is this saying inalid JAGS file?
+# Have to run this one models that aren't run in parallel
+# can change this to 5000 with a burnin of 1000
+
+samples_m3$p_waic <- samples_m3$WAIC
+samples_m3$waic <- samples_m3$deviance + samples_m3$p_waic
+tmp <- sapply(samples_m3, sum)
+waic_m3 <- round(c(waic = tmp[["waic"]], p_waic = tmp[["p_waic"]]),1)
+# WAIC is 5636.9
 
 # Can get DIC 
 # Summary of everything in the model
