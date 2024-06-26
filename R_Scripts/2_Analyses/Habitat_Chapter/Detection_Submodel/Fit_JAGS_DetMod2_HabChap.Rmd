@@ -252,13 +252,13 @@ Next, I establish the parameters for running the model itself. I specify the num
 habdet_m2 <- jags(data = jags_data, 
                  model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod2.txt",
                  parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
-                 n.iter = 20000, 
+                 n.iter = 10000, 
                  n.burnin = 4000, 
                  n.chains = 3,
                  n.thin = 2,
                  #parallel = TRUE,
                  inits = init_func)
-saveRDS(habdet_m2, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model.Rdata")
+#saveRDS(habdet_m2, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model.Rdata")
 ```
 
 ## Evaluate Model Outputs 
@@ -323,21 +323,36 @@ If we go back and reference our summary table, we see that the f statistic (the 
 
 
 ## Evaluate Performance
+
+Note: you have to run the model first before running the following lines of code, they won't work on a model that's been saved. 
 ```{R}
-habdet_m2 <- jags.samples(habdet_m2$model,
+# Extract samples from the posterior
+habdet_m2_s <- jags.samples(habdet_m2$model,
                            c("WAIC","deviance"),
                            type = "mean",
                            n.iter = 5000,
                            n.burnin = 1000,
                            n.thin = 2)
+# Duplicate WAIC samples - the WAIC is the posterior mean for that sample?
+habdet_m2_s$p_waic <- habdet_m2_s$WAIC
+# Calculate a new waic by adding the waic plus the deviance
+habdet_m2_s$waic_calc <- habdet_m2_s$deviance + habdet_m2_s$p_waic
+# Create a new vector of the sum across each array (sum WAIC, sum deviance, sum p_waic, and sum waic_calc)
+tmp <- sapply(habdet_m2_s, sum)
+# Pull out the sum of the WAIC we calculated and the p_waic we duplicated
+waic_m2 <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
+# Calculate the standard error for WAIC
+m2_waic_se <- sd(habdet_m2_s$waic_calc)/(sqrt(length(habdet_m2_s$waic_calc)))
 
-habdet_m2$p_waic <- habdet_m2$WAIC
-habdet_m2$waic <- habdet_m2$deviance + habdet_m2$p_waic
-tmp <- sapply(habdet_m2, sum)
-waic_m2 <- round(c(waic = tmp[["waic"]], p_waic = tmp[["p_waic"]]),1)
+waic_m2
 # WAIC is 5625.7
-
+# SE is 0.036
+# How to evaluate if there is meaningful difference between the WAIC values? Calculate the standard error
 ```
+
+Questions for above code:
+* Why does this not work on a model that has been saved as an .Rdata file?
+* is p_waic the efffective number of parameters?
 
 ```{R Code Graveyard, include = FALSE, eval = FALSE}
 # nI <- length(chains_viol$date)

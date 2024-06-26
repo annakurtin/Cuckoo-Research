@@ -239,7 +239,7 @@ init_func <- function(){
 habdet_m3 <- jags(data = jags_data, 
                  model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod3_QuadDate.txt",
                  parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
-                 n.iter = 20000, 
+                 n.iter = 10000, 
                  n.burnin = 4000, 
                  n.chains = 3,
                  n.thin = 2,
@@ -250,7 +250,7 @@ habdet_m3 <- jags(data = jags_data,
 #                  file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod3_QuadDate.txt",
 #                  n.chains = 3,
 #                  n.adapt = 1000)
-saveRDS(habdet_m3, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model_QuadDate.Rdata")
+#saveRDS(habdet_m3, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_Global_Detection_Model_QuadDate.Rdata")
 ```
 
 ```{R Evaluating Convergence QuadMod}
@@ -320,17 +320,22 @@ library(rjags)
 samples_m3 <- jags.samples(habdet_m3$model,
                            c("WAIC","deviance"),
                            type = "mean",
-                           n.iter = 20000,
-                           n.burnin = 4000,
+                           n.iter = 5000,
+                           n.burnin = 1000,
                            n.thin = 2)
 # Have to run this one models that aren't run in parallel
 # can change this to 5000 with a burnin of 1000
 
 samples_m3$p_waic <- samples_m3$WAIC
-samples_m3$waic <- samples_m3$deviance + samples_m3$p_waic
-tmp <- sapply(samples_m3, sum)
-waic_m3 <- round(c(waic = tmp[["waic"]], p_waic = tmp[["p_waic"]]),1)
+samples_m3$waic_calc <- samples_m3$deviance + samples_m3$p_waic
+tmp_m3 <- sapply(samples_m3, sum)
+waic_m3 <- round(c(waic = tmp_m3[["waic_calc"]], p_waic = tmp_m3[["p_waic"]]),1)
+# Calculate the standard error for WAIC
+m3_waic_se <- sd(samples_m3$waic_calc)/(sqrt(length(samples_m3$waic_calc)))
+
+waic_m3
 # WAIC is 5636.9
+# Standard error is 0.036
 
 # Can get DIC 
 # Summary of everything in the model
