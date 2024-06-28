@@ -63,6 +63,8 @@ cat("
       ",fill = TRUE)
 sink()
 
+## Why is beta used here? I thought that beta distributions could only take on values between 0 and 1? What do the moments used here mean?????????????????????????????????
+
 # known (1) presence and unknown (NA)
 z.dat <- rowSums(y, na.rm = T)
 z.dat[z.dat > 1] <- 1
@@ -95,9 +97,10 @@ Sys.time()
 sink("m1.jags")
 cat("
       model {
-
+    
+      # Priors
       for (k in 1:h){
-        psi[k] ~ dbeta(5,5)
+        psi[k] ~ dbeta(5,5) # Draw a random value for psi for each habitat type
       }
       p ~ dbeta(5,5)
       

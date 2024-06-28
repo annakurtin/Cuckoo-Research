@@ -137,10 +137,25 @@ for (i in 1:nP){
 ```{R Set Up Model,eval = FALSE}
 cat("
   model{
+      # Priors
+    for (k in 1:com_fs){
+      a0[k] ~ dlogis(0, 1)
+    }
+    b0 ~ dlogis(0, 1)
+    b1 ~ dlogis(0, 1) # took out b2 (shrub communities)
+    b3 ~ dlogis(0, 1)
+    b4 ~ dlogis(0, 1)
+    b5 ~ dlogis(0, 1)
+    b6 ~ dlogis(0, 1)
+    b7 ~ dlogis(0, 1)
+    b8 ~ dlogis(0, 1)
+    
+    
+    # Likelihood
     # Loop through each sampling unit
-    for(i in 1:n_unit){
-      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
-      logit(psi[i]) <- a0 + (b1*tree_rich[i]) + (b2*shrub_com[i]) + (b3*subcan_h[i]) + (b4*subcan_pc[i]) + (b5*subcan_cx[i]) + (b6*veg_d[i]) + (b7*can_h[i]) + (b8*can_pc[i])
+    for(i in 1:n_unit){ 
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi dependent on habitat type
+      logit(psi[i]) <- a0[shrub_com[i]] + (b1*tree_rich[i]) + (b3*subcan_h[i]) + (b4*subcan_pc[i]) + (b5*subcan_cx[i]) + (b6*veg_d[i]) + (b7*can_h[i]) + (b8*can_pc[i])
       
       cov2[i] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
       
@@ -150,20 +165,15 @@ cat("
         
       }
     }
-    
-    # Priors
-    a0 ~ dlogis(0, 1)
-    b0 ~ dlogis(0, 1)
-    b1 ~ dnorm(0, 1)
-    b2 ~ dnorm(0, 1)
-    b3 ~ dnorm(0, 1)
-    b4 ~ dnorm(0, 1)
-    b5 ~ dnorm(0, 1)
-    b6 ~ dnorm(0, 1)
-    b7 ~ dnorm(0, 1)
-    b8 ~ dnorm(0, 1)
+  
+    # Derived parameters
+    for(i in 1:com_fs){
+        occ[i] <- 1/(1 + exp(a0[i])) #Back transform the effect of each intercept 
+    }
+    # Use a double for loop to derive detection probabilities
+    det <- ilogit(b0) # Back transform the probability of detection 
   }
-  ", file = "./R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/Test_JAGS_Occ_OccupancyModel1.txt")
+  ", file = "./R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/Test_JAGS_Occ_OccupancyModel2_ShrubCommIntercept.txt")
 ```
 
 *Next up:* Figure out what the parameterization of these models means
@@ -178,6 +188,8 @@ jags_data <- list(
   tree_rich = tree_rich,
   # Shrub community
   shrub_com = shrub_com,
+  # Number of shrub communities
+  com_fs = max(com_fs),
   # Subcanopy height
   subcan_h = subcan_h,
   # Subcanopy cover
@@ -197,10 +209,9 @@ jags_data <- list(
 # Set initial values (optional)
 init_func <- function(){
   list(
-    a0 = rnorm(1, 0, 1),
+    a0 = rnorm(5, 0, 1),
     b0 = rnorm(1, 0, 1),
     b1 = rnorm(1, 0, 1),
-    b2 = rnorm(1, 0, 1),
     b3 = rnorm(1, 0, 1),
     b4 = rnorm(1, 0, 1),
     b5 = rnorm(1, 0, 1),
@@ -217,15 +228,14 @@ nt <- 2
 
 # Run JAGS model on the same model we specify in the Fit_JAGS_Detection_Model2_HabChap markdown
 occ_m1 <- jags(data = jags_data, 
-                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/Test_JAGS_Occ_OccupancyModel1.txt",
-                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4","b5","b6","b7","b8"),
+                 model.file = "./R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/Test_JAGS_Occ_OccupancyModel2_ShrubCommIntercept.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b3", "b4","b5","b6","b7","b8", "occ"),
                  n.iter = ni, 
                  n.burnin = nb, 
                  n.chains = nc,
                  n.thin = nt,
                  parallel = TRUE,
                  inits = init_func)
-occ_m1 <- sim_fit1
 #saveRDS(sim_fit1, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Simulations/Test_JAGS_RecoverParams_GlobalDetMod2.Rdata")
 ```
 
@@ -233,6 +243,7 @@ Evaluate convergence
 ```{R}
 # Evaluating convergence
 print(occ_m1)
+# occ now gives us the derived parameters for occupancy at each shrub community (directly interpretable as percent)
 tracedens_jags(occ_m1, parmfrow = c(3,3))
 ```
 
@@ -247,10 +258,9 @@ DIC 305
 # Plot posterior distribution
 chains_m1 <- jags_df(occ_m1)
 # Select the chains for our covariates of interest
-chains_viol1 <- chains_m1 %>% select(b1,b2,b3,b4,b5,b6,b7,b8)
+chains_viol1 <- chains_m1 %>% select(b1,b3,b4,b5,b6,b7,b8)
 # Rename them to be more interpretable
 colnames(chains_viol1) <- c("tree richness",
-                            "shrub community",
                             "subcanopy height",
                             "subcanopy cover",
                             "subcanopy complexity",
@@ -259,7 +269,6 @@ colnames(chains_viol1) <- c("tree richness",
                             "canopy percent cover")
 # Pivot this longer so that we can visualize it
 chains_viol_long1 <- chains_viol1 %>% pivot_longer(cols = c("tree richness",
-                            "shrub community",
                             "subcanopy height",
                             "subcanopy cover",
                             "subcanopy complexity",
@@ -268,7 +277,6 @@ chains_viol_long1 <- chains_viol1 %>% pivot_longer(cols = c("tree richness",
                             "canopy percent cover"),names_to = "Parameter", values_to = "Values")
 
 true_vals <- data.frame(beta,covariate=c("tree richness",
-                            "shrub community",
                             "subcanopy height",
                             "subcanopy cover",
                             "subcanopy complexity",

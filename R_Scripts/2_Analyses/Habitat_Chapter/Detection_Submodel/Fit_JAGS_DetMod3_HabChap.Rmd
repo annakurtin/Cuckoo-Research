@@ -323,9 +323,11 @@ samples_m3 <- jags.samples(habdet_m3$model,
                            n.iter = 5000,
                            n.burnin = 1000,
                            n.thin = 2)
+# When I run this on a saved model: Error in FUN(X[[i]], ...) : JAGS model must be recompiled
 # Have to run this one models that aren't run in parallel
 # can change this to 5000 with a burnin of 1000
 
+# p_waic is the effective number of parameters
 samples_m3$p_waic <- samples_m3$WAIC
 samples_m3$waic_calc <- samples_m3$deviance + samples_m3$p_waic
 tmp_m3 <- sapply(samples_m3, sum)

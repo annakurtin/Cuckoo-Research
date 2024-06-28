@@ -17,6 +17,7 @@ This presents an example for overdispersed Poisson data. This is examining hare 
 ```{R Data Simulation}
 # Specify the number of sites
 n.site <- 10
+
 # pull data from the two land cover types you are studying
 x <- gl(n = 2, k = n.site, labels = c("grassland", "arable")) # GL used for generate levels
 # Random effect for site to create overdispersion

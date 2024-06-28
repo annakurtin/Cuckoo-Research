@@ -1,0 +1,254 @@
+---
+title: "Detection Submodel 4"
+author: "Anna Kurtin"
+date: " 6/28/2024"
+output: html_document
+---
+
+Pending:
+
+* How does JAGS treat NAs? Ask Colton about this
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(coda)
+library(janitor)
+library(loo)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+Load in formatted data
+
+```{r Load in Data}
+full_dat <- readRDS(file ="C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Full_DetectionDataSCALED_JAGSModels_HabChap.Rdata")
+```
+
+Set up data for model 
+
+```{R Specify Data for Model, eval = FALSE}
+# Pull out the detections so that you have n_unit and n_site
+detections_only <- full_dat[,2:7]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections_only, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections_only,
+  # Date
+  cov1 = full_dat[,21:26],
+  # Veg Density - site level
+  cov2 = full_dat[,14],
+  # Background noise
+  cov3 = full_dat[,8:13],
+  # Effort 
+  cov4 = full_dat[,15:20],
+  n_unit = nrow(detections_only),
+  n_rep = ncol(detections_only)
+)
+
+# Set initial values (optional)
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b2 = rnorm(1, 0, 1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
+  )
+}
+```
+
+## Non Quadratic Model
+
+**AKA Model 2**
+
+```{R Set Up Model 2, eval = FALSE}
+# b1/cov1: date
+# b2/cov2: veg density
+# b3/cov3: background noise
+# b4/cov4: effort
+
+# Create the jags_model
+cat("
+  model{
+      # Priors
+    a0 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+    b1 ~ dlogis(0, 1)
+    b2 ~ dlogis(0, 1)
+    b3 ~ dlogis(0, 1)
+    b4 ~ dlogis(0, 1)
+  
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0
+      
+      cov2[i] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+      
+      for(j in 1:n_rep){
+        cov1[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        cov3[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        cov4[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0 + b1*cov1[i,j] + b2*cov2[i] + b3*cov3[i,j] + b4*cov4[i,j]
+        
+      }
+    }
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod2_LogisPriors.txt")
+```
+```{R Run Model 2}
+habdet_m2 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod2_LogisPriors.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4"),
+                 n.iter = 10000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 #parallel = TRUE,
+                 inits = init_func)
+```
+
+```{R Evaluate Model 2}
+# Evaluating convergence
+print(habdet_m2)
+tracedens_jags(habdet_m2, parmfrow = c(3,3))
+```
+
+```{R Create Violin Plots M2}
+# Plot posterior distribution
+chains_m2 <- jags_df(habdet_m2)
+# Select the chains for our covariates of interest
+chains_viol <- chains_m2 %>% select(b1,b2,b3,b4)
+# Rename them to be more interpretable
+colnames(chains_viol) <- c("date","veg_density","background_noise","effort")
+# Pivot this longer so that we can visualize it
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("date","veg_density","background_noise","effort"),names_to = "Parameter", values_to = "Values")
+
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Detection Covariates") +
+  scale_fill_manual(values = c("date"=palette_5[1], "background_noise"=palette_5[2], "effort" = palette_5[3], "veg_density" = palette_5[4])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  theme_minimal()
+```
+
+
+```{R}
+# Extract samples from the posterior
+habdet_m2_s <- jags.samples(habdet_m2$model,
+                           c("WAIC","deviance"),
+                           type = "mean",
+                           n.iter = 5000,
+                           n.burnin = 1000,
+                           n.thin = 2)
+# Duplicate WAIC samples - the WAIC is the posterior mean for that sample?
+habdet_m2_s$p_waic <- habdet_m2_s$WAIC
+# Calculate a new waic by adding the waic plus the deviance
+habdet_m2_s$waic_calc <- habdet_m2_s$deviance + habdet_m2_s$p_waic
+# Create a new vector of the sum across each array (sum WAIC, sum deviance, sum p_waic, and sum waic_calc)
+tmp <- sapply(habdet_m2_s, sum)
+# Pull out the sum of the WAIC we calculated and the p_waic we duplicated
+waic_m2 <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
+# Calculate the standard error for WAIC
+m2_waic_se <- sd(habdet_m2_s$waic_calc)/(sqrt(length(habdet_m2_s$waic_calc)))
+
+waic_m2
+m2_waic_se
+# WAIC is 5625.9
+# SE is 0.036
+```
+
+
+## Quadratic Model 
+
+**AKA Model 4**
+
+This time properly specified
+
+```{R Set Initial Values M4}
+# Set initial values (optional)
+init_func4 <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b1Q = rnorm(1, 0 ,1),
+    b2 = rnorm(1, 0, 1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
+  )
+}
+```
+
+
+
+```{R Set Up Model 4, eval = FALSE}
+# b1/cov1: date
+# b2/cov2: veg density
+# b3/cov3: background noise
+# b4/cov4: effort
+
+# Create the jags_model
+cat("
+  model{
+      # Priors
+    a0 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+    b1 ~ dlogis(0, 1)
+    b1Q ~ dlogis(0.1)
+    b2 ~ dlogis(0, 1)
+    b3 ~ dlogis(0, 1)
+    b4 ~ dlogis(0, 1)
+    
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0
+      
+      cov2[i] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+      
+      for(j in 1:n_rep){
+        cov1[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        cov3[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        cov4[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0 + b1*cov1[i,j] + b1Q*(cov1[i,j]^2) + b2*cov2[i] + b3*cov3[i,j] + b4*cov4[i,j]
+        
+      }
+    }
+  } 
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod4_QuadDate.txt")
+```
+
+
+```{R}
+habdet_m4 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_HabDetMod3_QuadDate.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b1Q", "b2", "b3", "b4"),
+                 n.iter = 10000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 #parallel = TRUE,
+                 inits = init_func4)
+# Unused initial value for b1Q???
+print(habdet_m4)
+```
+
