@@ -211,7 +211,7 @@ cat("
     a0 ~ dlogis(0, 1)
     b0 ~ dlogis(0, 1)
     b1 ~ dlogis(0, 1)
-    b1Q ~ dlogis(0.1)
+    b1Q ~ dlogis(0, 1)
     b2 ~ dlogis(0, 1)
     b3 ~ dlogis(0, 1)
     b4 ~ dlogis(0, 1)
@@ -252,3 +252,4 @@ habdet_m4 <- jags(data = jags_data,
 print(habdet_m4)
 ```
 
+Why is this model giving me an error that there is an unused initial value bor B1Q? How can it converge without an initial value (probably just radomly chooses one from a normal (?) distribution)

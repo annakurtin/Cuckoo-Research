@@ -1,0 +1,240 @@
+---
+title: "Recover Parameters for Simulated Occupancy Model with Reduced Covariates"
+author: "Anna Kurtin"
+date: "7/3/2024"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(coda)
+library(janitor)
+library(loo)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Create_SiteColumn_fromPointID.R")
+```
+
+
+
+## Model 2: Half the Covariates
+
+```{R}
+# b1/cov1: tree richness
+# b2/cov2: shrub community
+# b3/cov3: subcanopy PCA
+# b4/cov4: canopy PCA
+
+nP <- 107  # number of points
+nV <- 6    # number of repeated visits
+nC <- 4    # number of covariates
+
+# create latent state (z) and detection (y) data storage
+z <- NULL        # point-level latent state
+y <- array(NA, dim = c(nP, nV))   # point-level observation data
+
+# Covariate 1: Tree Richness
+set.seed(22)
+rich_vals <- c(-0.617, 0.71, 2.03, 3.37) # Create possible values for species richness
+tree_rich <- sample(rich_vals, nP, replace =TRUE)
+
+# Covariate 2: Shrub Community
+set.seed(3)
+com_fs <- c(1:5)
+shrub_com <- sample(com_fs, nP, replace = TRUE)
+
+# Covariate 3: Subcanopy PCA
+set.seed(10)
+subcan <- rnorm(nP, mean = 1, sd = 1)
+
+# Covariate 4: Canopy PCA
+set.seed(11)
+can <- rnorm(nP, mean = 1, sd = 1)
+
+
+# Generate latent parameters
+# covariate effects (pull randomly for each covariate)
+set.seed(5)
+beta <- rnorm(nC, 0, 1)
+
+beta_shrubcom <- rnorm(length(com_fs), 0, 1)
+
+# Baseline probability of presence
+psi0 <- c()
+for (i in 1:length(com_fs)){
+  psi0[i] <- (0.2 - beta_shrubcom[i])
+}
+# Baseline probability of detection
+p0 <- qlogis(0.6)
+
+psi <- NULL
+for (i in 1:nP){
+  psi[i] = plogis(psi0[shrub_com[i]] + (beta[1]*tree_rich[i]) + (beta[3]*subcan[i]) + (beta[4]*can[i]))
+}
+# Assume equal probability of presence at all sites with this simulation
+
+# get your true presence/non presence values from psi
+set.seed(8) # I changed this around until I got a value of presence/absence that looked good to me
+z <- rbinom(nP, 1, psi)
+
+# total number of detections across number of visits (nV)
+y <- matrix(NA, nP, nV)
+# fill in the detection matrix dependent on whether the animal was there (z) and whether it was detected (p0)
+# add covariate effects here
+set.seed(7)
+for (i in 1:nP){
+  for (j in 1:nV){
+    y[i,j] <- rbinom(1, z[i], plogis(p0))
+    # Assume equal probability of detection at all sites and all surveys
+  }
+}
+```
+
+```{R Set Up Model,eval = FALSE}
+cat("
+  model{
+      # Priors
+    for (k in 1:com_fs){
+      a0[k] ~ dlogis(0, 1)
+    }
+    b0 ~ dlogis(0, 1)
+    b1 ~ dlogis(0, 1) # took out b2 (shrub communities)
+    b3 ~ dlogis(0, 1)
+    b4 ~ dlogis(0, 1)
+    
+    
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){ 
+      Z[i] ~ dbern(psi[i])  # Presence or absence at site drawn from a bernoulli distribution with occupancy probability psi dependent on habitat type
+      logit(psi[i]) <- a0[shrub_com[i]] + (b1*tree_rich[i]) + (b3*subcan[i]) + (b4*can[i]) 
+      
+      cov2[i] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+      
+      for(j in 1:n_rep){
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0
+        
+      }
+    }
+  
+    # Derived parameters
+    for(i in 1:com_fs){
+        occ[i] <- 1/(1 + exp(a0[i])) #Back transform the effect of each intercept 
+    }
+    # Use a double for loop to derive detection probabilities
+    det <- ilogit(b0) # Back transform the probability of detection 
+  }
+  ", file = "./R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/Test_JAGS_Occ_OccupancyModel3_ShrubCommIntercept_ReducedVariables.txt")
+```
+
+
+```{R Set Up Model Reduced Variables}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z,
+  # Detection/nondetection data
+  det_data = y,
+  # Tree richness
+  tree_rich = tree_rich,
+  # Shrub community
+  shrub_com = shrub_com,
+  # Number of shrub communities
+  com_fs = max(com_fs),
+  # Subcanopy height
+  subcan = subcan,
+  # Subcanopy cover
+  can = can,
+  n_unit = nP,
+  n_rep = nV
+)
+
+# Set initial values (optional)
+init_func3 <- function(){
+  list(
+    a0 = rnorm(5, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
+  )
+}
+
+ni <- 10000
+nb <- 5000
+nc <- 4
+nt <- 2
+```
+```{R Run Reduced Model}
+# Run JAGS model on the same model we specify in the Fit_JAGS_Detection_Model2_HabChap markdown
+occ_m3 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/Test_JAGS_Occ_OccupancyModel3_ShrubCommIntercept_ReducedVariables.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b3", "b4","occ", "det"),
+                 n.iter = ni, 
+                 n.burnin = nb, 
+                 n.chains = nc,
+                 n.thin = nt,
+                 parallel = TRUE,
+                 inits = init_func3)
+
+```
+```{R Evaluate Reduced Model}
+print(occ_m3)
+tracedens_jags(occ_m3, parmfrow = c(3,3))
+# Convergence looks good
+```
+
+```{R Create Violin Plots Reduced Moded}
+# Plot posterior distribution
+chains_m3 <- jags_df(occ_m3)
+# Select the chains for our covariates of interest
+chains_viol3 <- chains_m3 %>% select(b1,b3,b4)
+# Rename them to be more interpretable
+colnames(chains_viol3) <- c("tree richness",
+                            "subcanopy",
+                            "canopy")
+# Pivot this longer so that we can visualize it
+chains_viol_long3 <- chains_viol3 %>% pivot_longer(cols = c("tree richness",
+                            "subcanopy",
+                            "canopy"),names_to = "Parameter", values_to = "Values")
+
+true_vals3 <- data.frame(beta[-2],covariate=c("tree richness",
+                            "subcanopy",
+                            "canopy"))
+colnames(true_vals3) <- c("beta","covariate")
+# Create the violin plot for covariate effects (not including shrub community)
+ggplot() +
+  geom_violin(data=chains_viol_long3, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Simulated Occupancy Covariates") +
+  scale_fill_manual(values = c("tree richness"=palette_8[1], "subcanopy" = palette_8[3], "canopy" = palette_8[4])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  geom_point(data = true_vals3, aes(x=covariate, y = beta))+
+  theme_minimal()
+```
+
+```{R Evaluate Recovery of Shrub Intercepts Reduced Model}
+# Select the chains for our covariates of interest
+chains_viol4 <- chains_m3 %>% select("a0[1]","a0[2]","a0[3]","a0[4]","a0[5]")
+colnames(chains_viol4) <- c("shrub_c1","shrub_c2","shrub_c3","shrub_c4","shrub_c5")
+# Pivot this longer so that we can visualize it
+chains_viol_long4 <- chains_viol4 %>% pivot_longer(cols = c("shrub_c1","shrub_c2","shrub_c3","shrub_c4","shrub_c5"),
+                                                   names_to = "Parameter", 
+                                                   values_to = "Values")
+# Pull out the true values of the beta
+true_vals4 <- data.frame(psi0, covariate = c("shrub_c1","shrub_c2","shrub_c3","shrub_c4","shrub_c5"))
+
+ggplot() +
+  geom_violin(data=chains_viol_long4, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Shrub Community Baseline Occupancy") +
+  scale_fill_manual(values = c("shrub_c1"=palette_5[1], "shrub_c2" = palette_5[2], "shrub_c3" = palette_5[3], "shrub_c4" = palette_5[4], "shrub_c5" = palette_5[5])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  geom_point(data = true_vals4, aes(x=covariate, y = psi0))+
+  theme_minimal()
+```
+
+
+This one looks a bit better than model 1 with eight parameters, but still isn't perfectly recovering parameters like I would want. Do I still have too many parameters in my model? How can I tell what's affecting my posterior distributions?
