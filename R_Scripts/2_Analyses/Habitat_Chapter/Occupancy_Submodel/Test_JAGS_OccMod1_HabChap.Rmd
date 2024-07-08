@@ -1,0 +1,355 @@
+---
+title: "Habitat Chapter JAGS Occupancy Sub Model 1 Recover Parameters on Simulated Data"
+author: "Anna Kurtin"
+date: "7/3/2024"
+output: html_document
+---
+
+This is the occupancy submodel with properly specified logistic priors, all eight covariates, and a random effect for shrub community (a categorical variable). 
+
+**Model structure:**
+
+Full state model:
+$$
+z_i \sim Bernoulli(\psi | \beta_{tree richness}, \beta_{shrub comminity}, \beta_{subcan height}, \beta_{subcancover}, \beta_{subcan complexity}, \beta_{veg density}, \beta_{canopy height}, \beta_{canopycover})
+$$
+
+
+Naive process model:
+
+$$
+y_{ij} \sim Bernoulli(p)
+$$
+
+
+**Handling of NAs:** imputation
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(coda)
+library(janitor)
+library(loo)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Create_SiteColumn_fromPointID.R")
+```
+
+# Simulate Data
+
+```{R generate data, out.width = "50%", out.height = "50%"}
+# b1/cov1: tree richness
+# b2/cov2: shrub community
+# b3/cov3: subcanopy avg height
+# b4/cov4: subcanopy percent cover
+# b5/cov5: subcanopy veg complexity 
+# b6/cov6: veg density 
+# b7/cov7: canopy height
+# b8/cov8: canopy percent cover
+
+nP <- 107  # number of points
+nV <- 6    # number of repeated visits
+nC <- 8    # number of covariates
+#survey_covs <- 3
+
+# create latent state (z) and detection (y) data storage
+z <- NULL        # point-level latent state
+y <- array(NA, dim = c(nP, nV))   # point-level observation data
+
+# create separate arrays for each covariate and fill with randomly generated data
+# Covariate 1: Tree Richness
+set.seed(22)
+rich_vals <- c(-0.617, 0.71, 2.03, 3.37) # Create possible values for species richness
+tree_rich <- sample(rich_vals, nP, replace =TRUE)
+hist(tree_rich, col = cuckoo_palette[1], main = "Distribution of Simulated Native Broadleaf Richness")
+# Expected response: linear and positive - higher levels of richness, higher insect abundance - more likely cuckoo presence 
+
+# Covariate 2: Shrub Community
+set.seed(3)
+com_fs <- c(1:5)
+shrub_com <- sample(com_fs, nP, replace = TRUE)
+hist(shrub_com, col = cuckoo_palette[1], main = "Distribution of Simulated Shrub Community")
+#shrub_com <- as.factor(shrub_com)
+# Expected response: higher probability of occ with floodplain and broadleaf communities 
+
+# Covariate 3: Subcanopy Veg Avg Height
+set.seed(10)
+subcan_h <- rnorm(nP, mean = 1, sd = 1)
+hist(subcan_h, col = cuckoo_palette[1], main = "Distribution of Simulated Scaled Subcanopy Height")
+# Expected response: linear and positive - higher subcanopy veg means more subcanpy habitat and greater prob of occ
+
+# Covariate 4: Subcanopy Veg Percent Cover
+set.seed(11)
+subcan_pc <- rnorm(nP, mean = 1, sd = 1)
+hist(subcan_pc, col = cuckoo_palette[1], main = "Distribution of Simulated Scaled Subcanopy Height")
+# Expected response: linear and positive - higher subcanopy veg cover means more places to forage and hide and greater prob of occ
+
+# Covariate 5: Subcanopy Veg Complexity 
+set.seed(12)
+subcan_cx <- rnorm(nP, mean = 1, sd = 1)
+hist(subcan_cx, col = cuckoo_palette[1], main = "Distribution of Simulated Scaled Subcanopy Complexity")
+# Expected response: linear and positive - higher complexity means more places to forage and hide, greater prob of use 
+
+# Covariate 6: Overall Veg Density
+set.seed(13)
+veg_d <- rnorm(nP, mean = 1, sd = 1)
+hist(veg_d, col = cuckoo_palette[1], main = "Distribution of Simulated Scaled Total Vegetation Density")
+# Expected response: linear and positive - higher veg cover means more places to forage and hide and greater prob of occ
+
+# Covariate 7: Canopy Height
+set.seed(14)
+can_h <- rnorm(nP, mean = 1, sd = 1)
+hist(can_h, col = cuckoo_palette[1], main = "Distribution of Simulated Scaled Canopy Height")
+# Expected response: selecting for intermediate? want shrubby areas with some trees but not super matrure cottonwood gallery forest ???????????????????????????????????
+
+# Covariate 8: Canopy Percent Cover
+set.seed(15)
+can_pc <- rnorm(nP, mean = 1, sd = 1)
+hist(can_pc, col = cuckoo_palette[1], main = "Distribution of Simulated Scaled Canopy Cover")
+# Expected response: also selecting for intermediate? want intermediate levels of canopy cover. since they prefer shrubby habitat. how to parameterize this ??????????????????????????????????? 
+# BUT selecting for high canopy cover at a larger scale 
+
+# covariate effects (pull randomly for each covariate)
+set.seed(5)
+beta <- rnorm(nC, 0, 1)
+
+beta_shrubcom <- rnorm(length(com_fs), 0, 1)
+
+# Baseline probability of presence
+# psi0 <- qlogis(0.2) #Original
+psi0 <- c()
+for (i in 1:length(com_fs)){
+  psi0[i] <- (0.2 - beta_shrubcom[i])
+}
+# Baseline probability of detection
+p0 <- qlogis(0.6)
+
+psi <- NULL
+for (i in 1:nP){
+  psi[i] = plogis(psi0[shrub_com[i]] + (beta[1]*tree_rich[i]) + (beta[3]*subcan_h[i]) + (beta[4]*subcan_pc[i]) + (beta[5]*subcan_cx[i]) + (beta[6]*veg_d[i]) + (beta[7]*can_h[i]) + (beta[8]*can_pc[i]))
+}
+# Assume equal probability of presence at all sites with this simulation
+
+# get your true presence/non presence values from psi
+set.seed(8) # I changed this around until I got a value of presence/absence that looked good to me
+z <- rbinom(nP, 1, psi)
+
+# total number of detections across number of visits (nV)
+y <- matrix(NA, nP, nV)
+# fill in the detection matrix dependent on whether the animal was there (z) and whether it was detected (p0)
+# add covariate effects here
+set.seed(7)
+for (i in 1:nP){
+  for (j in 1:nV){
+    y[i,j] <- rbinom(1, z[i], plogis(p0))
+    # Assume equal probability of detection at all sites and all surveys
+  }
+}
+
+# b1/cov1: tree richness
+# b2/cov2: shrub community
+# b3/cov3: subcanopy avg height
+# b4/cov4: subcanopy percent cover
+# b5/cov5: subcanopy veg complexity 
+# b6/cov6: veg density 
+# b7/cov7: canopy height
+# b8/cov8: canopy percent cover
+```
+
+```{R Set Up Model,eval = FALSE}
+cat("
+  model{
+      # Priors
+    for (k in 1:com_fs){
+      a0[k] ~ dlogis(0, 1)
+    }
+    b0 ~ dlogis(0, 1)
+    b1 ~ dlogis(0, 1) # took out b2 (shrub communities)
+    b3 ~ dlogis(0, 1)
+    b4 ~ dlogis(0, 1)
+    b5 ~ dlogis(0, 1)
+    b6 ~ dlogis(0, 1)
+    b7 ~ dlogis(0, 1)
+    b8 ~ dlogis(0, 1)
+    
+    
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){ 
+      Z[i] ~ dbern(psi[i])  # Presence or absence at site drawn from a bernoulli distribution with occupancy probability psi dependent on habitat type
+      logit(psi[i]) <- a0[shrub_com[i]] + (b1*tree_rich[i]) + (b3*subcan_h[i]) + (b4*subcan_pc[i]) + (b5*subcan_cx[i]) + (b6*veg_d[i]) + (b7*can_h[i]) + (b8*can_pc[i])
+      
+      cov2[i] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+      
+      for(j in 1:n_rep){
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0
+        
+      }
+    }
+  
+    # Derived parameters
+    for(i in 1:com_fs){
+        occ[i] <- 1/(1 + exp(a0[i])) #Back transform the effect of each intercept 
+    }
+    # Use a double for loop to derive detection probabilities
+    det <- ilogit(b0) # Back transform the probability of detection 
+  }
+  ", file = "./R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/Test_JAGS_Occ_OccupancyModel2_ShrubCommIntercept.txt")
+```
+
+```{r}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z,
+  # Detection/nondetection data
+  det_data = y,
+  # Tree richness
+  tree_rich = tree_rich,
+  # Shrub community
+  shrub_com = shrub_com,
+  # Number of shrub communities
+  com_fs = max(com_fs),
+  # Subcanopy height
+  subcan_h = subcan_h,
+  # Subcanopy cover
+  subcan_pc = subcan_pc,
+  # Subcanopy complexity 
+  subcan_cx = subcan_cx,
+  # Overall veg density
+  veg_d = veg_d,
+  # Canoy height
+  can_h = can_h,
+  # Canopy cover
+  can_pc = can_pc,
+  n_unit = nP,
+  n_rep = nV
+)
+
+# Set initial values (optional)
+init_func <- function(){
+  list(
+    a0 = rnorm(5, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1),
+    b5 = rnorm(1, 0, 1),
+    b6 = rnorm(1, 0, 1),
+    b7 = rnorm(1, 0, 1),
+    b8 = rnorm(1, 0, 1)
+  )
+}
+
+ni <- 10000
+nb <- 5000
+nc <- 4
+nt <- 2
+
+# Run JAGS model on the same model we specify in the Fit_JAGS_Detection_Model2_HabChap markdown
+occ_m1 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/Test_JAGS_Occ_OccupancyModel2_ShrubCommIntercept.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b3", "b4","b5","b6","b7","b8", "occ", "det"),
+                 n.iter = ni, 
+                 n.burnin = nb, 
+                 n.chains = nc,
+                 n.thin = nt,
+                 parallel = TRUE,
+                 inits = init_func)
+#saveRDS(sim_fit1, file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Simulations/Test_JAGS_RecoverParams_GlobalDetMod2.Rdata")
+```
+
+Evaluate convergence
+```{R Evaluate Convergence M1}
+# Evaluating convergence
+print(occ_m1)
+# occ now gives us the derived parameters for occupancy at each shrub community (directly interpretable as percent)
+tracedens_jags(occ_m1, parmfrow = c(3,3))
+```
+
+Evaluate parameter recovery
+
+```{R Create Violin Plots Mod1}
+# Plot posterior distribution
+chains_m1 <- jags_df(occ_m1)
+# Select the chains for our covariates of interest
+chains_viol1 <- chains_m1 %>% select(b1,b3,b4,b5,b6,b7,b8)
+# Rename them to be more interpretable
+colnames(chains_viol1) <- c("tree richness",
+                            "subcanopy height",
+                            "subcanopy cover",
+                            "subcanopy complexity",
+                            "veg density",
+                            "canopy height",
+                            "canopy percent cover")
+# Pivot this longer so that we can visualize it
+chains_viol_long1 <- chains_viol1 %>% pivot_longer(cols = c("tree richness",
+                            "subcanopy height",
+                            "subcanopy cover",
+                            "subcanopy complexity",
+                            "veg density",
+                            "canopy height",
+                            "canopy percent cover"),names_to = "Parameter", values_to = "Values")
+
+true_vals <- data.frame(beta[-2],covariate=c("tree richness",
+                            "subcanopy height",
+                            "subcanopy cover",
+                            "subcanopy complexity",
+                            "veg density",
+                            "canopy height",
+                            "canopy percent cover"))
+colnames(true_vals) <- c("beta","covariate")
+# Create the violin plot for covariate effects (not including shrub community)
+ggplot() +
+  geom_violin(data=chains_viol_long1, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Simulated Occupancy Covariates") +
+  scale_fill_manual(values = c("tree richness"=palette_8[1], "subcanopy height" = palette_8[3], "subcanopy cover" = palette_8[4], "subcanopy complexity" = palette_8[5], "veg density" = palette_8[6], "canopy height" = palette_8[7], "canopy percent cover" = palette_8[8])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  geom_point(data = true_vals, aes(x=covariate, y = beta))+
+  theme_minimal()
+```
+
+It doesn't look like the model is recovering the parameters well. What does this mean?
+
+Could it be not recovering the covariates with a weak effect?
+* if so, why was subcanopy complexity (with a true strong positive effect) recovered worse than veg density, canopy percent cover, and canopy height (much weaker negative effect)?
+
+
+```{R Evaluate Recovery of Shrub Intercepts}
+# Select the chains for our covariates of interest
+chains_viol2 <- chains_m1 %>% select("a0[1]","a0[2]","a0[3]","a0[4]","a0[5]")
+colnames(chains_viol2) <- c("shrub_c1","shrub_c2","shrub_c3","shrub_c4","shrub_c5")
+# Pivot this longer so that we can visualize it
+chains_viol_long2 <- chains_viol2 %>% pivot_longer(cols = c("shrub_c1","shrub_c2","shrub_c3","shrub_c4","shrub_c5"),
+                                                   names_to = "Parameter", 
+                                                   values_to = "Values")
+# Pull out the true values of the beta
+true_vals2 <- data.frame(psi0, covariate = c("shrub_c1","shrub_c2","shrub_c3","shrub_c4","shrub_c5"))
+
+ggplot() +
+  geom_violin(data=chains_viol_long2, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Shrub Community Baseline Occupancy") +
+  scale_fill_manual(values = c("shrub_c1"=palette_5[1], "shrub_c2" = palette_5[2], "shrub_c3" = palette_5[3], "shrub_c4" = palette_5[4], "shrub_c5" = palette_5[5])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  geom_point(data = true_vals2, aes(x=covariate, y = psi0))+
+  theme_minimal()
+```
+
+THis looks okay, still not super centered around the values I want it to be centered around.Why is it recovering poorly the covariates with a strong effect but recovering those with a weak effect better?
+
+Could it be that I have too many variables in this model?
+
+TODO: 
+Google around to see if there's tips on what to do when your model doesn't converge
+
+
+
+**What are the rules of thumb about how many parameters to have in a model??**
+**What if I run this with far fewer variables?**
+- what about a model with four variables? some kind of PCA of canopy composition, a PCA of subcanopy composition, shrub community, and tree richness
+
+
+

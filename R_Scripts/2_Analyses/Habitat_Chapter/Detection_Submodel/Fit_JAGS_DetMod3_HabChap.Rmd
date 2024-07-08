@@ -1,9 +1,23 @@
 ---
-title: "JAGS Detection Model 3"
+title: "Habitat Chapter JAGS Detection Sub Model 3"
 author: "Anna Kurtin"
-date: "`r Sys.Date()`"
+date: "6/10(ish)/2024"
 output: html_document
 ---
+
+This is a JAGS run of the third iteration of the detection submodel. In this version I have normal priors and the properly specified quadratics. This also contains the code where I figure out WAIC calculations. Archived. 
+
+*Model structure:*
+
+Naive state model
+$$
+z_i \sim Bernoulli(\psi)
+$$ 
+Process model with four covariates
+$$
+y_{ij} \sim Bernoulli(p| \beta_{date},\beta_{veg density},\beta_{avg db}, \beta_{effort})
+$$
+Handling of NA: imputation
 
 
 ```{r setup, include=FALSE}

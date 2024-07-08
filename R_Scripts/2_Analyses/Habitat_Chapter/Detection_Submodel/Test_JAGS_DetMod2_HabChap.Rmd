@@ -1,9 +1,16 @@
 ---
-title: "Test JAGS Model 2 on Simulated Data"
+title: "Habitat Chapter JAGS Detection Sub Model 2 Recover Params"
 author: "Anna Kurtin"
 date: "6/3/2024"
 output: html_document
 ---
+
+
+In order to determine if my model will perform well, I will first be simulating data using specified values for probability of occupancy and probability of detection. Then I will run my detection sub model on that data to see if it can recover the correct parameters. 
+
+This is the correct version of my simulations, incorporating the more proper prior specifications into my model. 
+
+I am simulating this data with a 20% probability of occupancy (based on naive estimates from our data) and a probability of detection of 60% (fairly high, so that we can test our model performance). 
 
 
 ```{r setup, include=FALSE}
@@ -23,9 +30,6 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 # So why does this give me a different slection of numbers each time?
 ```
 
-In order to determine if my model will perform well, I will first be simulating data using specified values for probability of occupancy and probability of detection. Then I will run my detection sub model on that data to see if it can recover the correct parameters. 
-
-I am simulating this data with a 20% probability of occupancy (based on naive estimates from our data) and a probability of detection of 60% (fairly high, so that we can test our model performance). 
 
 ## Generate Data
 

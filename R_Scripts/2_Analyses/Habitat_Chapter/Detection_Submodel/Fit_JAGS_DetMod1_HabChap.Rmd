@@ -1,15 +1,29 @@
 ---
-title: "JAGS Detection Model For Habitat Chapter V1"
+title: "Habitat Chapter JAGS Detection Sub Model 1"
 author: "Anna Kurtin"
 date: "5/20/2024"
 output: html_document
 ---
 
-Shoutout to Matt Tyers for the package on interfacing with jagsUI:
 
-[PDF](https://cran.r-project.org/web/packages/jagshelper/jagshelper.pdf)
 
-[GitHub](https://github.com/mbtyers/jagshelper)
+This is the original detection submodel I built. 
+
+*Model structure:*
+
+Naive state model
+$$
+z_i \sim Bernoulli(\psi)
+$$ 
+Process model with four covariates
+$$
+y_{ij} \sim Bernoulli(p| \beta_{date},\beta_{veg density},\beta_{avg db}, \beta_{effort})
+$$
+*Handling of NA data:* imputation
+
+This model has improperly specified priors, which were fixed in Detection Submodel 2. There are several other models where I play around with the initial values and removing the last survey period before I figured out that my issue was that my priors were specified improperly.  
+
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -20,6 +34,12 @@ library(ggplot2)
 library(coda)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 ```
+
+Shoutout to Matt Tyers for the package on interfacing with jagsUI:
+
+[PDF](https://cran.r-project.org/web/packages/jagshelper/jagshelper.pdf)
+
+[GitHub](https://github.com/mbtyers/jagshelper)
 
 
 # Data Reading and Formatting

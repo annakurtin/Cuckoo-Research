@@ -1,9 +1,28 @@
 ---
-title: "Recover Parameters for Simulated Occupancy Model with Reduced Covariates"
+title: "Habitat Chapter JAGS Occupancy Sub Model 2 Recover Parameters on Simulated Data with Reduced Covariates"
 author: "Anna Kurtin"
 date: "7/3/2024"
 output: pdf_document
 ---
+
+This is the occupancy submodel with properly specified logistic priors, a random effect for shrub community (a categorical variable), and a reduced number of covariates. I did this because Model 1 was not recovering parameters well, so I think the model may be overparameterized for the amount of data I have. Additionally, I suspect that many of the subcanopy and canopy covariates may be colinear, so I imagine that I'll have to reduce these down anyways to incorporate them into my model together.  
+
+**Model structure:**
+
+Full state model:
+$$
+z_i \sim Bernoulli(\psi | \beta_{tree richness}, \beta_{shrub comminity}, \beta_{subcanopy PCA}, \beta_{canopyPCA})
+$$
+
+
+Naive process model:
+
+$$
+y_{ij} \sim Bernoulli(p)
+$$
+
+**Handling of NAs:** imputation
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -17,8 +36,6 @@ library(loo)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Create_SiteColumn_fromPointID.R")
 ```
-
-
 
 ## Model 2: Half the Covariates
 

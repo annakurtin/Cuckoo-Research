@@ -1,9 +1,25 @@
 ---
-title: "Habitat Chapter JAGS Detection Model 2"
+title: "Habitat Chapter JAGS Detection Sub Model 2"
 author: "Anna Kurtin"
 date: "5/31/2024"
 output: html_document
 ---
+
+
+This is the second detection submodel I built after fixing the priors and ensuring I was running the model on scaled data.  
+
+*Model structure:*
+
+Naive state model
+$$
+z_i \sim Bernoulli(\psi)
+$$ 
+Process model with four covariates
+$$
+y_{ij} \sim Bernoulli(p| \beta_{date},\beta_{veg density},\beta_{avg db}, \beta_{effort})
+$$
+Handling of NA: imputation
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -17,6 +33,7 @@ library(loo)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Create_SiteColumn_fromPointID.R")
 ```
+
 
 ## Data Reading and Formatting
 

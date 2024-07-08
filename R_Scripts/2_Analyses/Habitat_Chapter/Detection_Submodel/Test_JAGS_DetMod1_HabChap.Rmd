@@ -1,9 +1,12 @@
 ---
-title: "Recover Params JAGS Detection Model1"
+title: "Habitat Chapter JAGS Detection Sub Model 1 Recover Params"
 author: "Anna Kurtin"
-date: "`r Sys.Date()`"
+date: "5/20/2024"
 output: html_document
 ---
+
+Testing the initial model on simulated data to evaluate model performance. 
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -152,7 +155,7 @@ cat("
     b3 ~ dnorm(0, 1)
     b4 ~ dnorm(0, 1)
   }
-  ", file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models/Test_JAGS_Occ_DetectionModel1.txt")
+  ", file = "./R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/Test_JAGS_Occ_DetectionModel1.txt")
 
 
 # Create a list of data for JAGS
