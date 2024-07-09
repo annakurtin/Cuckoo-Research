@@ -1,0 +1,27 @@
+
+      model {
+
+      # priors for intercepts
+      for (j in 1:2){
+        mu[j] ~ dlogis(0,1)
+      }
+      
+      # priors for covariate effects (nCM: number of covariates to monitor)
+      for (k in 1:nCM){
+        alpha[k] ~ dnorm(0, 0.1)
+        beta[k] ~ dnorm(0, 0.1)
+      }
+      
+      
+      for (i in 1:nSites){
+        logit(psi[i]) = mu[1] + x[i,] %*% alpha[1:nCM]
+        logit(p[i]) = mu[2] + w[i,] %*% beta[1:nCM]
+        
+        z[i] ~ dbern(psi[i])      
+        for (j in 1:nVis){
+          y[i,j] ~ dbern(z[i] * p[i])
+        }
+      }
+      
+    }
+    
