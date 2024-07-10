@@ -1,7 +1,7 @@
 #### GLM Script ####
 
 # Date created: 7/9/2024
-# Last modified: 7/9/2024
+# Last modified: 7/10/2024
 #### ISSUE WITH IT WAS that I wasn't giving a baseline probability of success, I was just adding on covariates which made it really hard to estimate. Check the email from Thomas R about this tomorrow 
 
 # Question: how many data points do we need to estimate relationships of a binary response variable with eight covariates?
@@ -72,23 +72,67 @@ data_df$y <- y_obs
 covariate_names <- paste0("X", 1:n_covs)
 formula <- as.formula(paste("y_obs ~", paste(covariate_names, collapse = " + ")))
 colnames(data_df)[1:n_covs] <- covariate_names
+
+# Call model 
 fit<-glm(formula, data=data_df, family=binomial(link="logit"))
-#plogis(10.68)
+
+summary(fit)
+# How to properly extract the coefficients:
+#summary(fit)$coefficients[2]
 
 diffs <- rep(NA,length(betas))
-b <- 1
+se <- rep(NA, length(betas))
+params <- rep(NA, length(betas))
+x_pos <- 1
+ for (b in 1:length(betas)){
+   # extract intercepts
+   model_param <- summary(fit)$coefficients[b+1]
+   params[b] <- model_param
+   # get the difference between the actual parameters and the observed parameters (absolute value so it's positive)
+   diffs[b] <- abs(model_param-betas[b])
+   # extract the standard error
+   se[b] <- summary(fit)$coefficients[b+1,"Std. Error"]
+   # Create upper confidence interval and lower confidence interval
+ }
+# Add and subtract the standard error to get the confidence interval 
+upper_ci <- params + se
+lower_ci <- params - se
+total_diff <- sum(diff)
+# Visualize this with the standard error
+plot(params)
+
+
+## Code from script for multiple sample size simulations
+# # Initialize empty vectors
+# diffs<- rep(NA, length(betas))
+# se <- rep(NA, length(betas))
+# params <- rep(NA, length(betas))
+# print(paste("Simulation is",sim_num))
+# 
 # for (b in 1:length(betas)){
-#   model_param <- fit$coefficients[b+1]
-#   diff[b] <- abs(fit$coefficients[b+1]-betas[b])
+#   print(paste("Beta is",b))
+#   # extract intercepts
+#   model_param <- summary(fit)$coefficients[b+1,1]
+#   #params[b] <- model_param
+#   # get the difference between the actual parameters and the observed parameters (absolute value so it's positive)
+#   diffs[b] <- abs(model_param-betas[b])
+#   #diffs[sim_num,b] <- abs(model_param-betas[b])
+#   # extract the standard error
+#   #se[b] <- summary(fit)$coefficients[b+1,"Std. Error"]
+#   # Create upper confidence interval and lower confidence interval
 # }
+# # Add and subtract the standard error to get the confidence interval 
+# upper_ci <- params + se
+# lower_ci <- params - se
+# # Take the average difference between the estimated and the actual parameters
+# avg_diff <- mean(diffs)
+# simulation_diffs[sim_num] <- avg_diff 
 
-
-
-# Start simple: just run a glm on the data as a regular datafrmae
-data2<- data.frame(data)
-data2$y <- y_obs
-fit<-glm(y ~ X1 + X2, data=data2, family=binomial(link="logit"))
-# These might be super high or super low due to the small amounts of data
+# # Start simple: just run a glm on the data as a regular datafrmae
+# data2<- data.frame(data)
+# data2$y <- y_obs
+# fit<-glm(y ~ X1 + X2, data=data2, family=binomial(link="logit"))
+# # These might be super high or super low due to the small amounts of data
 
 ###### ARCHIVE #####
 #probs[s] <- betas[1]*data[s,1] + betas[2]*data[s,2]

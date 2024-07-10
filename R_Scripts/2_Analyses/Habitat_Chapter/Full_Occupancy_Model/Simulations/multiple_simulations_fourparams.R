@@ -13,7 +13,7 @@
 ## One covariate on detection, One covariate on occupancy 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #TODO: FINISH OUT THIS CODE ****************************************************
-library(tidyverse)
+library(tidyverse) 
 library(jagsUI)
 
 nSims <- 10
