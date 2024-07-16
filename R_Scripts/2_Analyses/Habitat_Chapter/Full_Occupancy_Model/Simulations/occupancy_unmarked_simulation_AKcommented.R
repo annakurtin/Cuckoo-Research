@@ -1,4 +1,6 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# This is code recieved from Thomas R on 7/12, which I modified to more closely match the parameters I'm dealing with. I also made the plots more readable.
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # packages
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 library(unmarked)
@@ -22,12 +24,12 @@ sites_range <- seq(min.sites, max.sites, length.out = res)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # number of covariates
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-nCov <- 2
+nCov <- 6
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # number of visits
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-nVis <- 5
+nVis <- 6
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # detection probability
@@ -98,12 +100,15 @@ for (ii in 1:nSims){
 par(mar = c(5.1,5.1,2,2))
 boxplot(bias[,,1], names = sites_range,
         ylab = expression(hat(beta)~'-'~beta), xlab = 'Simulated sites',
-        cex.lab = 1.5)
+        cex.lab = 1.5,
+        ylim = c(-10,10))  # I added in constraints on the y axis to better see those closer to zero
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Here is a plot of SE for covariate 1...
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-boxplot(se[,,1], names = sites_range, ylab = 'Standard error (se)')
+boxplot(se[,,1], names = sites_range, 
+        ylab = 'Standard error (se)',
+        ylim = c(0,15)) # I added in constraints on the y axis to better see those closer to zero
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
