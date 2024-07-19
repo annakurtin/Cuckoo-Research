@@ -1,0 +1,283 @@
+---
+title: "Examining Colinearity and Distriubtion of Vegetation Covariates for Habitat Chapter"
+author: "Anna Kurtin"
+date: "7/18/2024"
+output: html_document
+---
+
+Before putting these habitat covariates into a model, I want to know whether any covariates are colinear and whether or not including nonrandom points is introducing bias into our datasets. 
+
+As a reminder, here's how we're defining variables within our data:
+
+**Canopy vs. Subcanopy:** When deriving percent cover, I defined subcanopy as all vegetation >=.25m and <= 6m.; canopy as all vegetation >6m. When deriving vegetation height and standard deviation, I made a mistake and defined canopy as anything >= 6m and subcanopy anything >.25m and <6m. However, the data had 5-6 decimal places, so the number of pixels that actually fell exactly on that threshole that would have been changed is very small, so I don't anticipate this will affect my analysis at all.   
+
+**Spatial Scales:** Landscape scale (`landsc`) indicates all vegetation within an 1000m radius of the point, Core (`core`) indicates all vegetation within 130m of the point, and point indicates vegetation at the veg survey point. 
+
+**LiDAR Metrics:** I looked at percent cover (`pct`), average height (`ht`) and standard deviation (`sd`) for the LiDAR metrics. 
+
+**Sampling Design:** We had points that were selected based on where surveyors thought was high-quality cuckoo habitat or places with past cuckoo observations (`nonrand`), points selected via GRTS sampling for the UMBEL Missouri and Madisor River monitoring projects (`grts`), and points selected via GRTS to investigate habitat use (`grts`).
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, mesage = FALSE)
+packages <- c("tidyverse","janitor","ggplot2","corrgram")
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Install_Load_Packages.R")
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Create_Site_SamplingColumn_fromPointID.R")
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+load_packages(packages)
+```
+
+```{R Read in Data}
+# Read in the monitoring locations
+points_forhabchap <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Monitoring_Points/2023_AllARUPoints_FromDeploymentData.csv")
+points_forhabchap <- points_forhabchap %>% create_site_col()
+points_forhabchap <- points_forhabchap %>% group_by(site_id) %>% summarize(x = mean(x), y = mean(y))
+
+# Read in the covariates derived from lidar data
+lidar <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Vegetation_Data/Outputs/AllPoints_AllScales_LiDARMetrics_7-17-24.csv")
+lidar <- lidar %>% separate(alt_point_id, into = c('point_id','year'), sep = "_", remove = FALSE)
+lidar <- lidar %>% create_site_col()
+lidar <- lidar %>% create_samp_col()
+# group the data into grts points (either the points I selected for habitat use or the points selected via GRTS for the UMBEL monitoring) or nonrandomly selected points
+lidar <- lidar %>% mutate(grts_grouped = case_when(sampling_design == "nonrand" ~ "nonrand",
+                                               sampling_design == "mmr_grts"~ "grts",
+                                               sampling_design == "habitat_grts" ~ "grts"))
+# Filter out only the points usedin 2023, which are the only points I'm looking at for this chapter
+lidar_23 <- lidar %>% filter(year == "23")
+# some sites had three points, so let's take the average of the lidar metrics across those three to have one measurement per site
+lidar_23 <- lidar_23 %>% group_by(site_id) %>% summarize(pct_can_landsc = round(mean(percent_canopy_landsc),2),
+                                                   pct_subcan_landsc = round(mean(percent_subcan_landsc),2),
+                                                   pct_can_core = round(mean(percent_canopy_core),2),
+                                                   pct_subcan_core = round(mean(percent_subcan_core),2),
+                                                   ht_can_core = round(mean(canopy_avgheight_core),2),
+                                                   ht_subcan_core = round(mean(subcan_avgheight_core),2),
+                                                   sd_subcan_core = round(mean(subcan_stdev_core),2), 
+                                                   grts_grouped = first(grts_grouped))
+
+# Read in data on dominant shrub community
+shrubs <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_ShrubDominantCommunity_6-19.csv")# %>% mutate(year = "23")
+shrubs <- shrubs %>% select(site_id, dominant_community)
+# read in data on tree species richness
+tree_rich <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_TreeSppRich_6-19.csv")# %>% mutate(year = "23")
+tree_rich <- tree_rich %>% select(site_id, spp_richness)
+# Combine these into one dataframe and select columns of interest
+all_dat <- left_join(points_forhabchap,lidar_23, by = "site_id")
+all_dat <- left_join(all_dat, shrubs, by ="site_id")
+all_dat <- left_join(all_dat, tree_rich, by = "site_id")
+all_dat <- all_dat %>% select(site_id, 
+                           grts_grouped,
+                           x,
+                           y,
+                           dominant_community,
+                           spp_richness,
+                           pct_can_landsc,
+                           pct_subcan_landsc,
+                           pct_can_core,
+                           pct_subcan_core,
+                           ht_can_core,
+                           ht_subcan_core,
+                           sd_subcan_core)
+```
+
+## Covariance matrix
+
+First, let's look at covariance. This plot shows the bivariate relationship between each set of data. The bottom half of the graph shows the correlation coefficient between the two variables, with red indicating a negative relationship and blue indicating a positive relationship. The top half of the graph mirrors the same combinations, showing the relationship as a scatterplot. 
+
+```{R Covariance Matrix}
+corrgram(all_dat[6:13], order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in the Veg Data")
+```
+
+It doesn't look like there is severe correlation in this dataset, but I've split out the most correlated variables based on the natural breaks in the data.
+
+R > .6:
+
+* percent canopy landscape ~ percent canopy core (R=.70)
+
+* percent canopy core and subcanopy height core (R=.70)
+
+* percent canopy core ~ canopy height core (R=.67)
+
+* subcanopy height core ~ subcanopy standard deviation (R=.62)
+
+R > .44:
+
+* percent subcanopy core ~ canopy height core (R=.53)
+
+* subcanopy height core ~ canopy height core (R=.52)
+
+* percent canpy landscape ~ subcanopy height core (R=.48)
+
+* percent subcanopy core ~ percent canopy core (R=.46)
+
+* percent canopy landscape ~ canopy height core (R=.44)
+
+### Should we combine some of these covariates to reduce the number of parameters in our model while still answering our research question? If so, what is the best way to go about this?
+
+## Distribution of points - boxplots and histograms
+
+
+```{R histograms, echo = FALSE}
+make_hist <- function(data = all_dat,cov, min_x=0){
+  #data <- na.omit(data)
+  plot_data <- data %>% select(cov) %>% na.omit() %>% pull(cov)
+  max_x <- max(plot_data)
+  brks <- seq(min_x,max_x, length.out = 30)
+  nonrand_dat <- data %>% select(cov, grts_grouped) %>% filter(grts_grouped == "nonrand") %>% na.omit() %>% pull(cov)
+  grts_dat <- data %>% select(cov, grts_grouped) %>% filter(grts_grouped == "grts") %>% na.omit() %>% pull(cov) 
+  # pink is nonrandom, yellow is habitat or MMR GRTS points
+  hist(plot_data, col = NA, border = "black", lwd = 2, xlim = c(min_x,max_x), breaks = brks, main = cov)
+  hist(grts_dat, col = alpha(palette_5[3],.5), xlim = c(min_x,max_x), breaks = brks, add = TRUE)
+  hist(nonrand_dat, col = alpha(palette_5[5],.5), xlim = c(min_x,max_x), breaks = brks, add = TRUE)
+  legend("topright", legend = c("Overall", "Nonrandom", "GRTS"), col = c("black", palette_5[5], palette_5[3]), lwd = 2, title = "Sampling Design")
+}
+```
+
+### Landscape Scale
+```{R, fig.show = "hold",out.width = "50%", echo = FALSE}
+boxplot(all_dat$pct_can_landsc~all_dat$grts_grouped, main = "% Canopy Landscape")
+make_hist(cov= "pct_can_landsc")
+```
+```{R, fig.show = "hold",out.width = "50%", echo = FALSE}
+boxplot(all_dat$pct_subcan_landsc~all_dat$grts_grouped, main = "% Subanopy Landscape")
+make_hist(cov= "pct_subcan_landsc")
+```
+
+### Core Area
+```{R, fig.show = "hold",out.width = "50%", echo = FALSE}
+boxplot(all_dat$pct_can_core~all_dat$grts_grouped, main = "% Canopy Core")
+make_hist(cov= "pct_can_core")
+```
+```{R, fig.show = "hold",out.width = "50%", echo = FALSE}
+boxplot(all_dat$pct_subcan_core~all_dat$grts_grouped, main = "% Subanopy Core")
+make_hist(cov= "pct_subcan_core")
+```
+```{R, fig.show = "hold",out.width = "50%", echo = FALSE}
+boxplot(all_dat$ht_can_core~all_dat$grts_grouped, main = "Canopy Height Core")
+make_hist(cov= "ht_can_core")
+```
+```{R, fig.show = "hold",out.width = "50%", echo = FALSE}
+boxplot(all_dat$ht_subcan_core~all_dat$grts_grouped, main = "Subcanopy Height Core")
+make_hist(cov= "ht_subcan_core")
+```
+```{R, fig.show = "hold",out.width = "50%", echo = FALSE}
+boxplot(all_dat$sd_subcan_core~all_dat$grts_grouped, main = "Subcanopy St Dev Core")
+make_hist(cov= "sd_subcan_core")
+```
+
+## Point Level
+```{R, fig.show = "hold",out.width = "50%", echo = FALSE}
+boxplot(all_dat$spp_richness~all_dat$grts_grouped, main = "Tree Richness")
+make_hist(cov= "spp_richness")
+```
+
+### It looks like the nonrandom points have generally higher tree species richness, but this doesn't strike me as a concern overall, as it introduces a wider range of this covariate that will make it easier to model.
+
+```{R, fig.show = "hold",out.width = "50%", echo = FALSE}
+boxplot(all_dat$ht_subcan_core~all_dat$dominant_community, main = "Core Subcanopy Height by Shrub Community")
+boxplot(all_dat$sd_subcan_core~all_dat$dominant_community, main = "Subcanopy Complexity by Shrub Community")
+```
+```{R, fig.show = "hold",out.width = "50%", echo = FALSE}
+boxplot(all_dat$pct_subcan_core~all_dat$dominant_community, main = "Percent Subcanopy Core by Shrub Community")
+boxplot(all_dat$pct_subcan_landsc~all_dat$dominant_community, main = "Percent Subcanopy Landscape by Shrub Community")
+```
+```{R, fig.show = "hold",out.width = "50%", echo = FALSE}
+boxplot(all_dat$pct_can_core~all_dat$dominant_community, main = "Percent Canopy Core by Shrub Community")
+boxplot(all_dat$pct_can_landsc~all_dat$dominant_community, main = "Percent Canopy Landscape by Shrub Community")
+```
+```{R, fig.show = "hold",out.width = "50%", echo = FALSE}
+boxplot(all_dat$ht_can_core~all_dat$dominant_community, main = "Core Canopy Height by Shrub Community")
+```
+
+### None of these variables covary with dominant shrub community in unexpected ways. Are there any trends here that indicate colinearity that we should be concerned about? Is there a more robust way to test for this?
+
+```{R Code Graveyard RIP, eval = FALSE, include = FALSE}
+# old - works LEAVE ALONE
+make_hist <- function(data = all_dat,cov, min_x=0){
+  brks <- 20
+  full_dat <- data[[cov]]
+  max_x <- max(full_dat, na.rm = TRUE)
+  nonrand_dat <- as.numeric(data[[cov]][data$grts_grouped == "nonrand" & !is.na(data[[cov]])])
+  grts_dat <- as.numeric(data[[cov]][data$grts_grouped == "grts" & !is.na(data[[cov]])])
+  # yellow is nonrandom, pink is habitat or MMR GRTS points
+  hist(full_dat, col = NA, border = "black", lwd = 2, xlim = c(min_x,max_x), breaks = brks, main = cov)
+  hist(grts_dat, col = alpha(palette_5[3],.5), xlim = c(min_x,max_x), breaks = brks, add = TRUE)
+  hist(nonrand_dat, col = alpha(palette_5[5],.5), xlim = c(min_x,max_x), breaks = brks, add = TRUE)
+  legend("topright", legend = c("Overall", "Nonrandom", "GRTS"), col = c("black", palette_5[5], palette_5[3]), lwd = 2, title = "Sampling Design")
+}
+
+data <- all_dat
+cov <- "ht_subcan_core"
+min_x()
+# can also select %>% unlist(use.names = FALSE)
+
+
+# probably a bad idea
+# Try tidyverse
+make_hist <- function(data = all_dat,cov, min_x=0){
+  brks <- 20
+  full_dat <- data %>% select(all_of(cov))
+  print(full_dat)
+  max_x <- max(full_dat, na.rm = TRUE)
+  nonrand_dat <- as.numeric(data[[cov]][data$grts_grouped == "nonrand" & !is.na(data[[cov]])])
+  grts_dat <- as.numeric(data[[cov]][data$grts_grouped == "grts" & !is.na(data[[cov]])])
+  # yellow is nonrandom, pink is habitat or MMR GRTS points
+  hist(full_dat, col = NA, border = "black", lwd = 2, xlim = c(min_x,max_x), breaks = brks, main = cov)
+  hist(grts_dat, col = alpha(palette_5[3],.5), xlim = c(min_x,max_x), breaks = brks, add = TRUE)
+  hist(nonrand_dat, col = alpha(palette_5[5],.5), xlim = c(min_x,max_x), breaks = brks, add = TRUE)
+  legend("topright", legend = c("Overall", "Nonrandom", "GRTS"), col = c("black", palette_5[5], palette_5[3]), lwd = 2, title = "Sampling Design")
+}
+make_hist(cov= "pct_can_landsc")
+# corrgram(all_dat[6:13], order=TRUE, lower.panel=panel.pie,
+#          upper.panel=panel.pts, text.panel=panel.txt,
+#          main="Correlations in the Veg Data")
+
+# Test
+max_1 <- max(all_dat$ht_subcan_core, na.rm = TRUE)
+brks <- 20
+hist(all_dat$ht_subcan_core[all_dat$grts_grouped == "nonrand"], col = palette_5[2], border = NA, xlim = c(0,max_1), breaks = brks)
+test <- all_dat %>% filter(grts_grouped == "nonrand")
+# test
+max_1 <- max(all_dat$pct_can_landsc, na.rm = TRUE)
+brks <- 20
+# pink is nonrandom, purple is habitat or MMR GRTS points
+hist(all_dat$pct_can_landsc, col = NA, border = "black", xlim = c(0,max_1), breaks = brks, main = "% Canopy Landscape")
+hist(all_dat$pct_can_landsc[all_dat$grts_grouped == "nonrand"], col = palette_5[2], border = NA, xlim = c(0,max_1), breaks = brks, add = TRUE)
+hist(all_dat$pct_can_landsc[all_dat$grts_grouped == "grts"], col = palette_5[3], border = NA, xlim = c(0,max_1), breaks = brks, add = TRUE)
+cov <- "percent_canopy"
+
+
+# Old 
+make_hist <- function(data = all_dat,cov, min_x=0){
+  plot_data <- data[[cov]]
+  #plot_data <- subset(data, select = cov)
+  #plot_data <- plot_data %>% na.omit()
+  #print(class(plot_data$pct_can_landsc))
+  max_x <- max(plot_data, na.rm = TRUE)
+  brks <- 20
+  # yellow is nonrandom, pink is habitat or MMR GRTS points
+  hist(plot_data, col = NA, border = "black", lwd = 2, xlim = c(min_x,max_x), breaks = brks, main = cov)
+  hist(plot_data[data$grts_grouped == "grts"], col = alpha(palette_5[3],.5), xlim = c(min_x,max_x), breaks = brks, add = TRUE)
+  hist(plot_data[data$grts_grouped == "nonrand"], col = alpha(palette_5[5],.5), xlim = c(min_x,max_x), breaks = brks, add = TRUE)
+  legend("topright", legend = c("Overall", "Nonrandom", "GRTS"), col = c("black", palette_5[5], palette_5[3]), lwd = 2, title = "Sampling Design")
+}
+
+  #plot_data <- data[[cov]]
+  #plot_data <- subset(data, select = cov)
+  #plot_data <- plot_data %>% na.omit()
+  #print(class(plot_data$pct_can_landsc))
+
+cor.prob <- function(X, dfr = nrow(X) - 2) {
+  R <- cor(X, use="complete.obs")
+  above <- row(R) < col(R)
+  r2 <- R[above]^2
+  Fstat <- r2 * dfr / (1 - r2)
+  R[above] <- 1 - pf(Fstat, 1, dfr)
+  R_fin <- round(R,4)
+  return(R_fin)
+}
+# Testing multiple covariates
+cor.prob(as.matrix(all_dat[,c("spp_richness","pct_can_landsc","pct_subcan_landsc","pct_can_core","pct_subcan_core","ht_can_core","ht_subcan_core","sd_subcan_core")]))
+# Used to be 6:13
+# Why is this reflected on both sides and seems to be different? see if corrgram you can just put the rsquared values*******
+```
