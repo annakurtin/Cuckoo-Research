@@ -4,6 +4,7 @@
 # packages
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 library(unmarked)
+library(beepr)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # number of simulations at each sample size
@@ -17,14 +18,14 @@ nSims <- 50
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 res <- 23
 min.sites <- 60
-max.sites <- 500
-sites_range <- seq(min.sites, max.sites, length.out = res)
+max.sites <- 300
+sites_range <- round(seq(min.sites, max.sites, length.out = res), 0)
 # sites_range <- round(sites_range)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # number of covariates
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-nCov <- 6
+nCov <- 5
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # number of visits
@@ -129,3 +130,4 @@ power <- power/nSims
 plot(power ~ sites_range)
 # if we upped the number of simulations to 1000s this would converge into a very smooth line...
 
+beep(sound = 3)

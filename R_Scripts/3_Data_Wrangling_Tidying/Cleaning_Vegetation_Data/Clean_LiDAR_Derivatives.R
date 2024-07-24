@@ -3,12 +3,12 @@
 # This is a script to read in the outputs from the arcgis processing steps for the MT state lidar products (see OneNote Data Processing/Proj 9.6) and process the output tables to create habitat covariates for use in my analysis
 
 # date create 7/15/20234
-# last modified 7/17/2024
+# last modified 7/23/2024
 
 ##### Packages and Functions #####
 packages <- c("tidyverse","janitor")
 source("./R_Scripts/6_Function_Scripts/Install_Load_Packages.R")
-source("./R_Scripts/6_Function_Scripts/Create_SiteColumn_fromPointID.R")
+source("./R_Scripts/6_Function_Scripts/Create_Site_SamplingColumn_fromPointID.R")
 source("./R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 load_packages(packages)
 
@@ -40,6 +40,8 @@ subcanh_core$subcan_avgheight_core <- round((subcanh_core$mean / 1000000) , 2) #
 subcansd_core <- read.csv("./Data/Vegetation_Data/Raw_Data/lidar_130rad_subcanstdev.csv")  %>% clean_names()
 subcansd_core <- subcansd_core %>% select(alt_point_id, std) 
 subcansd_core$subcan_stdev_core <- round((subcansd_core$std / 1000000) , 2)  # Convert from integer
+allvegsd_core <- read.csv("./Data/Vegetation_Data/Raw_Data/lidar_130rad_allvegstdev.csv") %>% clean_names()
+allvegsd_core$all_stdev_core <- round((allvegsd_core$std / 1000000) , 2)
 # crop pixels
 #crop_core <- read.csv("./Data/Vegetation_Data/Raw_Data/lidar_130rad_croppixels.csv") %>% clean_names()
 #crop_core <- crop_core %>% select(alt_point_id,sum) %>% rename(crop_pixels_core = sum)
@@ -54,6 +56,7 @@ core <- left_join(core, subcanp_core, by = "alt_point_id")
 core <- left_join(core, canh_core, by = "alt_point_id")
 core <- left_join(core, subcanh_core, by = "alt_point_id")
 core <- left_join(core, subcansd_core, by = "alt_point_id")
+core <- left_join(core, allvegsd_core, by = "alt_point_id")
 # summary(core)
 # Combine landscape 
 landsc <- left_join(tp_landsc, canp_landsc, by = "alt_point_id")
@@ -72,7 +75,7 @@ landsc_metric <- landsc_metric %>% select(alt_point_id,
                                           percent_subcan_landsc)
 
 
-# core #### PICK UP HERE ####
+#### core ####
 core_metric <- core %>% mutate(percent_canopy_core = round((canopy_pixels/total_pixels)*100, digits= 2))
 # percent subcanopy cover (removed canopy from total pixels)
 core_metric <- core_metric %>% mutate(percent_subcan_core = round((subcan_pixels/(total_pixels-canopy_pixels))*100, digits= 2))
@@ -80,6 +83,7 @@ core_metric <- core_metric %>% select(alt_point_id,
                                       canopy_avgheight_core,
                                       subcan_avgheight_core, 
                                       subcan_stdev_core, 
+                                      all_stdev_core,
                                       percent_canopy_core, 
                                       percent_subcan_core)
 
@@ -95,14 +99,15 @@ hist(core_metric$percent_subcan_core, main = "Core % Subcan")
 hist(core_metric$canopy_avgheight_core, main = "Core Avg Canopy Height")
 hist(core_metric$subcan_avgheight_core, main = "Core Avg Subcan Height")
 hist(core_metric$subcan_stdev_core, main = "Core Subcan St Dev")
+hist(core_metric$all_stdev_core, main = "All Veg St Dev")
 
 #### Export Data #####
 write.csv(landsc_metric,"./Data/Vegetation_Data/Outputs/AllPoints_LandscapeScale_LiDARMetrics_7-17-24.csv", row.names = FALSE)
-write.csv(core_metric,"./Data/Vegetation_Data/Outputs/AllPoints_CoreAreaScale_LiDARMetrics_7-17-24.csv", row.names = FALSE)
-write.csv(lidar_metrics,"./Data/Vegetation_Data/Outputs/AllPoints_AllScales_LiDARMetrics_7-17-24.csv", row.names = FALSE)
+write.csv(core_metric,"./Data/Vegetation_Data/Outputs/AllPoints_CoreAreaScale_LiDARMetrics_7-23-24.csv", row.names = FALSE)
+write.csv(lidar_metrics,"./Data/Vegetation_Data/Outputs/AllPoints_AllScales_LiDARMetrics_7-23-24.csv", row.names = FALSE)
 
 #### Double Check Against Map ####
-all <- read.csv("./Data/Vegetation_Data/Outputs/AllPoints_AllScales_LiDARMetrics_7-17-24.csv")
+all <- read.csv("./Data/Vegetation_Data/Outputs/AllPoints_AllScales_LiDARMetrics_7-23-24.csv")
 
 # Lower MISO
 all %>% filter(alt_point_id == "ROB_23avg") # looks good

@@ -3,7 +3,7 @@
 # This is a script to read in the cleaned lidar derivatives of canopy height and canopy cover and evaluate how they align with random vs nonrandom points
 
 # date create 7/18/20234
-# last modified 7/18/2024
+# last modified 7/23/2024
 
 ##### packages and functions #####
 packages <- c("tidyverse","janitor","ggplot2","corrgram")
@@ -17,7 +17,7 @@ load_packages(packages)
 ## slight oversampling of the points
 
 ##### data ######
-all <- read.csv("./Data/Vegetation_Data/Outputs/AllPoints_AllScales_LiDARMetrics_7-17-24.csv")
+all <- read.csv("./Data/Vegetation_Data/Outputs/AllPoints_AllScales_LiDARMetrics_7-23-24.csv")
 all <- all %>% separate(alt_point_id, into = c('point_id','year'), sep = "_", remove = FALSE)
 all <- all %>% create_site_col()
 all <- all %>% create_samp_col()
@@ -94,6 +94,11 @@ boxplot(all$subcan_stdev_core~all$grts_grouped, main = "Subcanopy St Dev Core")
 kruskal.test(subcan_stdev_core ~ sampling_design, data = all) # significant
 make_hist(cov = "subcan_stdev_core")
 
+# All Veg Standard Deviation of Core Area
+boxplot(all$all_stdev_core~all$sampling_design, main = "Subcanopy St Dev Core")
+boxplot(all$all_stdev_core~all$grts_grouped, main = "Subcanopy St Dev Core")
+kruskal.test(all_stdev_core ~ sampling_design, data = all) # significant
+make_hist(cov = "all_stdev_core")
 
 
 

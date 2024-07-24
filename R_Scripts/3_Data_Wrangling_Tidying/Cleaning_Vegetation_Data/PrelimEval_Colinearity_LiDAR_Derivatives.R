@@ -13,7 +13,7 @@ source("./R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 load_packages(packages)
 
 ##### data ######
-all <- read.csv("./Data/Vegetation_Data/Outputs/AllPoints_AllScales_LiDARMetrics_7-17-24.csv")
+all <- read.csv("./Data/Vegetation_Data/Outputs/AllPoints_AllScales_LiDARMetrics_7-23-24.csv")
 
 ### Look at distributions ####
 boxplot(all$percent_canopy_core,all$percent_subcan_core, all$percent_canopy_landsc, all$percent_subcan_landsc,
@@ -35,7 +35,7 @@ cor.prob <- function(X, dfr = nrow(X) - 2) {
   return(R_fin)
 }
 # Testing multiple covariates
-cor.prob(as.matrix(all[,c("percent_canopy_landsc", "percent_subcan_landsc", "percent_canopy_core", "percent_subcan_core","canopy_avgheight_core","subcan_avgheight_core","subcan_stdev_core")]))
+cor.prob(as.matrix(all[,c("percent_canopy_landsc", "percent_subcan_landsc", "percent_canopy_core", "percent_subcan_core","canopy_avgheight_core","subcan_avgheight_core","subcan_stdev_core", "all_stdev_core")]))
 
 # Looking at univariate relationships
 # with a threshold of .8 (what Andy said), these are all good

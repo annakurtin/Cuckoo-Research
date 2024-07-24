@@ -27,55 +27,7 @@ load_packages(packages)
 ```
 
 ```{R Read in Data}
-# Read in the monitoring locations
-points_forhabchap <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Monitoring_Points/2023_AllARUPoints_FromDeploymentData.csv")
-points_forhabchap <- points_forhabchap %>% create_site_col()
-points_forhabchap <- points_forhabchap %>% group_by(site_id) %>% summarize(x = mean(x), y = mean(y))
-
-# Read in the covariates derived from lidar data
-lidar <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Vegetation_Data/Outputs/AllPoints_AllScales_LiDARMetrics_7-17-24.csv")
-lidar <- lidar %>% separate(alt_point_id, into = c('point_id','year'), sep = "_", remove = FALSE)
-lidar <- lidar %>% create_site_col()
-lidar <- lidar %>% create_samp_col()
-# group the data into grts points (either the points I selected for habitat use or the points selected via GRTS for the UMBEL monitoring) or nonrandomly selected points
-lidar <- lidar %>% mutate(grts_grouped = case_when(sampling_design == "nonrand" ~ "nonrand",
-                                               sampling_design == "mmr_grts"~ "grts",
-                                               sampling_design == "habitat_grts" ~ "grts"))
-# Filter out only the points usedin 2023, which are the only points I'm looking at for this chapter
-lidar_23 <- lidar %>% filter(year == "23")
-# some sites had three points, so let's take the average of the lidar metrics across those three to have one measurement per site
-lidar_23 <- lidar_23 %>% group_by(site_id) %>% summarize(pct_can_landsc = round(mean(percent_canopy_landsc),2),
-                                                   pct_subcan_landsc = round(mean(percent_subcan_landsc),2),
-                                                   pct_can_core = round(mean(percent_canopy_core),2),
-                                                   pct_subcan_core = round(mean(percent_subcan_core),2),
-                                                   ht_can_core = round(mean(canopy_avgheight_core),2),
-                                                   ht_subcan_core = round(mean(subcan_avgheight_core),2),
-                                                   sd_subcan_core = round(mean(subcan_stdev_core),2), 
-                                                   grts_grouped = first(grts_grouped))
-
-# Read in data on dominant shrub community
-shrubs <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_ShrubDominantCommunity_6-19.csv")# %>% mutate(year = "23")
-shrubs <- shrubs %>% select(site_id, dominant_community)
-# read in data on tree species richness
-tree_rich <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_TreeSppRich_6-19.csv")# %>% mutate(year = "23")
-tree_rich <- tree_rich %>% select(site_id, spp_richness)
-# Combine these into one dataframe and select columns of interest
-all_dat <- left_join(points_forhabchap,lidar_23, by = "site_id")
-all_dat <- left_join(all_dat, shrubs, by ="site_id")
-all_dat <- left_join(all_dat, tree_rich, by = "site_id")
-all_dat <- all_dat %>% select(site_id, 
-                           grts_grouped,
-                           x,
-                           y,
-                           dominant_community,
-                           spp_richness,
-                           pct_can_landsc,
-                           pct_subcan_landsc,
-                           pct_can_core,
-                           pct_subcan_core,
-                           ht_can_core,
-                           ht_subcan_core,
-                           sd_subcan_core)
+all_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_Veg_Covariates_7-23.csv")
 ```
 
 ## Covariance matrix
@@ -106,16 +58,14 @@ R > .44:
 
 * subcanopy height core ~ canopy height core (R=.52)
 
-* percent canpy landscape ~ subcanopy height core (R=.48)
+* percent canopy landscape ~ subcanopy height core (R=.48)
 
 * percent subcanopy core ~ percent canopy core (R=.46)
 
 * percent canopy landscape ~ canopy height core (R=.44)
 
-### Should we combine some of these covariates to reduce the number of parameters in our model while still answering our research question? If so, what is the best way to go about this?
 
 ## Distribution of points - boxplots and histograms
-
 
 ```{R histograms, echo = FALSE}
 make_hist <- function(data = all_dat,cov, min_x=0){

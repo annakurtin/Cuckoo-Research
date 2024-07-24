@@ -1,0 +1,70 @@
+---
+title: 'Occupancy Sub Model A: Point Scale Covariates'
+author: "Anna Kurtin"
+date: "2024-07-24"
+output: html_document
+---
+
+This is the first iteration of the point scale submodel within the occupancy/state submodel. I am also moving towards handling NAs via omitting them from the model rather than imputing them. 
+
+**Model structure:**
+
+State model with two covariates: tree species richness and a dummy variable for dominant shrub community
+
+$$
+z_i \sim Bernoulli(\psi | \alpha_{tree spp richness}, \alpha_{broadleaf shrub community}, \alpha_{invasive shrub community}, \alpha_{upland shrub commmunity}, \alpha_{floodplain shrub community})
+$$ 
+
+Naive process model:  
+
+$$
+y_{ij} \sim Bernoulli(p)
+$$
+
+**Handling of NAs:** omission
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+```{r Read in Data}
+
+
+```
+
+```{R Sub Model 1 Structure}
+get_na <- function(x){(max(which(!is.na(x))))}
+# Apply this to our data
+miss <- apply(y2, 1, get_na)
+
+cat("
+  model{
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0
+      
+      for(j in 1:miss[i]){
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0 + b1*cov1[i,j] + b2*cov2[i] + b3*cov3[i,j] + b4*cov4[i,j]
+        
+      }
+    }
+    
+    # Priors
+    a0 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+    b1 ~ dnorm(0, 1)
+    b2 ~ dnorm(0, 1)
+    b3 ~ dnorm(0, 1)
+    b4 ~ dnorm(0, 1)
+  }
+  ", file = "./R_Scripts/2_Analyses/...")
+
+```

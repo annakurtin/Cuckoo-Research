@@ -78,10 +78,6 @@ library(tidyverse)
 install.packages("lubridate")
 tidyverse_update()
 
-# for summarizing and working with data
-install.packages("plyr")
-library(plyr)
-##CAUTION: plyr is the older version of dplyr. If you load this package and also want to use dplyr verbs, load dplyr after this
 
 # from R for Data Science book
 install.packages(c("nycflights", "gapminder", "Lahman"))

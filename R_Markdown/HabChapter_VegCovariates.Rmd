@@ -1,0 +1,207 @@
+---
+title: "Habitat Chapter Vegetation Covariates"
+author: "Anna Kurtin"
+date: "2024-07-23"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, mesage = FALSE)
+packages <- c("tidyverse","janitor","ggplot2","corrgram")
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Install_Load_Packages.R")
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Create_Site_SamplingColumn_fromPointID.R")
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+load_packages(packages)
+```
+
+```{R Read in Data, include = FALSE}
+all_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_Veg_Covariates_7-24.csv")
+```
+
+## Research question: What vegetation characteristics are associated with black-billed cuckoo habitat use? 
+
+## Goal of study: explore relationships between BBCU habitat use and woody vegetation characteristics, specifically vegetation structure, density, and species composition.
+
+
+## Modeling questions: 
+
+### 1. How to incorporate colinear variables into the model?
+
+### 2. How to reduce the overall number of covariates in the model?
+
+
+## Colinearity:
+
+```{R Covariance Matrix,out.width="100%"}
+corrgram(all_dat[6:14], order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Veg Covariates")
+```
+
+**Covariates that can't be included in the same model (R > .6):**
+
+* percent canopy landscape and percent canopy core (R=.70)
+
+* percent canopy core and subcanopy height core (R=.70)
+
+* percent canopy core and canopy height core (R=.67)
+
+* subcanopy height core and  subcanopy standard deviation (R=.62)
+
+
+## Reducing covariates included in final model:
+
+My goal is to use the secondary candidate set strategy described by Morin et al. 2020. There are two methods by which I could approach this.
+
+### Method A: Create sub models based on biological processes of interest
+
+![](C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Markdown/Images/HabMod_A.jpg){width=70%}
+
+#### Sub Model A1: Vegetation species composition
+
+What aspects of vegetation species composition affect use by BBCU?
+
+* Dominant shrub community at the point scale
+
+* Tree richness at the point scale
+
+```{R Species Distribution A,out.width="70%"}
+boxplot(all_dat$spp_richness~all_dat$dominant_community)
+
+ggplot(all_dat) +
+  geom_histogram(aes(x=spp_richness)) +
+  facet_wrap(~ dominant_community)
+# Doesn't look like there's an issue with colinearity but also doesn't look like there's a big spread in these covariates
+```
+
+#### Sub Model A2: Vegetation Density
+
+What metrics of vegetation density affect the probability of use by BBCU?
+
+* Percent canopy cover at core home range scale
+
+* Percent subcanopy cover at core home range scale
+
+* Percent canopy cover at landscape scale
+
+* Percent subcanopy cover at landscape scale?
+
+```{R Veg Density}
+veg_dense <- all_dat[,7:10]
+
+corrgram(veg_dense, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Veg Density Metrics")
+```
+
+Now instead of four colinear relationships, we only have one to worry about. Following Graham 2003, with bivariate colinearity, you account for the unqiue vs shared contributions of the covariates by assign the covraiate of highest importance to the actual values, then regress the other value against it and use the residuals of that covariate to account for its unique contribution. However, this approach relies on solid a priori knowledge of the relative importance of the covariates. 
+
+Percent canopy cover in core area and percent canopy cover in the landscape are colinear: which of these covariates do we believe is the most important to BBCU habitat use? Johnson and Benson 2023 found an effect of forest cover in the landscape, so we believe that this is likely the more important covariate. 
+
+```{R, include = FALSE}
+# Percent canopy core and percent canopy landscape are the only two that I need to worry about
+# bivariate relationship
+
+# Take residuals in order to break colinearity 
+# create linear model between two covariates
+# use predict function to extract values 
+# take the difference between the predicted and observed values to use as your residual 
+canopy_glm <- glm(formula = pct_can_core ~ pct_can_landsc, data = veg_dense)
+canopy_predictions <- predict(canopy_glm)
+plot(canopy_predictions)
+```
+
+#### Sub Model A3: Vegetation Vertical Height Characteristics
+
+What metrics of vegetation height affect use by BBCU?
+
+* Average height of subcanopy at core home range scale
+
+* Average height of canopy at core home range scale
+
+* Standard deviation of subcanopy at core home range scale
+
+```{R Veg Height}
+veg_height <- all_dat[,11:13]
+
+corrgram(veg_height, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Veg Height Metrics")
+# subcanopy height in core area and subcanopy density in the core area
+# bivarite relationship in colinearity 
+```
+
+Once again, there is only one colinear relationship to worry about here: height and standard deviation of the subcanopy. Based off of Johnson and Benson 2023, we expect that subcanopy complexity (standard deviation) is the more important covariate here.
+
+
+
+
+
+### Method B: Create sub models based on biological scales of interest
+
+![](C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Markdown/Images/HabMod_B.jpg){width=70%}
+
+#### Sub Model B1: Point scale covariates
+
+* Dominant shrub community at the point scale
+
+* Tree richness at the point scale
+```{R Species Distribution B,out.width="70%"}
+boxplot(all_dat$spp_richness~all_dat$dominant_community)
+
+ggplot(all_dat) +
+  geom_histogram(aes(x=spp_richness)) +
+  facet_wrap(~ dominant_community)
+```
+
+This is the same as in the first modeling approach. 
+
+
+#### Sub Model B2: Landscape scale covariates
+
+* Percent canopy cover at landscape scale
+
+* Percent subcanopy cover and landscape scale
+
+```{R}
+landsc <- all_dat[,7:8]
+
+corrgram(landsc, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Landscape Scale Metrics")
+```
+
+There are no colinear covariates to account for in this submodel. 
+
+#### Sub Model B3: Core home range scale covariates
+
+* Percent canopy cover at core scale
+
+* Percent subcanopy cover at core scale
+
+* Average height of canopy at core scale
+
+* Average height of subcanopy at core scale
+
+* Standard deviation of subcanopy at core scale
+
+
+```{R}
+core <- all_dat[,9:13]
+
+corrgram(core, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Veg Density Metrics")
+```
+
+There are three colinear relationships to account for: subcanopy standard deviation and height, subcanopy height and percent canopy cover, and percent canopy cover and canopy height.
+
+
+
+
+```{r graveyard, include = FALSE, eval = FALSE}
+### Should we combine some of these covariates to reduce the number of parameters in our model while still answering our research question? If so, what is the best way to go about this?
+
+We also need to reduce the total number of covariates in our model. My thought initially is to create submodels that represent the biological processes of interest: vegetation density measured by percent canopy, veg species distribution measured by tree species richness and dominant shrub community, and vegetation height and complexity. Let's look at the colinear relationships within each of these groups that we need to be aware of.
+
+```
