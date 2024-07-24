@@ -36,14 +36,15 @@ lidar_23 <- lidar_23 %>% group_by(site_id) %>% summarize(pct_can_landsc = round(
 # Read in data on dominant shrub community
 shrubs <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_ShrubDominantCommunity_6-19.csv")# %>% mutate(year = "23")
 shrubs <- shrubs %>% select(site_id, dominant_community)
+# Change sites with no shrub cover to a different category instead of NA
+shrubs <- shrubs %>% mutate(dominant_community = ifelse(is.na(dominant_community),"no_shrub", dominant_community))
 # read in data on tree species richness
-tree_rich <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_TreeSppRich_6-19.csv")# %>% mutate(year = "23")
-tree_rich <- tree_rich %>% select(site_id, spp_richness)
+tree_rich <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_TreeSppRich_7-24.csv")# %>% mutate(year = "23")
+tree_rich <- tree_rich %>% select(site_id, tree_spp_rich)
 # Combine these into one dataframe and select columns of interest
 all_dat <- left_join(points_forhabchap,lidar_23, by = "site_id")
 all_dat <- left_join(all_dat, shrubs, by ="site_id")
 all_dat <- left_join(all_dat, tree_rich, by = "site_id")
-
 
 # Create covariate of residuals
 # create the regression model
@@ -55,22 +56,27 @@ sd_resid <- all_dat$sd_allveg_core - sd_predict
 # add it to the data
 all_dat$veg_sd_resid <- round(sd_resid,2)
 
+#Create dummy variables for shrub community
 all_dat <- all_dat %>% mutate(broadleaf_shrub = case_when(dominant_community == "misc_broadleaf" ~ 1,
                                                           dominant_community == "invasive" ~ 0,
                                                           dominant_community == "upland" ~ 0,
-                                                          dominant_community == "floodplain" ~ 0),
+                                                          dominant_community == "floodplain" ~ 0,
+                                                          dominant_community == "no_shrub" ~ 0),
                               invasive_shrub = case_when(dominant_community == "misc_broadleaf" ~ 0,
                                                          dominant_community == "invasive" ~ 1,
                                                          dominant_community == "upland" ~ 0,
-                                                         dominant_community == "floodplain" ~ 0),
+                                                         dominant_community == "floodplain" ~ 0,
+                                                         dominant_community == "no_shrub" ~ 0),
                               upland_shrub = case_when(dominant_community == "misc_broadleaf" ~ 0,
                                                        dominant_community == "invasive" ~ 0,
                                                        dominant_community == "upland" ~ 1,
-                                                       dominant_community == "floodplain" ~ 0),
+                                                       dominant_community == "floodplain" ~ 0,
+                                                       dominant_community == "no_shrub" ~ 0),
                               floodplain_shrub = case_when(dominant_community == "misc_broadleaf" ~ 0,
                                                            dominant_community == "invasive" ~ 0,
                                                            dominant_community == "upland" ~ 0,
-                                                           dominant_community == "floodplain" ~ 1))
+                                                           dominant_community == "floodplain" ~ 1,
+                                                           dominant_community == "no_shrub" ~ 0))
 
 # Select columns of interest
 all_dat_fin <- all_dat %>% select(site_id, 
@@ -81,7 +87,7 @@ all_dat_fin <- all_dat %>% select(site_id,
                               invasive_shrub,
                               upland_shrub,
                               floodplain_shrub,
-                              spp_richness,
+                              tree_spp_rich,
                               pct_can_landsc,
                               pct_subcan_landsc,
                               pct_can_core,
