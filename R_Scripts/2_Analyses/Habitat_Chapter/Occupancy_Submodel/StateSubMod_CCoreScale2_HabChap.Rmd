@@ -1,0 +1,225 @@
+---
+title: 'Occupancy Sub Model C2: Core Home Range Scale Covariates'
+author: "Anna Kurtin"
+date: "2024-07-26"
+output: html_document
+---
+
+This is the second iteration of the core home range (130 m radius of points) scale submodel within the occupancy/state submodel. From the first iteration, we saw that veg sd residual was hugely important in the model. It is also colinear with canopy height, canopy percent cover, and subcanopy height. Here, I am trying to break apart these colinearities to determine if the unique contribution of these coviariates is important of if their importance was only driven by total veg sd in the first model. I am also breaking apart the colinearity between subcanopy sd and subcanopy height. Subcanopy percent cover wasn't correlated with anything.
+
+Even though there is not a causal relationship to the colinearity between total veg sd and percent canopy cover, there is a correlation between them that still needs to be broken up in the model. By running a regression and using the residual values of percent canopy cover, we aren't saying that one causes the other, we just say they are correlated and are pulling out the residual variation to isolate it's unique effect on the response. 
+
+I think that by doing this, the covariates for canopy height, subcanopy height, and percent canopy may change in importance. 
+
+**Model structure:**
+
+State model with six covariates: percent canopy residuals from total veg sd (cov1) and subcanopy percent canopy (unchanged) (cov2), height of canopy residuals from total veg sd (cov3) and height of subcanopy residuals from subcanopy sd (cov4), standard deviation of subcanopy (unchanged) (cov5), total veg standard deviation (unchanged) (cov6)
+
+$$
+z_i \sim Bernoulli(\psi | \alpha_{1}, \alpha_{2}, \alpha_{3}, \alpha_{4}, \alpha_{5}, \alpha_{6})
+$$ 
+
+Naive process model:  
+
+$$
+y_{ij} \sim Bernoulli(p)
+$$
+
+**Handling of NAs:** omission for detections, imputation for habitat covariates
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(beepr)
+library(corrgram)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+```{r Read in Data}
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/DetHist_VegCovs_Scaled_7-24.csv")
+
+detections <- full_dat[,2:7]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+
+# get the length of non-nas in the detection data
+get_na <- function(x){(max(which(!is.na(x))))}
+# Apply this to our data
+miss <- apply(detections, 1, get_na)
+```
+
+```{R Format New Residual Covariates, message = FALSE}
+# formula = y ~ x, data = 
+# I did this on scaled covariates (no difference doing this on scaled vs unscaled data)
+
+# Create covariates of residuals
+# Canopy height from total veg st dev
+reg1 <- glm(formula = ht_can_core ~ sd_allveg_core, data = full_dat)
+cht_predict <- predict(reg1, full_dat)
+cht_resid <- full_dat$ht_can_core - cht_predict
+full_dat$canopy_ht_resid <- round(cht_resid,2)
+
+# Subcanopy height from subcan st dev
+reg2 <- glm(formula = ht_subcan_core ~ sd_subcan_core, data = full_dat)
+scht_predict <- predict(reg2, full_dat)
+scht_resid <- full_dat$ht_subcan_core - scht_predict
+full_dat$subcan_ht_resid <- round(scht_resid,2)
+
+# Canopy percent cover resid on total veg sd
+reg3 <- glm(formula = pct_can_core ~ sd_allveg_core, data = full_dat)
+cpct_predict <- predict(reg3, full_dat)
+cpct_resid <- full_dat$pct_can_core - cpct_predict
+full_dat$canopy_pct_resid <- round(cpct_resid,2)
+
+
+modc2_dat <- full_dat %>% select(sd_allveg_core, 
+                                 sd_subcan_core, 
+                                 canopy_ht_resid, 
+                                 subcan_ht_resid, 
+                                 canopy_pct_resid,
+                                 pct_subcan_core)
+# test correlation
+corrgram(modc2_dat, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Core Scale Metrics Model 2")
+
+```
+
+Now we can see that none of the new covariates are colinear with each other.
+
+Let's run the model and see what changes!
+
+```{R Setup JAGS Data}
+# Create a list of data for JAGS
+# index this by variable names to make sure nothing is being funky 
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections,
+  # percent canopy residual on total veg sd
+  cov1 = full_dat$canopy_pct_resid,
+  # percent subcanopy unchanged
+  cov2 = full_dat$pct_subcan_core,
+  # canopy height residual on total veg sd
+  cov3 = full_dat$canopy_ht_resid,
+  # subcanopy height residual on subcanopy veg sd
+  cov4 = full_dat$subcan_ht_resid,
+  # subcanopy sd unchanged
+  cov5 = full_dat$sd_subcan_core,
+  # veg sd unchanged
+  cov6 = full_dat$sd_allveg_core,
+  n_unit = nrow(detections),
+  miss = miss
+)
+
+# Set initial values 
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    a1 = rnorm(1, 0, 1),
+    a2 = rnorm(1, 0, 1),
+    a3 = rnorm(1, 0 ,1),
+    a4 = rnorm(1, 0, 1),
+    a5 = rnorm(1, 0, 1),
+    a6 = rnorm(1, 0 ,1),
+    b0 = rnorm(1, 0, 1)
+  )
+}
+```
+
+```{R Sub Model C1 Structure}
+cat("
+  model{
+        # Priors
+    a0 ~ dlogis(0, 1)
+    a1 ~ dlogis(0, 1)
+    a2 ~ dlogis(0, 1)
+    a3 ~ dlogis(0, 1)
+    a4 ~ dlogis(0, 1)
+    a5 ~ dlogis(0, 1)
+    a6 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+  
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      # Impute missing habitat data
+      cov1[i] ~ dnorm(0, 1)
+      cov2[i] ~ dnorm(0, 1)
+      cov3[i] ~ dnorm(0, 1)
+      cov4[i] ~ dnorm(0, 1)
+      cov5[i] ~ dnorm(0, 1)
+      cov6[i] ~ dnorm(0, 1)
+  
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0 + a1*cov1[i] + a2*cov2[i] + a3*cov3[i] + a4*cov4[i] + a5*cov5[i] + a6*cov6[i]
+      
+      for(j in 1:miss[i]){
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0
+        
+      }
+    }
+    
+    # Derived parameters
+    
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC2.txt")
+
+```
+
+```{R Run Model, results = FALSE}
+fit_C2 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC2.txt",
+                 parameters.to.save = c("a0", "a1", "a2", "a3", "a4", "a5", "a6", "b0"),
+                 n.iter = 10000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 inits = init_func)
+beep(sound = 3)
+```
+
+```{R Evaluate Model}
+print(fit_C2)
+tracedens_jags(fit_C2, parmfrow = c(3,3))
+```
+
+```{R Create Violin Plots}
+chains_c2 <- jags_df(fit_C2)
+# Select the chains for our covariates of interest
+chains_viol <- chains_c2 %>% select(a1,a2,a3,a4,a5,a6)
+# Rename them to be more interpretable
+colnames(chains_viol) <- c("% canopy resid","% subcanopy","canopy height resid","subcanopy height resid", "subcanopy sd", "veg sd")
+# Pivot this longer so that we can visualize it
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("% canopy resid","% subcanopy","canopy height resid","subcanopy height resid", "subcanopy sd", "veg sd"),names_to = "Parameter", values_to = "Values")
+
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Core Area Scale Covariates") +
+  scale_fill_manual(values = c("% canopy resid"=palette_8[1], "% subcanopy" = palette_8[2],"canopy height resid"=palette_8[3], "subcanopy height resid" = palette_8[4], "subcanopy sd" = palette_8[5], "veg sd" = palette_8[6])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  theme(axis.text.x = element_text(angle = 45,hjust = 1))
+```
+
+
+
+```{R Boo Spooky Graveyard, include = FALSE}
+# testing out residuals on unscaled data to see if it's the same thing
+# full_dat_t <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_Veg_Covariates_7-24.csv")
+# reg1_t <- glm(formula = ht_can_core ~ sd_allveg_core, data = full_dat_t)
+# cht_predict_t <- predict(reg1, full_dat)
+# cht_resid_t <- full_dat$ht_can_core - cht_predict_t
+# test <- round(cht_resid_t,2)
+# YES its the same thing
+#full_dat_t$canopy_ht_resid_t <- round(cht_resid_t,2)
+```

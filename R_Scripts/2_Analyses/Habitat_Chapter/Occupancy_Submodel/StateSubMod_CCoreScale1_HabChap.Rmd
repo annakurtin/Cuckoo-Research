@@ -1,5 +1,5 @@
 ---
-title: 'Occupancy Sub Model C: Core Home Range Scale Covariates'
+title: 'Occupancy Sub Model C1: Core Home Range Scale Covariates'
 author: "Anna Kurtin"
 date: "2024-07-25"
 output: html_document
@@ -60,17 +60,17 @@ jags_data <- list(
   # Detection/nondetection data
   det_data = detections,
   # percent canopy
-  cov1 = full_dat[,15],
+  cov1 = full_dat$pct_can_core,
   # percent subcanopy
-  cov2 = full_dat[,16],
+  cov2 = full_dat$pct_subcan_core,
   # canopy height
-  cov3 = full_dat[,17],
+  cov3 = full_dat$ht_can_core,
   # subcanopy height
-  cov4 = full_dat[,18],
+  cov4 = full_dat$ht_subcan_core,
   # subcanopy sd
-  cov5 = full_dat[,19],
+  cov5 = full_dat$sd_subcan_core,
   # veg sd residual from canopy height
-  cov6 = full_dat[,20],
+  cov6 = full_dat$veg_sd_resid,
   n_unit = nrow(detections),
   miss = miss
 )
@@ -164,7 +164,7 @@ ggplot() +
   labs(title = "Posterior Distribution of Core Area Scale Covariates") +
   scale_fill_manual(values = c("% canopy"=palette_8[1], "% subcanopy" = palette_8[2],"canopy height"=palette_8[3], "subcanopy height" = palette_8[4], "subcanopy sd" = palette_8[5], "veg sd residual" = palette_8[6])) + 
   geom_hline(yintercept = 0, linetype = "solid", color = "black") +
-  theme_minimal()
+  theme(axis.text.x = element_text(angle = 45,hjust = 1))
 ```
 
 ```{R WAIC C1}

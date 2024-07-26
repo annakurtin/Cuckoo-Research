@@ -1,0 +1,169 @@
+---
+title: 'Occupancy Sub Model C3: Core Home Range Scale Covariates'
+author: "Anna Kurtin"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+This is the third iteration of the core home range (130 m radius of points) scale submodel within the occupancy/state submodel. In this, I remove subcanopy standard deviation.
+
+**Model structure:**
+
+State model with six covariates: percent canopy (cov1) and subcanopy (cov2), height of canopy (cov3) and subcanopy (cov4), residuals of veg standard deviation from regression with canopy height (cov6)
+
+$$
+z_i \sim Bernoulli(\psi | \alpha_{1}, \alpha_{2}, \alpha_{3}, \alpha_{4},  \alpha_{6})
+$$ 
+
+Naive process model:  
+
+$$
+y_{ij} \sim Bernoulli(p)
+$$
+
+**Handling of NAs:** omission for detections, imputation for habitat covariates
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(beepr)
+library(corrgram)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+```{r Read in Data}
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/DetHist_VegCovs_Scaled_7-24.csv")
+
+detections <- full_dat[,2:7]
+
+# look at colinearity and correlation
+corrdat <- full_dat %>% select(pct_can_core, pct_subcan_core, ht_can_core, ht_subcan_core, veg_sd_resid)
+corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Core Scale Metrics Model 3")
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+
+# get the length of non-nas in the detection data
+get_na <- function(x){(max(which(!is.na(x))))}
+# Apply this to our data
+miss <- apply(detections, 1, get_na)
+```
+
+
+```{R Setup JAGS Data}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections,
+  # percent canopy
+  cov1 = full_dat$pct_can_core,
+  # percent subcanopy
+  cov2 = full_dat$pct_subcan_core,
+  # canopy height
+  cov3 = full_dat$ht_can_core,
+  # subcanopy height
+  cov4 = full_dat$ht_subcan_core,
+  # veg sd residual from canopy height
+  cov6 = full_dat$veg_sd_resid,
+  n_unit = nrow(detections),
+  miss = miss
+)
+
+# Set initial values 
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    a1 = rnorm(1, 0, 1),
+    a2 = rnorm(1, 0, 1),
+    a3 = rnorm(1, 0 ,1),
+    a4 = rnorm(1, 0, 1),
+    a6 = rnorm(1, 0 ,1),
+    b0 = rnorm(1, 0, 1)
+  )
+}
+```
+
+```{R Sub Model C3 Structure}
+cat("
+  model{
+        # Priors
+    a0 ~ dlogis(0, 1)
+    a1 ~ dlogis(0, 1)
+    a2 ~ dlogis(0, 1)
+    a3 ~ dlogis(0, 1)
+    a4 ~ dlogis(0, 1)
+    a6 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+  
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      # Impute missing habitat data
+      cov1[i] ~ dnorm(0, 1)
+      cov2[i] ~ dnorm(0, 1)
+      cov3[i] ~ dnorm(0, 1)
+      cov4[i] ~ dnorm(0, 1)
+      cov6[i] ~ dnorm(0, 1)
+  
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0 + a1*cov1[i] + a2*cov2[i] + a3*cov3[i] + a4*cov4[i] + a6*cov6[i]
+      
+      for(j in 1:miss[i]){
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0
+        
+      }
+    }
+    
+    # Derived parameters
+    
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC3.txt")
+
+```
+
+```{R Run Model, results = FALSE}
+fit_C3 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC3.txt",
+                 parameters.to.save = c("a0", "a1", "a2", "a3", "a4", "a6", "b0"),
+                 n.iter = 10000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 #parallel = TRUE,
+                 inits = init_func)
+beep(sound = 3)
+```
+
+```{R Evaluate Model}
+print(fit_C3)
+tracedens_jags(fit_C3, parmfrow = c(3,3))
+```
+
+```{R Create Violin Plots}
+chains_c3 <- jags_df(fit_C3)
+# Select the chains for our covariates of interest
+chains_viol <- chains_c3 %>% select(a1,a2,a3,a4,a6)
+# Rename them to be more interpretable
+colnames(chains_viol) <- c("% canopy","% subcanopy","canopy height","subcanopy height", "veg sd residual")
+# Pivot this longer so that we can visualize it
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("% canopy","% subcanopy","canopy height","subcanopy height",  "veg sd residual"),names_to = "Parameter", values_to = "Values")
+
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Core Area Scale Covariates") +
+  scale_fill_manual(values = c("% canopy"=palette_8[1], "% subcanopy" = palette_8[2],"canopy height"=palette_8[3], "subcanopy height" = palette_8[4], "veg sd residual" = palette_8[6])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  theme(axis.text.x = element_text(angle = 45,hjust = 1))
+```
