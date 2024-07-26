@@ -16,9 +16,11 @@
 *.jpg
 *.pdf
 *.Rdata
+*.html
 
 # Folders
 Data/
+Deliverables/
 Archive/
 External_R_Code/
 Python_Scripts/BBCU_YBCU_Call_Training/Training_Packet
