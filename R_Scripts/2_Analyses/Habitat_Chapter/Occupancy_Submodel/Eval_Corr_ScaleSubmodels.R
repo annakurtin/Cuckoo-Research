@@ -2,6 +2,8 @@
 
 
 all_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_Veg_Covariates_7-24.csv")
+library(corrgram)
+library(tidyverse)
 
 # Create dummy variables for shrub community
 unique(all_dat$dominant_community) # four categories
@@ -53,7 +55,7 @@ corrgram(landsc, order=TRUE, lower.panel=panel.cor,
 # Average height of subcanopy at core scale
 # Standard deviation of subcanopy at core scale
 
-core <- all_dat[,9:14]
+core <- all_dat[,12:18]
 corrgram(core, order=TRUE, lower.panel=panel.cor,
          upper.panel=panel.pts, text.panel=panel.txt,
          main="Correlations in Veg Density Metrics")

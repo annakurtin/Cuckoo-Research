@@ -1,18 +1,19 @@
 ---
-title: 'Occupancy Sub Model A: Point Scale Covariates'
+title: 'Occupancy Sub Model C: Core Home Range Scale Covariates'
 author: "Anna Kurtin"
-date: "2024-07-24"
+date: "2024-07-25"
 output: html_document
 ---
 
-This is the first iteration of the point scale submodel (11.3 m radius of points) within the occupancy/state submodel. I am also moving towards handling NAs via omitting them from the model rather than imputing them. 
+
+This is the first iteration of the core home range (130 m radius of points) scale submodel within the occupancy/state submodel. I am also moving towards handling NAs via omitting them from the model rather than imputing them. 
 
 **Model structure:**
 
-State model with two covariates: tree species richness and a dummy variable for dominant shrub community
+State model with six covariates: percent canopy (cov1) and subcanopy (cov2), height of canopy (cov3) and subcanopy (cov4), standard deviation of subcanopy (cov5), residuals of veg standard deviation from regression with canopy height (cov6)
 
 $$
-z_i \sim Bernoulli(\psi | \alpha_{tree spp richness}, \alpha_{broadleaf shrub community}, \alpha_{invasive shrub community}, \alpha_{upland shrub commmunity}, \alpha_{floodplain shrub community})
+z_i \sim Bernoulli(\psi | \alpha_{1}, \alpha_{2}, \alpha_{3}, \alpha_{4}, \alpha_{5}, \alpha_{6})
 $$ 
 
 Naive process model:  
@@ -50,6 +51,7 @@ get_na <- function(x){(max(which(!is.na(x))))}
 miss <- apply(detections, 1, get_na)
 ```
 
+
 ```{R Setup JAGS Data}
 # Create a list of data for JAGS
 jags_data <- list(
@@ -57,16 +59,18 @@ jags_data <- list(
   Z = z_dat,
   # Detection/nondetection data
   det_data = detections,
-  # Native broadleaf tree spp richness
-  cov1 = full_dat[,12],
-  # Broadleaf shrub community
-  cov2 = full_dat[,8],
-  # Invasive shrub community 
-  cov3 = full_dat[,9],
-  # Upland shrub community
-  cov4 = full_dat[,10],
-  # Floodplain shrub community
-  cov5 = full_dat[,11],
+  # percent canopy
+  cov1 = full_dat[,15],
+  # percent subcanopy
+  cov2 = full_dat[,16],
+  # canopy height
+  cov3 = full_dat[,17],
+  # subcanopy height
+  cov4 = full_dat[,18],
+  # subcanopy sd
+  cov5 = full_dat[,19],
+  # veg sd residual from canopy height
+  cov6 = full_dat[,20],
   n_unit = nrow(detections),
   miss = miss
 )
@@ -80,12 +84,13 @@ init_func <- function(){
     a3 = rnorm(1, 0 ,1),
     a4 = rnorm(1, 0, 1),
     a5 = rnorm(1, 0, 1),
+    a6 = rnorm(1, 0 ,1),
     b0 = rnorm(1, 0, 1)
   )
 }
 ```
 
-```{R Sub Model A1 Structure}
+```{R Sub Model C1 Structure}
 cat("
   model{
         # Priors
@@ -95,6 +100,7 @@ cat("
     a3 ~ dlogis(0, 1)
     a4 ~ dlogis(0, 1)
     a5 ~ dlogis(0, 1)
+    a6 ~ dlogis(0, 1)
     b0 ~ dlogis(0, 1)
   
     # Likelihood
@@ -106,9 +112,10 @@ cat("
       cov3[i] ~ dnorm(0, 1)
       cov4[i] ~ dnorm(0, 1)
       cov5[i] ~ dnorm(0, 1)
+      cov6[i] ~ dnorm(0, 1)
   
       Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
-      logit(psi[i]) <- a0 + a1*cov1[i] + a2*cov2[i] + a3*cov3[i] + a4*cov4[i] + a5*cov5[i]
+      logit(psi[i]) <- a0 + a1*cov1[i] + a2*cov2[i] + a3*cov3[i] + a4*cov4[i] + a5*cov5[i] + a6*cov6[i]
       
       for(j in 1:miss[i]){
         det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
@@ -120,14 +127,14 @@ cat("
     # Derived parameters
     
   }
-  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModA1.txt")
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC1.txt")
 
 ```
 
 ```{R Run Model, results = FALSE}
-fit_A1 <- jags(data = jags_data, 
-                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModA1.txt",
-                 parameters.to.save = c("a0", "a1", "a2", "a3", "a4", "a5", "b0"),
+fit_C1 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC1.txt",
+                 parameters.to.save = c("a0", "a1", "a2", "a3", "a4", "a5", "a6", "b0"),
                  n.iter = 10000, 
                  n.burnin = 4000, 
                  n.chains = 3,
@@ -138,32 +145,31 @@ beep(sound = 3)
 ```
 
 ```{R Evaluate Model}
-print(fit_A1)
-tracedens_jags(fit_A1, parmfrow = c(3,3))
+print(fit_C1)
+tracedens_jags(fit_C1, parmfrow = c(3,3))
 ```
 
-
 ```{R Create Violin Plots}
-chains_a1 <- jags_df(fit_A1)
+chains_c1 <- jags_df(fit_C1)
 # Select the chains for our covariates of interest
-chains_viol <- chains_a1 %>% select(a1,a2,a3,a4,a5)
+chains_viol <- chains_c1 %>% select(a1,a2,a3,a4,a5,a6)
 # Rename them to be more interpretable
-colnames(chains_viol) <- c("tree spp richness","broadleaf shrub","invasive shrub","upland shrub", "floodplain shrub")
+colnames(chains_viol) <- c("% canopy","% subcanopy","canopy height","subcanopy height", "subcanopy sd", "veg sd residual")
 # Pivot this longer so that we can visualize it
-chains_viol_long <- chains_viol %>% pivot_longer(cols = c("tree spp richness","broadleaf shrub","invasive shrub","upland shrub", "floodplain shrub"),names_to = "Parameter", values_to = "Values")
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("% canopy","% subcanopy","canopy height","subcanopy height", "subcanopy sd", "veg sd residual"),names_to = "Parameter", values_to = "Values")
 
 # Create the violin plot
 ggplot() +
   geom_violin(data=chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
-  labs(title = "Posterior Distribution of Point Level Covariates") +
-  scale_fill_manual(values = c("tree spp richness"=palette_5[1], "broadleaf shrub" = palette_5[2],"invasive shrub"=palette_5[3], "upland shrub" = palette_5[4], "floodplain shrub" = palette_5[5])) + 
+  labs(title = "Posterior Distribution of Core Area Scale Covariates") +
+  scale_fill_manual(values = c("% canopy"=palette_8[1], "% subcanopy" = palette_8[2],"canopy height"=palette_8[3], "subcanopy height" = palette_8[4], "subcanopy sd" = palette_8[5], "veg sd residual" = palette_8[6])) + 
   geom_hline(yintercept = 0, linetype = "solid", color = "black") +
   theme_minimal()
 ```
 
-```{R WAIC A1}
+```{R WAIC C1}
 # Extract samples from the posterior
-a1_s <- jags.samples(fit_A1$model,
+c1_s <- jags.samples(fit_C1$model,
                            c("WAIC","deviance"),
                            type = "mean",
                            n.iter = 5000,
@@ -171,18 +177,17 @@ a1_s <- jags.samples(fit_A1$model,
                            n.thin = 2)
 beep()
 # Duplicate WAIC samples - the WAIC is the posterior mean for that sample?
-a1_s$p_waic <- a1_s$WAIC
+c1_s$p_waic <- c1_s$WAIC
 # Calculate a new waic by adding the waic plus the deviance
-a1_s$waic_calc <- a1_s$deviance + a1_s$p_waic
+c1_s$waic_calc <- c1_s$deviance + c1_s$p_waic
 # Create a new vector of the sum across each array (sum WAIC, sum deviance, sum p_waic, and sum waic_calc)
-tmp <- sapply(a1_s, sum)
+tmp <- sapply(c1_s, sum)
 # Pull out the sum of the WAIC we calculated and the p_waic we duplicated
-waic_a1 <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
+waic_c1 <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
 # Calculate the standard error for WAIC
-a1_waic_se <- sd(a1_s$waic_calc)/(sqrt(length(a1_s$waic_calc)))
+c1_waic_se <- sd(c1_s$waic_calc)/(sqrt(length(c1_s$waic_calc)))
 ```
 
-None of these covariates had a strong effect
 
 ```{R Setup Naive Model}
 # Create a list of data for JAGS
@@ -265,11 +270,11 @@ waic_naive <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
 naive_waic_se <- sd(naive_s$waic_calc)/(sqrt(length(naive_s$waic_calc)))
 ```
 
-Compare sub model and naive model via WAIC: 
+Compare sub model and naive model via WAIC:
 
 ```{R Compare WAIC}
-waic_a1
-a1_waic_se
+waic_c1
+c1_waic_se
 waic_naive
 naive_waic_se
 ```
