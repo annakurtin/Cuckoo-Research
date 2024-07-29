@@ -5,7 +5,7 @@ date: "7/8/2024"
 output: html_document
 ---
 
-This is the detection submodel with properly specified logistic priors and a quadratic effect on date. 
+This is the detection submodel with properly specified logistic priors and a quadratic effect on date and veg density.
 
 **Model structure:**
 

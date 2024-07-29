@@ -6,7 +6,8 @@ output: html_document
 ---
 
 
-This is the detection submodel with properly specified logistic priors, a quadratic effect on date, and the effect of vegetation density (f = .70)
+This is the detection submodel with properly specified logistic priors, a quadratic effect on date.
+
 
 **Model structure:**
 

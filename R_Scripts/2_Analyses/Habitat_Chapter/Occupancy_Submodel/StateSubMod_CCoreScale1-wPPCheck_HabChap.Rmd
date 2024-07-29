@@ -1,0 +1,181 @@
+---
+title: "Occupancy Sub Model C1 with PostPredCheck"
+author: "Anna Kurtin"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(beepr)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+```{r Read in Data}
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/DetHist_VegCovs_Scaled_7-24.csv")
+
+detections <- full_dat[,2:7]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+
+# get the length of non-nas in the detection data
+get_na <- function(x){(max(which(!is.na(x))))}
+# Apply this to our data
+miss <- apply(detections, 1, get_na)
+```
+
+
+```{R Setup JAGS Data}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections,
+  # percent canopy
+  cov1 = full_dat$pct_can_core,
+  # percent subcanopy
+  cov2 = full_dat$pct_subcan_core,
+  # canopy height
+  cov3 = full_dat$ht_can_core,
+  # subcanopy height
+  cov4 = full_dat$ht_subcan_core,
+  # subcanopy sd
+  cov5 = full_dat$sd_subcan_core,
+  # veg sd residual from canopy height
+  cov6 = full_dat$veg_sd_resid,
+  n_unit = nrow(detections),
+  miss = miss
+)
+
+# Set initial values 
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    a1 = rnorm(1, 0, 1),
+    a2 = rnorm(1, 0, 1),
+    a3 = rnorm(1, 0 ,1),
+    a4 = rnorm(1, 0, 1),
+    a5 = rnorm(1, 0, 1),
+    a6 = rnorm(1, 0 ,1),
+    b0 = rnorm(1, 0, 1)
+  )
+}
+```
+
+```{R Sub Model C1 Structure}
+cat("
+  model{
+        # Priors
+    a0 ~ dlogis(0, 1)
+    a1 ~ dlogis(0, 1)
+    a2 ~ dlogis(0, 1)
+    a3 ~ dlogis(0, 1)
+    a4 ~ dlogis(0, 1)
+    a5 ~ dlogis(0, 1)
+    a6 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+  
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      # Impute missing habitat data
+      cov1[i] ~ dnorm(0, 1)
+      cov2[i] ~ dnorm(0, 1)
+      cov3[i] ~ dnorm(0, 1)
+      cov4[i] ~ dnorm(0, 1)
+      cov5[i] ~ dnorm(0, 1)
+      cov6[i] ~ dnorm(0, 1)
+  
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0 + a1*cov1[i] + a2*cov2[i] + a3*cov3[i] + a4*cov4[i] + a5*cov5[i] + a6*cov6[i]
+      
+      for(j in 1:miss[i]){
+        det_data[i,j] ~  dbern(mu_p[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        mu_p[i,j] <- Z[i]*theta[i,j]
+        theta[i,j] <- logit(p[i,j])
+        p[i,j] <- b0
+        
+        #Calculate Bayes p-value - plug the parameters into the equation for each sample of the posterior and use this to create new observations
+        Presi[i,j] <- (det_data[i,j]-theta[i,j])^2 # Calculate squared residual of observed data
+        y_new[i,j] ~ dbern(mu_p[i,j])             # Simulate observed data
+        Presi_new[i,j] <- (y_new[i,j] - theta[i,j])^2 # Calculate squared residual error of simulated data
+      }
+    }
+    
+    # Derived parameters
+    ## Back transform the parameters into probabilities
+    pct_can_core <- ilogit(a1)
+    pct_subcan_core <- ilogit(a2)
+    ## Calculate sum of squared residual errors for observed data
+    SSEobs <- sum(Presi[,])
+    SSEsim <- sum(Presi_new[,])
+    p_val <- step(SSEsim - SSEobs)  
+  
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC1-ppcheck.txt")
+
+```
+
+```{R Run Model, results = FALSE}
+fit_C1 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC1-ppcheck.txt",
+                 parameters.to.save = c("a0", "a1", "a2", "a3", "a4", "a5", "a6", "b0", "p_val","SSEobs", "SSEsim"),
+                 n.iter = 10000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 inits = init_func)
+beep(sound = 3)
+```
+
+
+Implementing posterior predictive checks. 
+
+From [this stack exchange site](https://stats.stackexchange.com/questions/174280/what-is-posterior-predictive-check-and-how-i-can-do-that-in-r)
+
+You can assess this visually or by using some metric, such as the pp.check method you tried in JAGS (I am not a JAGS user, so can't comment specifically on how this is implemented).
+
+Procedurally how this works is:
+
+* You specify your model. In your case it looks like you want to do an ordinal regression. This looks like a similar example. Specifically I refer you to the chapter called "Ordinal Predicted Variable" in this book.
+
+* You sample and obtain posterior distributions for the parameters in your model. Looking at the figure in the linked example, these parameters are β0, β1 and σ
+
+* Now draw posterior predictive samples. Over the range of your input (Dollars), draw many samples from the posteriors (or take the samples of your posteriors) of the parameters you estimated, then plug those samples into your model equation, the Happiness ~ log(Dollars) you wrote down.
+
+You should end up with many samples of "Happiness" data at a given log(Dollars). From these samples you could, for instance, compute and plot 90% credible intervals across log(Dollar).
+
+* Plot actual data (on the y axis: Happiness, on the x axis: log(Dollars)), then overlay the draws and credible intervals of your posterior predictive samples.
+
+Now check visually. Does your 90% credible interval contain 90% of the actual Happiness data points? Are there systematic departures of the true data from your model? Then resort to metrics such as pp.check.
+
+```{R Model Checking, eval = FALSE}
+#Look at the distribution of each covariate
+full_dat$site_presence <- rowSums(full_dat[ , c("det_survey1","det_survey2", "det_survey3", "det_survey4", "det_survey5", "det_survey6")], na.rm = TRUE)
+full_dat <- full_dat %>% mutate(bbcu = ifelse(site_presence > 0, 1,0))
+
+plot(full_dat$bbcu ~ full_dat$pct_can_core)
+abline(slope = )
+median <- fit_C1$q50$a1
+intercept <- fit_C1$
+  
+ggplot(full_dat) +
+  geom_point(aes(x = pct_can_core, y = bbcu))
+# giving an error?
+
+
+# try a posterior predictive check
+# use this code: https://kevintshoemaker.github.io/NRES-746/Occupancy.html
+plot(out$sims.list$SSEobs,out$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
+abline(0,1,lwd = 2, col = "red")
+
+```

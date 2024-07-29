@@ -1,25 +1,24 @@
 ---
-title: 'Occupancy Sub Model C1: Core Home Range Scale Covariates'
+title: 'Occupancy Sub Model C: Core Area Scale Covariates'
 author: "Anna Kurtin"
-date: "2024-07-25"
+date: "2024-07-29"
 output: html_document
 ---
 
+This is the ongoing iteration of the core home range (130 m radius of points) scale submodel within the occupancy/state submodel, including only standard deviation metrics, no height metrics. 
 
-This is the first iteration of the core home range (130 m radius of points) scale submodel within the occupancy/state submodel. I am also moving towards handling NAs via omitting them from the model rather than imputing them. 
+#### Model structure:
 
-**Model structure:**
-
-State model with six covariates: percent canopy (cov1) and subcanopy (cov2), height of canopy (cov3) and subcanopy (cov4), standard deviation of subcanopy (cov5), residuals of veg standard deviation from regression with canopy height (cov6)
+State model with four covariates: percent canopy (cova1) and subcanopy (cova2), sd of all veg (cova5) and sd of subcanopy (cova6)
 
 $$
-z_i \sim Bernoulli(\psi | \alpha_{1}, \alpha_{2}, \alpha_{3}, \alpha_{4}, \alpha_{5}, \alpha_{6})
+z_i \sim Bernoulli(\psi | \alpha_{1}, \alpha_{2}, \alpha_{5}, \alpha_{6})
 $$ 
 
-Naive process model:  
+Process model with four covariates:  
 
 $$
-y_{ij} \sim Bernoulli(p)
+y_{ij} \sim Bernoulli(p| \beta_{date}, \beta_{date}^2,\beta_{avg db}, \beta_{effort})
 $$
 
 **Handling of NAs:** omission for detections, imputation for habitat covariates
@@ -35,8 +34,9 @@ library(beepr)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 ```
 
-```{r Read in Data}
-full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/DetHist_VegCovs_Scaled_7-24.csv")
+
+```{R Read in Data}
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_7-29.csv")
 
 detections <- full_dat[,2:7]
 
@@ -51,7 +51,6 @@ get_na <- function(x){(max(which(!is.na(x))))}
 miss <- apply(detections, 1, get_na)
 ```
 
-
 ```{R Setup JAGS Data}
 # Create a list of data for JAGS
 jags_data <- list(
@@ -60,17 +59,19 @@ jags_data <- list(
   # Detection/nondetection data
   det_data = detections,
   # percent canopy
-  cov1 = full_dat$pct_can_core,
+  cova1 = full_dat$pct_can_core,
   # percent subcanopy
-  cov2 = full_dat$pct_subcan_core,
-  # canopy height
-  cov3 = full_dat$ht_can_core,
-  # subcanopy height
-  cov4 = full_dat$ht_subcan_core,
-  # subcanopy sd
-  cov5 = full_dat$sd_subcan_core,
-  # veg sd residual from canopy height
-  cov6 = full_dat$veg_sd_resid,
+  cova2 = full_dat$pct_subcan_core,
+  # sd of all vegetation
+  cova5 = full_dat$sd_allveg_core,
+  # sd of subcanopy 
+  cova6 = full_dat$sd_subcan_core,
+  # Date
+  covb1 = full_dat[,34:39],
+  # Background noise
+  covb3 = full_dat[,21:26],
+  # Effort 
+  covb4 = full_dat[,28:33],
   n_unit = nrow(detections),
   miss = miss
 )
@@ -81,97 +82,115 @@ init_func <- function(){
     a0 = rnorm(1, 0, 1),
     a1 = rnorm(1, 0, 1),
     a2 = rnorm(1, 0, 1),
-    a3 = rnorm(1, 0 ,1),
-    a4 = rnorm(1, 0, 1),
     a5 = rnorm(1, 0, 1),
-    a6 = rnorm(1, 0 ,1),
-    b0 = rnorm(1, 0, 1)
+    a6 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b1Q = rnorm(1, 0 ,1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
   )
 }
 ```
 
-```{R Sub Model C1 Structure}
+```{R Sub Model C1 Structure, eval = FALSE}
 cat("
   model{
         # Priors
     a0 ~ dlogis(0, 1)
     a1 ~ dlogis(0, 1)
     a2 ~ dlogis(0, 1)
-    a3 ~ dlogis(0, 1)
-    a4 ~ dlogis(0, 1)
     a5 ~ dlogis(0, 1)
     a6 ~ dlogis(0, 1)
     b0 ~ dlogis(0, 1)
+    b1 ~ dlogis(0, 1)
+    b1Q ~ dlogis(0, 1)
+    b3 ~ dlogis(0, 1)
+    b4 ~ dlogis(0, 1)
   
     # Likelihood
     # Loop through each sampling unit
     for(i in 1:n_unit){
       # Impute missing habitat data
-      cov1[i] ~ dnorm(0, 1)
-      cov2[i] ~ dnorm(0, 1)
-      cov3[i] ~ dnorm(0, 1)
-      cov4[i] ~ dnorm(0, 1)
-      cov5[i] ~ dnorm(0, 1)
-      cov6[i] ~ dnorm(0, 1)
+      cova1[i] ~ dnorm(0, 1)
+      cova2[i] ~ dnorm(0, 1)
+      cova5[i] ~ dnorm(0, 1)
+      cova6[i] ~ dnorm(0, 1)
   
       Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
-      logit(psi[i]) <- a0 + a1*cov1[i] + a2*cov2[i] + a3*cov3[i] + a4*cov4[i] + a5*cov5[i] + a6*cov6[i]
+      logit(psi[i]) <- a0 + a1*cova1[i] + a2*cova2[i] + a5*cova5[i] + a6*cova6[i] 
       
       for(j in 1:miss[i]){
+        # Impute missing detection data
+        covb1[i,j] ~ dnorm(0, 1)
+        covb3[i,j] ~ dnorm(0, 1)
+        covb4[i,j] ~ dnorm(0, 1)
+        
         det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
-        logit(theta[i,j]) <- b0
+        logit(theta[i,j]) <- b0 + b1*covb1[i,j] + b1Q*(covb1[i,j]^2) + b3*covb3[i,j] + b4*covb4[i,j]
         
       }
     }
     
     # Derived parameters
-    pct_can_core <- ilogit(a1) # Back transform the parameters into probabilities
-    pct_subcan_core <- ilogit(a2)
+
     
   }
-  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC1.txt")
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC4b.txt")
 
 ```
 
 ```{R Run Model, results = FALSE}
-fit_C1 <- jags(data = jags_data, 
-                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC1.txt",
-                 parameters.to.save = c("a0", "a1", "a2", "a3", "a4", "a5", "a6", "b0", "pct_can_core","pct_subcan_core"),
+fit_C4b <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC4b.txt",
+                 parameters.to.save = c("a0", "a1", "a2", "a5", "a6", "b0", "b1", "b1Q", "b3", "b4"),
                  n.iter = 10000, 
                  n.burnin = 4000, 
                  n.chains = 3,
                  n.thin = 2,
-                 #parallel = TRUE,
                  inits = init_func)
 beep(sound = 3)
 ```
 
 ```{R Evaluate Model}
-print(fit_C1)
-tracedens_jags(fit_C1, parmfrow = c(3,3))
+print(fit_C4b)
+tracedens_jags(fit_C4b, parmfrow = c(3,3))
 ```
 
-```{R Create Violin Plots}
-chains_c1 <- jags_df(fit_C1)
-# Select the chains for our covariates of interest
-chains_viol <- chains_c1 %>% select(a1,a2,a3,a4,a5,a6)
-# Rename them to be more interpretable
-colnames(chains_viol) <- c("% canopy","% subcanopy","canopy height","subcanopy height", "subcanopy sd", "veg sd residual")
-# Pivot this longer so that we can visualize it
-chains_viol_long <- chains_viol %>% pivot_longer(cols = c("% canopy","% subcanopy","canopy height","subcanopy height", "subcanopy sd", "veg sd residual"),names_to = "Parameter", values_to = "Values")
+```{R again plotting, echo = FALSE}
+chains_c4b <- jags_df(fit_C4b)
 
+chains_alpha <- chains_c4b %>% select(a1,a2,a5,a6)
+colnames(chains_alpha) <- c("% canopy cover","% subcanopy cover", "veg st dev", "subcanopy st dev")
+chains_alpha_l <- chains_alpha %>% pivot_longer(cols = c("% canopy cover","% subcanopy cover", "veg st dev", "subcanopy st dev"),names_to = "Parameter", values_to = "Values")
 # Create the violin plot
 ggplot() +
-  geom_violin(data=chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
-  labs(title = "Posterior Distribution of Core Area Scale Covariates") +
-  scale_fill_manual(values = c("% canopy"=palette_8[1], "% subcanopy" = palette_8[2],"canopy height"=palette_8[3], "subcanopy height" = palette_8[4], "subcanopy sd" = palette_8[5], "veg sd residual" = palette_8[6])) + 
+  geom_violin(data=chains_alpha_l, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Landscape Level Covariates") +
+  scale_fill_manual(values = c("% canopy cover"=palette_8[5], "% subcanopy cover" = palette_8[6], "veg st dev" = palette_5[1], "subcanopy st dev" = palette_5[2])) + 
   geom_hline(yintercept = 0, linetype = "solid", color = "black") +
-  theme(axis.text.x = element_text(angle = 45,hjust = 1))
+  theme_minimal()
+
+
+chains_beta <- chains_c4b %>% select(b1, b1Q, b3, b4)
+colnames(chains_beta) <- c("date", "quadratic date", "background dB", "effort")
+chains_beta_l <- chains_beta %>% pivot_longer(cols = c("date", "quadratic date", "background dB", "effort"),names_to = "Parameter", values_to = "Values")
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_beta_l, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Detection Covariates") +
+  scale_fill_manual(values = c("date" = palette_8[1], "quadratic date" = palette_8[2], "background dB" = palette_8[3], "effort" = palette_8[4])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  theme_minimal()
 ```
 
-```{R WAIC C1}
+
+The detection covariates didn't change in magnitude or direction from previous models - good!
+
+
+```{R WAIC C4b}
 # Extract samples from the posterior
-c1_s <- jags.samples(fit_C1$model,
+c4b_s <- jags.samples(fit_C4b$model,
                            c("WAIC","deviance"),
                            type = "mean",
                            n.iter = 5000,
@@ -179,36 +198,20 @@ c1_s <- jags.samples(fit_C1$model,
                            n.thin = 2)
 beep()
 # Duplicate WAIC samples - the WAIC is the posterior mean for that sample?
-c1_s$p_waic <- c1_s$WAIC
+c4b_s$p_waic <- c4b_s$WAIC
 # Calculate a new waic by adding the waic plus the deviance
-c1_s$waic_calc <- c1_s$deviance + c1_s$p_waic
+c4b_s$waic_calc <- c4b_s$deviance + c4b_s$p_waic
 # Create a new vector of the sum across each array (sum WAIC, sum deviance, sum p_waic, and sum waic_calc)
-tmp <- sapply(c1_s, sum)
+tmp <- sapply(c4b_s, sum)
 # Pull out the sum of the WAIC we calculated and the p_waic we duplicated
-waic_c1 <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
+waic_c4b <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
 # Calculate the standard error for WAIC
-c1_waic_se <- sd(c1_s$waic_calc)/(sqrt(length(c1_s$waic_calc)))
+c4b_waic_se <- sd(c4b_s$waic_calc)/(sqrt(length(c4b_s$waic_calc)))
 ```
 
-```{R Model Checking, eval = FALSE}
-#Look at the distribution of each covariate
-full_dat$site_presence <- rowSums(full_dat[ , c("det_survey1","det_survey2", "det_survey3", "det_survey4", "det_survey5", "det_survey6")], na.rm = TRUE)
-full_dat <- full_dat %>% mutate(bbcu = ifelse(site_presence > 0, 1,0))
-
-plot(full_dat$bbcu ~ full_dat$pct_can_core)
-abline(slope = )
-median <- fit_C1$q50$a1
-intercept <- fit_C1$
-  
-ggplot(full_dat) +
-  geom_point(aes(x = pct_can_core, y = bbcu))
-# giving an error?
 
 
-# try a posterior predictive check
-# use this code: https://kevintshoemaker.github.io/NRES-746/Occupancy.html
-```
-
+#### Compare with Naive Model 
 ```{R Setup Naive Model}
 # Create a list of data for JAGS
 naive_data <- list(
@@ -266,7 +269,7 @@ fit_naive <- jags(data = naive_data,
                  n.thin = 2,
                  #parallel = TRUE,
                  inits = init_func_naive)
-beep(sound = 3)
+beep()
 ```
 
 ```{R WAIC naive model}
@@ -290,16 +293,12 @@ waic_naive <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
 naive_waic_se <- sd(naive_s$waic_calc)/(sqrt(length(naive_s$waic_calc)))
 ```
 
-Compare sub model and naive model via WAIC:
+
+Compare sub model and naive model via WAIC: 
 
 ```{R Compare WAIC}
-waic_c1
-c1_waic_se
+waic_c4b
+c4b_waic_se
 waic_naive
 naive_waic_se
-```
-
-```{R Code Graveyard, eval = FALSE, include = FALSE}
-full_dat %>% mutate(site_presence = max(det_survey1,det_survey2, det_survey3, det_survey4, det_survey5, det_survey6))
-full_dat$site_presence <- full_dat$det_survey1 + full_dat$det_survey2 + full_dat$det_survey3 + full_dat$det_survey4 + full_dat$det_survey5 + full_dat$det_survey6
 ```
