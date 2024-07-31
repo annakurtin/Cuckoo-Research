@@ -1,0 +1,32 @@
+---
+title: "Poisson Model 1"
+author: "Anna Kurtin"
+date: " 2024-07-31"
+output: html_document
+---
+
+This is the first iteration of the poisson model I will be using to test strength of habitat use across sites. I will be looking at number of days with a cuckoo vocalization at only the sites with cuckoo presence (so that I don't have to account for detection) and only the habitat covariates from my global occupancy model on habitat use. 
+
+#### Model structure
+$$
+\theta \sim Poisson(\gamma_0 + \gamma_{cov1} + \gamma_{covn})
+$$
+
+**Handling of NAs:** Imputation
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(beepr)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+
+```{R Read in Data}
+
+
+```

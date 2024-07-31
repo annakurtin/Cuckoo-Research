@@ -207,6 +207,12 @@ library(usethis)
 # repeat as many times as the commits you need to undo
 
 # for storing large files through github, use lfs: https://git-lfs.com/
+
+
+# Can suppress warnings using suppressWarnings()
+suppressWarnings({
+  print("whoops!")
+})
 ```
 
 

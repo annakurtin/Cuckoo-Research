@@ -6,14 +6,17 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warnings = FALSE, message = FALSE)
+library(tidyverse)
+library(janitor)
+library(corrgram)
+library(ggpubr)
 packages <- c("tidyverse","janitor","ggplot2","corrgram","ggpubr")
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Install_Load_Packages.R")
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
-
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Create_Site_SamplingColumn_fromPointID.R")
 # Read in data
 all_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_7-30.csv")
-
 ```
 
 ```{R}
@@ -22,31 +25,31 @@ create_shrub_fig <- function(dataframe, shrub, ylab){
   f1 <- ggplot(data = dataframe, aes(x = pct_can_landsc, y = shrub)) +
     geom_point(color = palette_5[1]) +
     stat_smooth(method = "glm", method.args = list(family = "binomial"),se = FALSE,color = palette_5[1]) +
-    labs(y = ylab) +
+    labs(y = ylab, x = "% Canopy Landscape") +
     scale_x_continuous(limits = c(-2,2), breaks = seq(-2,2, by =1))
   # % Subcanopy Landsc
   f2 <- ggplot(data = dataframe, aes(x = pct_subcan_landsc, y = shrub)) +
     geom_point(color = palette_5[2]) +
     stat_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, color = palette_5[2])+
-    labs(y = ylab) +
+    labs(y = ylab, x = "% Subcanopy Landscape") +
     scale_x_continuous(limits = c(-2,2), breaks = seq(-2,2, by =1))
   # % Subcanopy Core
   f3 <- ggplot(data = dataframe, aes(x = pct_subcan_core, y = shrub)) +
     geom_point(color = palette_5[3]) +
     stat_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, color = palette_5[3])+
-    labs(y = ylab) +
+    labs(y = ylab, x = "% Subcanopy Core") +
     scale_x_continuous(limits = c(-2,2), breaks = seq(-2,2, by =1))
   # All Veg SD
   f4 <- ggplot(data = dataframe, aes(x = sd_allveg_core, y = shrub)) +
     geom_point(color = palette_5[4]) +
     stat_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, color = palette_5[4])+
-    labs(y = ylab) +
+    labs(y = ylab, x = "All Veg SD Core") +
     scale_x_continuous(limits = c(-2,2), breaks = seq(-2,2, by =1))
   # Subcanopy height
   f5 <- ggplot(data = dataframe, aes(x = ht_subcan_core, y = shrub)) +
     geom_point(color = palette_5[5]) +
     stat_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, color = palette_5[5])+
-    labs(y = ylab) +
+    labs(y = ylab, x = "Subcanopy Height Core") +
     scale_x_continuous(limits = c(-2,2), breaks = seq(-2,2, by =1))
   
   fig <- ggarrange(f1, f2, f3, f4, f5, 
@@ -58,15 +61,57 @@ create_shrub_fig <- function(dataframe, shrub, ylab){
 ```
 
 
-### Broadleaf shrub: 
+### Broadleaf shrub community: 
 
-Count:
-```{R}
+Site Count:
+```{R, warnings = FALSE}
 sum(all_dat$broadleaf_shrub, na.rm = TRUE)
-```
-
-```{R}
-broadleaf <- create_shrub_fig(all_dat, all_dat$broadleaf_shrub, "broadleaf shrub")
+suppressWarnings({
+  broadleaf <- create_shrub_fig(all_dat, all_dat$broadleaf_shrub, "broadleaf shrub")
+})
 broadleaf
-
 ```
+
+Has mild correlation with all veg standard deviation and subcanopy height.
+
+### Invasive shrub community:
+
+Site Count:
+```{R}
+sum(all_dat$invasive_shrub, na.rm = TRUE)
+suppressWarnings({
+  invasive <- create_shrub_fig(all_dat, all_dat$invasive_shrub, "invasive shrub")
+})
+invasive
+```
+
+Doesn't have any strong correlations, but sample size is very small. I think the small sample size warrants combining this community with broadleaf shrub. 
+
+### Upland shrub community:
+
+Site Count:
+```{R}
+sum(all_dat$upland_shrub, na.rm = TRUE)
+suppressWarnings({
+  upland <- create_shrub_fig(all_dat, all_dat$upland_shrub, "upland shrub")
+})
+upland
+```
+
+Upland shrub dominated sites look like they are correlated with low total veg SD, low subcanopy height, and high percent subcanopy cover on the landscape scale. Since these are a pretty strong relationships, I'm not sure if we can separate out the effect of shrub community and the effect of these covariates.
+
+### Floodplain shrub community: 
+
+Site Count:
+```{R}
+sum(all_dat$floodplain_shrub, na.rm = TRUE)
+suppressWarnings({
+  floodplain <- create_shrub_fig(all_dat, all_dat$floodplain_shrub, "floodplain shrub")
+})
+floodplain
+```
+
+There doesn't seem to be a strong correlation here with any covariates. However, one thing to note is that there are only 17 sites in this classification. Would it be informative to include this covariate with such a small sample size?
+
+
+All of the dominant shrub community types are pretty well spread out throughout the study area, meaning that they occurred in each sub region (Musselshell, Upper Missouri, Lower Missouri, Yellowstone). The least evenly dispersed type was floodplain community, which was the dominant shrub community at only two sites along the Yellowstone. Based on the correlations within the data, I think the best course of action is to split the dominant shrub community into floodplain vs non floodplain. However, I am not sure that our sample size is high enough for the floodplain sites to be confident that the relationship we're seeing is the result of a biological process and not by chance. If this is the case, we should probably 

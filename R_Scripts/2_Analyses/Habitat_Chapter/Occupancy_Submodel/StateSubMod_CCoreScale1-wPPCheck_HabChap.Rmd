@@ -5,6 +5,8 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
+Trying to incorporate a posterior predictive check based off of [this page](https://kevintshoemaker.github.io/NRES-746/Occupancy.html#Example:_Single_Species_-_Single_Season_Occupancy_Analysis_using_%E2%80%9CJAGS%E2%80%9D_in_R)
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(jagsUI)
@@ -99,7 +101,7 @@ cat("
       logit(psi[i]) <- a0 + a1*cov1[i] + a2*cov2[i] + a3*cov3[i] + a4*cov4[i] + a5*cov5[i] + a6*cov6[i]
       
       for(j in 1:miss[i]){
-        det_data[i,j] ~  dbern(mu_p[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
         mu_p[i,j] <- Z[i]*theta[i,j]
         theta[i,j] <- logit(p[i,j])
         p[i,j] <- b0

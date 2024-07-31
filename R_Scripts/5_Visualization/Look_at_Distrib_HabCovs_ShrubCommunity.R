@@ -70,6 +70,15 @@ plot(all_dat)
 
 
 
+# Look at the spatial distribuiton of these covariates
+coords <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Monitoring_Points/2023_AllMonitoringPoints_forLiDARExtractions.csv")
+coords <- coords %>% filter(aru == "Y", point_loc == "actual") %>% create_site_col() %>% group_by(site_id) %>% summarize(long = mean(long), lat = mean((lat)))
+all_dat <- all_dat %>% mutate(bbcu = if_any(2:7,  ~ replace_na(. == 1, FALSE))) %>% mutate(bbcu = as.numeric(bbcu))
+hab_chap_dataforarcgis <- left_join(all_dat, coords, by = "site_id")
+# write.csv(hab_chap_dataforarcgis, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_AllDat_wCoords_7-31.csv", row.names = FALSE)
+
+
+
 
 
 

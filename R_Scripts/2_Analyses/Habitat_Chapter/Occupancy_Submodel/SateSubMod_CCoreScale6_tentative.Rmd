@@ -1,0 +1,94 @@
+---
+title: 'Occupancy Sub Model C6: Core Scale Covariates'
+author: "Anna Kurtin"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+This is the ongoing iteration of the core home range (130 m radius of points) scale submodel within the occupancy/state submodel, after selecting which covariates to combine and which to include (see habitat modeling notes and progress in OneNote). This is the same model structure as model 5 but I removed canopy height and replaced veg sd residuals with the original value
+
+#### Model structure:
+
+State model with four covariates: percent subcanopy (cova1),  height of subcanopy (cova2), height of canopy (cova3), and standard deviation of all veg residuals from regression with canopy height (cov4)
+
+$$
+z_i \sim Bernoulli(\psi | \alpha_{1}, \alpha_{2}, \alpha_{3}, \alpha_{4})
+$$ 
+
+Process model with four covariates:  
+
+$$
+y_{ij} \sim Bernoulli(p| \beta_{date}, \beta_{date}^2,\beta_{avg db}, \beta_{effort})
+$$
+
+**Handling of NAs:** omission for detections, imputation for habitat covariates
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(beepr)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+
+```{R Read in Data}
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_7-30.csv")
+
+detections <- full_dat[,2:7]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+
+# get the length of non-nas in the detection data
+get_na <- function(x){(max(which(!is.na(x))))}
+# Apply this to our data
+miss <- apply(detections, 1, get_na)
+```
+
+```{R Setup JAGS Data}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections,
+  # percent subcanopy
+  cova1 = full_dat$pct_subcan_core,
+  # average height of subcanopy
+  cova2 = full_dat$ht_subcan_core,
+  # average height of canopy 
+  cova3 = full_dat$ht_can_core,
+  # residual variation in st dev of all veg regressed on canopy height
+  cova4 = full_dat$veg_sd_resid,
+  # Date
+  covb1 = full_dat[,35:40],
+  # Background noise
+  covb3 = full_dat[,22:27],
+  # Effort 
+  covb4 = full_dat[,29:34],
+  n_unit = nrow(detections),
+  miss = miss
+)
+
+# Set initial values 
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    a1 = rnorm(1, 0, 1),
+    a2 = rnorm(1, 0, 1),
+    a3 = rnorm(1, 0, 1),
+    a4 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b1Q = rnorm(1, 0 ,1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
+  )
+}
+```
