@@ -1,15 +1,15 @@
 ---
-title: 'Occupancy Sub Model C: Core Area Scale Covariates'
+title: 'Occupancy Sub Model C5: Core Scale Covariates'
 author: "Anna Kurtin"
-date: " 2024-07-29"
+date: "2024-07-30"
 output: html_document
 ---
 
-This is the ongoing iteration of the core home range (130 m radius of points) scale submodel within the occupancy/state submodel, including only height metrics, no standard deviation metrics. 
+This is the ongoing iteration of the core home range (130 m radius of points) scale submodel within the occupancy/state submodel, after selecting which covariates to combine and which to include (see habitat modeling notes and progress in OneNote). I decided to including canopy height and veg sd residual after talking with Andy and Erim and deciding that we were interested in the different effects of these covariates - they're mathematically related but have someone related but different biological processes. I decided to remove percent canopy cover b/c it's colinear with multiple other covariates of interest and it is accounted for by percent canopy landscape (which it is also colinear with). I also removed subcan sd since it's nested within total veg sd and colinear with subcanopy height.
 
 #### Model structure:
 
-State model with four covariates: percent canopy (cova1) and subcanopy (cova2), height of canopy (cova3) and subcanopy (cova4)
+State model with four covariates: percent subcanopy (cova1),  height of subcanopy (cova2), height of canopy (cova3), and standard deviation of all veg residuals from regression with canopy height (cov4)
 
 $$
 z_i \sim Bernoulli(\psi | \alpha_{1}, \alpha_{2}, \alpha_{3}, \alpha_{4})
@@ -31,13 +31,12 @@ library(tidyverse)
 library(jagshelper)
 library(ggplot2)
 library(beepr)
-library(corrgram)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 ```
 
 
 ```{R Read in Data}
-full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_7-29.csv")
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_7-30.csv")
 
 detections <- full_dat[,2:7]
 
@@ -59,20 +58,20 @@ jags_data <- list(
   Z = z_dat,
   # Detection/nondetection data
   det_data = detections,
-  # percent canopy
-  cova1 = full_dat$pct_can_core,
   # percent subcanopy
-  cova2 = full_dat$pct_subcan_core,
-  # canopy height
+  cova1 = full_dat$pct_subcan_core,
+  # average height of subcanopy
+  cova2 = full_dat$ht_subcan_core,
+  # average height of canopy 
   cova3 = full_dat$ht_can_core,
-  # subcanopy height
-  cova4 = full_dat$ht_subcan_core,
+  # residual variation in st dev of all veg regressed on canopy height
+  cova4 = full_dat$veg_sd_resid,
   # Date
-  covb1 = full_dat[,34:39],
+  covb1 = full_dat[,35:40],
   # Background noise
-  covb3 = full_dat[,21:26],
+  covb3 = full_dat[,22:27],
   # Effort 
-  covb4 = full_dat[,28:33],
+  covb4 = full_dat[,29:34],
   n_unit = nrow(detections),
   miss = miss
 )
@@ -94,7 +93,7 @@ init_func <- function(){
 }
 ```
 
-```{R Sub Model C1 Structure, eval = FALSE}
+```{R Sub Model C5 Structure, eval = FALSE}
 cat("
   model{
         # Priors
@@ -137,13 +136,13 @@ cat("
 
     
   }
-  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC4a.txt")
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC5.txt")
 
 ```
 
 ```{R Run Model, results = FALSE}
-fit_C4a <- jags(data = jags_data, 
-                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC4a.txt",
+fit_C5 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC5.txt",
                  parameters.to.save = c("a0", "a1", "a2", "a3", "a4", "b0", "b1", "b1Q", "b3", "b4"),
                  n.iter = 10000, 
                  n.burnin = 4000, 
@@ -154,26 +153,26 @@ beep(sound = 3)
 ```
 
 ```{R Evaluate Model}
-print(fit_C4a)
-tracedens_jags(fit_C4a, parmfrow = c(3,3))
+print(fit_C5)
+tracedens_jags(fit_C5, parmfrow = c(3,3))
 ```
 
 ```{R again plotting, echo = FALSE}
-chains_c4a <- jags_df(fit_C4a)
+chains_c5 <- jags_df(fit_C5)
 
-chains_alpha <- chains_c4a %>% select(a1,a2,a3,a4)
-colnames(chains_alpha) <- c("% canopy cover","% subcanopy cover", "canopy height", "subcanopy height")
-chains_alpha_l <- chains_alpha %>% pivot_longer(cols = c("% canopy cover","% subcanopy cover", "canopy height", "subcanopy height"),names_to = "Parameter", values_to = "Values")
+chains_alpha <- chains_c5 %>% select(a1,a2,a3,a4)
+colnames(chains_alpha) <- c("% subcan cover","subcanopy height", "canopy height", "all veg sd resid")
+chains_alpha_l <- chains_alpha %>% pivot_longer(cols = c("% subcan cover","subcanopy height", "canopy height", "all veg sd resid"),names_to = "Parameter", values_to = "Values")
 # Create the violin plot
 ggplot() +
   geom_violin(data=chains_alpha_l, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
-  labs(title = "Posterior Distribution of Landscape Level Covariates") +
-  scale_fill_manual(values = c("% canopy cover"=palette_8[5], "% subcanopy cover" = palette_8[6], "canopy height" = palette_8[7], "subcanopy height" = palette_8[8])) + 
+  labs(title = "Posterior Distribution of Core Area Scale Covariates") +
+  scale_fill_manual(values = c("% subcan cover"=palette_8[5], "subcanopy height" = palette_8[6], "canopy height" = palette_8[7], "all veg sd resid" = palette_8[8])) + 
   geom_hline(yintercept = 0, linetype = "solid", color = "black") +
   theme_minimal()
 
 
-chains_beta <- chains_c4a %>% select(b1, b1Q, b3, b4)
+chains_beta <- chains_c5 %>% select(b1, b1Q, b3, b4)
 colnames(chains_beta) <- c("date", "quadratic date", "background dB", "effort")
 chains_beta_l <- chains_beta %>% pivot_longer(cols = c("date", "quadratic date", "background dB", "effort"),names_to = "Parameter", values_to = "Values")
 # Create the violin plot
@@ -185,12 +184,13 @@ ggplot() +
   theme_minimal()
 ```
 
+
 The detection covariates didn't change in magnitude or direction from previous models - good!
 
 
-```{R WAIC C4a}
+```{R WAIC C5}
 # Extract samples from the posterior
-c4a_s <- jags.samples(fit_C4a$model,
+c5_s <- jags.samples(fit_C5$model,
                            c("WAIC","deviance"),
                            type = "mean",
                            n.iter = 5000,
@@ -198,28 +198,21 @@ c4a_s <- jags.samples(fit_C4a$model,
                            n.thin = 2)
 beep()
 # Duplicate WAIC samples - the WAIC is the posterior mean for that sample?
-c4a_s$p_waic <- c4a_s$WAIC
+c5_s$p_waic <- c5_s$WAIC
 # Calculate a new waic by adding the waic plus the deviance
-c4a_s$waic_calc <- c4a_s$deviance + c4a_s$p_waic
+c5_s$waic_calc <- c5_s$deviance + c5_s$p_waic
 # Create a new vector of the sum across each array (sum WAIC, sum deviance, sum p_waic, and sum waic_calc)
-tmp <- sapply(c4a_s, sum)
+tmp <- sapply(c5_s, sum)
 # Pull out the sum of the WAIC we calculated and the p_waic we duplicated
-waic_c4a <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
+waic_c5 <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
 # Calculate the standard error for WAIC
-c4a_waic_se <- sd(c4a_s$waic_calc)/(sqrt(length(c4a_s$waic_calc)))
+c5_waic_se <- sd(c5_s$waic_calc)/(sqrt(length(c5_s$waic_calc)))
 ```
 
-```{R Colinearities with These Covariates}
-cont_dat <- full_dat %>% select(tree_spp_rich, pct_can_landsc, pct_subcan_landsc, pct_can_core, pct_subcan_core, ht_can_core, ht_subcan_core)
-corrgram(cont_dat, order=TRUE, lower.panel=panel.cor,
-         upper.panel=panel.pts, text.panel=panel.txt,
-         main="Correlations in the Continuous Data with Height")
-
-```
 
 
 #### Compare with Naive Model 
-```{R Setup Naive Model}
+```{R Setup Naive Model, echo = FALSE}
 # Create a list of data for JAGS
 naive_data <- list(
   # True presence at sites with confirmed presences
@@ -304,8 +297,8 @@ naive_waic_se <- sd(naive_s$waic_calc)/(sqrt(length(naive_s$waic_calc)))
 Compare sub model and naive model via WAIC: 
 
 ```{R Compare WAIC}
-waic_c4a
-c4a_waic_se
+waic_c5
+c5_waic_se
 waic_naive
 naive_waic_se
 ```

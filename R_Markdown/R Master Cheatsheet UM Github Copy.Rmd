@@ -2626,6 +2626,7 @@ esquisser()
 * clean, consistent defaults
 * infinitely customizable
 
+[Combining ggplots with ggpubr](http://www.sthda.com/english/articles/32-r-graphics-essentials/126-combine-multiple-ggplots-in-one-graph/)
 
 ```{r Visualization GGplot2 Basics}
 penguin <- read_csv("C:/Users/annak/OneDrive/Documents/UM/Classes - Graduate/WILD540 Research Design/Resarch_Design_Lab/data/penguins_clean.csv")

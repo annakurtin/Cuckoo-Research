@@ -7,7 +7,7 @@ load_packages(packages)
 
 # created 7/29/2024 to combine all of the data to run the occupancy submodels
 
-# last modified 7/29/2024
+# last modified 7/30/2024 to keep veg sd residuals 
 
 #### read in data ####
 
@@ -20,7 +20,7 @@ det_covs[,8:26] <- round(det_covs[,8:26],2)
 all_dat <- left_join(hab_covs_det, det_covs, by = "site_id")
  
 # remove the dupicate detection column
-all_dat <- all_dat %>% select(-c(22:27))%>% select(-veg_sd_resid)
+all_dat <- all_dat %>% select(-c(22:27))
 # rename
 all_dat <- all_dat %>% rename(det_s1 = det_survey1.x,
                    det_s2 = det_survey2.x,
@@ -30,4 +30,4 @@ all_dat <- all_dat %>% rename(det_s1 = det_survey1.x,
                    det_s6 = det_survey6.x)
 
 # write this to .csv
-write.csv(all_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_7-29.csv", row.names = FALSE)
+write.csv(all_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_7-30.csv", row.names = FALSE)

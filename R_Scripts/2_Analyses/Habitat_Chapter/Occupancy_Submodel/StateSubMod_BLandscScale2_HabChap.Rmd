@@ -1,18 +1,18 @@
 ---
-title: 'Occupancy Sub Model B: Landscape Scale Covariates'
+title: 'Occupancy Sub Model B2: Landscape Scale Covariates'
 author: "Anna Kurtin"
 date: "2024-07-29"
 output: html_document
 ---
 
-This is the first iteration of the landscape scale (1 km radius of points) submodel within the occupancy/state submodel. I am also moving towards handling NAs via omitting them from the model rather than imputing them. 
+This is the second iteration of the landscape scale (1 km radius of points) submodel within the occupancy/state submodel.
 
 #### Model structure:
 
 State model with two covariates: percent canopy cover and percent subcanopy cover
 
 $$
-z_i \sim Bernoulli(\psi | \alpha_{% canopy cover}, \alpha_{% subcanopy cover})
+z_i \sim Bernoulli(\psi | \alpha_{pct canopy cover}, \alpha_{pct subcanopy cover})
 $$ 
 
 Process model with four covariates:  
@@ -36,7 +36,7 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 
 
 ```{R Read in Data}
-full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_7-29.csv")
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_7-30.csv")
 
 detections <- full_dat[,2:7]
 
@@ -63,11 +63,11 @@ jags_data <- list(
   # Percent subcanopy cover at landscape scale
   cova2 = full_dat$pct_subcan_landsc,
   # Date
-  covb1 = full_dat[,34:39],
+  covb1 = full_dat[,35:40],
   # Background noise
-  covb3 = full_dat[,21:26],
+  covb3 = full_dat[,22:27],
   # Effort 
-  covb4 = full_dat[,28:33],
+  covb4 = full_dat[,29:34],
   n_unit = nrow(detections),
   miss = miss
 )

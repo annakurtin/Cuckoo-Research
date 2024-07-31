@@ -31,6 +31,7 @@ library(tidyverse)
 library(jagshelper)
 library(ggplot2)
 library(beepr)
+library(corrgram)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 ```
 
@@ -209,7 +210,12 @@ waic_c4b <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
 c4b_waic_se <- sd(c4b_s$waic_calc)/(sqrt(length(c4b_s$waic_calc)))
 ```
 
-
+```{R Correlations}
+cont_dat4b <- full_dat %>% select(tree_spp_rich, pct_can_landsc, pct_subcan_landsc, pct_can_core, pct_subcan_core, sd_allveg_core, sd_subcan_core)
+corrgram(cont_dat4b, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in the Continuous Data with Standard Deviation")
+```
 
 #### Compare with Naive Model 
 ```{R Setup Naive Model}

@@ -53,8 +53,8 @@ full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Works
 
 ```
 ```{R Correlations Within Data, echo = FALSE, message = FALSE}
-corrdat <- full_dat %>% select(-veg_sd_resid)
-corrdat <- corrdat[,12:20]
+corrdat <- full_dat %>% select(-veg_sd_resid, -pct_can_core)
+corrdat <- corrdat[,12:19]
 corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
          upper.panel=panel.pts, text.panel=panel.txt,
          main="Correlations in Landscape Scale Metrics")
