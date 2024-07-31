@@ -8,6 +8,7 @@ output: html_document
 This is the first iteration of the poisson model I will be using to test strength of habitat use across sites. I will be looking at number of days with a cuckoo vocalization at only the sites with cuckoo presence (so that I don't have to account for detection) and only the habitat covariates from my global occupancy model on habitat use. 
 
 #### Model structure
+
 $$
 \theta \sim Poisson(\gamma_0 + \gamma_{cov1} + \gamma_{covn})
 $$
@@ -27,6 +28,132 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 
 
 ```{R Read in Data}
+lm_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Linear_Model/HabChap_PoissonMod_DaysBBCU_HavCovs.csv")
 
+scale_dat <- scale(lm_dat$pct_days_wcall)[,1]
+hist(scale_dat)
+# I think negative binomial needs an integer here so we're going to use the non scaled one and see how it goes
+pct_days <- round(lm_dat$pct_days_wcall,0)
+
+# Create a list of data for JAGS
+jags_data <- list(
+  # Percentage of days with bbcu
+  #days = scale_dat, 
+  days = pct_days,
+  # FILL THIS IN WITH ACTUAL DATA
+  cov1 = lm_dat$pct_subcan_core,
+  n_unit = nrow(lm_dat)
+)
+
+# Set initial values 
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    a1 = rnorm(1, 0, 1)
+  )
+}
+```
+
+```{R Create JAGS Model 1 No Overdispersion}
+cat("
+  model{
+        # Priors
+    a0 ~ dnorm(0, 1)
+    a1 ~ dnorm(0, 1)
+    sigma ~ dunif(0,10)
+    tau <- 1/ (sigma*sigma)
+    r ~ dunif(0,10) # prior for the dispersion parameter on negative binomial
+  
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      # Impute missing habitat data
+      cov1[i] ~ dnorm(0, 1)
+  
+      days[i] ~ dnegbin(p[i], r)  # changed this to negative binomial from dpois()
+      p[i] <- r / (r + lambda[i]) # Compute probability parameter for negative binomial using lambda (mean) and r (dispersion), I thought moments for negative binomial are mean and dispersion, not probability and dispersion, but I'm not sure if R takes things differently 
+      log(lambda[i]) <- a0 + a1*cov1[i] + eps[i]
+      eps[i] ~ dnorm(0, tau)
+    }
+    
+    # Derived parameters
+    
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLinearMod1.txt")
+
+# Should I make the precision lower for these priors? in the example it was alpha ~ dnorm(0,0.001)
+
+```
+
+```{R Run Model, results = FALSE}
+fit_lm1 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLinearMod1.txt",
+                 parameters.to.save = c("a0", "a1"),
+                 n.iter = 10000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 inits = init_func)
+beep(sound = 3)
+```
+
+
+```{R}
+summary(fit_lm1)
+tracedens_jags(fit_lm1) # are these well mixed enough? probably..... they look good for the effective sample size and for the Rhat/Gelman Rubin statistic
+```
+
+
+
+
+
+```{R Create JAGS Model 2 Overdispersed Model, include = FALSE, eval = FALSE}
+# jk we don't actually need this since my data isn't overdispersed (but maybe double check this)
+# JK the reason why the first model isn't converging is because the observations don't follow a poisson distribution
+cat("
+  model{
+        # Priors
+    psi <- dunif(0,1)
+    a0 ~ dnorm(0, 1)
+    a1 ~ dnorm(0, 1)
+    sigma ~ dunif(0,10)
+    tau <- 1/ (sigma*sigma)
+  
+    # Likelihood
+    for(i in 1:n_unit){
+      # Impute missing habitat data
+      cov1[i] ~ dnorm(0, 1)
+  
+      w[i]
+      days[i] ~ dpois(lambda[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      log(lambda[i]) <- a0 + a1*cov1[i] + eps[i]
+      eps[i] ~ dnorm(0, tau)
+    }
+    
+    # Derived parameters
+    
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLinearMod2.txt")
+
+# Specify model in BUGS language
+cat(file = "./R_Scripts/2_Analyses/Poisson_Modeling_Frameworks/ZeroInflatedPoissonEx.txt", "
+model {
+# Priors
+ psi ~ dunif(0,1)
+ alpha ~ dnorm(0,0.001)
+ beta ~ dnorm(0,0.001)
+
+# Likelihood
+ for (i in 1:n) {
+    w[i] ~ dbern(psi) # Suitability parameters
+    C[i] ~ dpois(eff.lambda[i]) # Count parameter
+    eff.lambda[i] <- w[i]*lambda[i] # Effective dispersion - based on suitability?
+    log(lambda[i]) <- alpha + beta *x[i]
+ }
+
+# Derived quantity
+ R.lpsi <- logit(1-psi)
+}
+")
 
 ```

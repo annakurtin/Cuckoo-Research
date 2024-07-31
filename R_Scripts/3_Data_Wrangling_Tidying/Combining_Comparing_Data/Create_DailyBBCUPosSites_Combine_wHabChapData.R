@@ -49,4 +49,4 @@ pos_aru <- pos_aru %>% mutate(pct_days_wcall = round((days_wcall/days_rec)*100,1
 habcovs <- read.csv("./Data/Habitat_Model_Covariates/Occupancy_Covariates/All_VegCovs_Scaled_7-24.csv")
 bbcu_days_habcovs <- left_join(pos_aru, habcovs, by = "site_id")
 # write this for use in the poisson model
-write.csv(bbcu_days_habcovs, "./Data/Habitat_Model_Covariates/Linear_Model/HabChap_PoissonMod_DaysBBCU_HavCovs.csv", row.names = FALSE)
+#write.csv(bbcu_days_habcovs, "./Data/Habitat_Model_Covariates/Linear_Model/HabChap_PoissonMod_DaysBBCU_HavCovs.csv", row.names = FALSE)
