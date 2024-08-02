@@ -9,11 +9,29 @@ This is the first iteration of the poisson model I will be using to test strengt
 
 #### Model structure
 
+
+  
+Percent of days with cuckoo vocalizations as a function of 
+
+* g1: native broadleaf tree species richness
+
+* g2: percent canopy cover at a landscape scale
+
+* g3: percen subcanopy cover at a landscape scale
+
+* g4: percent subcanopy cover at a core scale
+
+* g5: subcanopy average height at a core scale
+
+* g6: residual vegetation standard deviation at a core scale
+
+* g7: floodplain shrub community
+
 $$
-\theta \sim Poisson(\gamma_0 + \gamma_{cov1} + \gamma_{covn})
+\theta \sim NegBinomial(\gamma_0 + \gamma_{1} + \gamma_{2} + \gamma_{3}  + \gamma_{4}  + \gamma_{5}  + \gamma_{6} + \gamma_{7})
 $$
 
-**Handling of NAs:** Imputation
+**Handling of NAs (only occur in habitat covs):** Imputation 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -28,20 +46,32 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 
 
 ```{R Read in Data}
-lm_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Linear_Model/HabChap_PoissonMod_DaysBBCU_HavCovs.csv")
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Linear_Model/HabChap_PoissonMod_DaysBBCU_HavCovs.csv")
 
-scale_dat <- scale(lm_dat$pct_days_wcall)[,1]
-hist(scale_dat)
+scale_dat <- scale(full_dat$pct_days_wcall)[,1]
+#hist(scale_dat)
 # I think negative binomial needs an integer here so we're going to use the non scaled one and see how it goes
-pct_days <- round(lm_dat$pct_days_wcall,0)
+pct_days <- round(full_dat$pct_days_wcall,0)
 
 # Create a list of data for JAGS
 jags_data <- list(
   # Percentage of days with bbcu
   #days = scale_dat, 
   days = pct_days,
-  # FILL THIS IN WITH ACTUAL DATA
-  cov1 = lm_dat$pct_subcan_core,
+  # Native broadleaf tree spp richness
+  cov1 = full_dat$tree_spp_rich,
+  # % canopy landscape
+  cov2 = full_dat$pct_can_landsc,
+  # % subcanopy landscape
+  cov3 = full_dat$pct_subcan_landsc,
+  # % subcanopy core
+  cov4 = full_dat$pct_subcan_core,
+  # subcan avg height
+  cov5 = full_dat$ht_subcan_core,  
+  # residual veg sd
+  cov6 = full_dat$veg_sd_resid,
+  # floodplain community
+  cov7 = full_dat$floodplain_shrub,
   n_unit = nrow(lm_dat)
 )
 
@@ -49,7 +79,13 @@ jags_data <- list(
 init_func <- function(){
   list(
     a0 = rnorm(1, 0, 1),
-    a1 = rnorm(1, 0, 1)
+    a1 = rnorm(1, 0, 1),
+    a2 = rnorm(1, 0, 1),
+    a3 = rnorm(1, 0, 1),
+    a4 = rnorm(1, 0, 1),
+    a5 = rnorm(1, 0, 1),
+    a6 = rnorm(1, 0, 1),
+    a7 = rnorm(1, 0, 1)
   )
 }
 ```
@@ -60,6 +96,12 @@ cat("
         # Priors
     a0 ~ dnorm(0, 1)
     a1 ~ dnorm(0, 1)
+    a2 ~ dnorm(0, 1)
+    a3 ~ dnorm(0, 1)
+    a4 ~ dnorm(0, 1)
+    a5 ~ dnorm(0, 1)
+    a6 ~ dnorm(0, 1)
+    a7 ~ dnorm(0, 1)
     sigma ~ dunif(0,10)
     tau <- 1/ (sigma*sigma)
     r ~ dunif(0,10) # prior for the dispersion parameter on negative binomial
@@ -69,14 +111,20 @@ cat("
     for(i in 1:n_unit){
       # Impute missing habitat data
       cov1[i] ~ dnorm(0, 1)
+      cov2[i] ~ dnorm(0, 1)
+      cov3[i] ~ dnorm(0, 1)
+      cov4[i] ~ dnorm(0, 1)
+      cov5[i] ~ dnorm(0, 1)
+      cov6[i] ~ dnorm(0, 1)
+      cov7[i] ~ dnorm(0, 1)
   
       days[i] ~ dnegbin(p[i], r)  # changed this to negative binomial from dpois()
       p[i] <- r / (r + lambda[i]) # Compute probability parameter for negative binomial using lambda (mean) and r (dispersion), I thought moments for negative binomial are mean and dispersion, not probability and dispersion, but I'm not sure if R takes things differently 
-      log(lambda[i]) <- a0 + a1*cov1[i] + eps[i]
+      log(lambda[i]) <- a0 + a1*cov1[i] + a2*cov2[i] + a3*cov3[i] + a4*cov4[i] + a5*cov5[i] + a6*cov6[i] + a7*cov7[i] + eps[i]
       eps[i] ~ dnorm(0, tau)
     }
     
-    # Derived parameters
+    # Derived parameters - add in Bayesian p value here
     
   }
   ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLinearMod1.txt")
@@ -88,7 +136,7 @@ cat("
 ```{R Run Model, results = FALSE}
 fit_lm1 <- jags(data = jags_data, 
                  model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLinearMod1.txt",
-                 parameters.to.save = c("a0", "a1"),
+                 parameters.to.save = c("a0", "a1", "a3", "a4", "a5", "a6", "a7"),
                  n.iter = 10000, 
                  n.burnin = 4000, 
                  n.chains = 3,
@@ -103,7 +151,24 @@ summary(fit_lm1)
 tracedens_jags(fit_lm1) # are these well mixed enough? probably..... they look good for the effective sample size and for the Rhat/Gelman Rubin statistic
 ```
 
+```{R visualize}
+chains_lm1 <- jags_df(fit_lm1)
+# Select the chains for our covariates of interest
+chains_viol <- chains_lm1 %>% select(a1,a2, a3, a4, a5, a6, a7)
+# Rename them to be more interpretable
+colnames(chains_viol) <- c("tree spp richness", "% can landsc", "% subcan landsc", "% subcan core", "subcan avg height", "residual veg sd", "floodplain shrub")
+# Pivot this longer so that we can visualize it
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("tree spp richness", "% can landsc", "% subcan landsc", "% subcan core", "subcan avg height", "residual veg sd", "floodplain shrub"),names_to = "Parameter", values_to = "Values")
 
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Linear Model Covariates") +
+  scale_fill_manual(values = c("tree spp richness"=palette_8[1], "% can landsc" = palette_8[2], "% subcan landsc" = palette_8[3], "% subcan core" = palette_8[4], "subcan avg height" = palette_8[5], "residual veg sd" = palette_8[6], "floodplain shrub" = palette_8[7])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  theme_minimal()
+
+```
 
 
 

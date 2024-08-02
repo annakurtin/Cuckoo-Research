@@ -103,11 +103,14 @@ cat("
       for(j in 1:miss[i]){
         det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
         mu_p[i,j] <- Z[i]*theta[i,j]
-        theta[i,j] <- logit(p[i,j])
+        logit(theta[i,j]) <- p[i,j]
         p[i,j] <- b0
         
+        # Det NA
+        det_na[i,j] <- det_data[i,j]
+  
         #Calculate Bayes p-value - plug the parameters into the equation for each sample of the posterior and use this to create new observations
-        Presi[i,j] <- (det_data[i,j]-theta[i,j])^2 # Calculate squared residual of observed data
+        Presi[i,j] <- (det_na[i,j] - theta[i,j])^2 # Calculate squared residual of observed data
         y_new[i,j] ~ dbern(mu_p[i,j])             # Simulate observed data
         Presi_new[i,j] <- (y_new[i,j] - theta[i,j])^2 # Calculate squared residual error of simulated data
       }
@@ -117,9 +120,14 @@ cat("
     ## Back transform the parameters into probabilities
     pct_can_core <- ilogit(a1)
     pct_subcan_core <- ilogit(a2)
-    ## Calculate sum of squared residual errors for observed data
-    SSEobs <- sum(Presi[,])
-    SSEsim <- sum(Presi_new[,])
+    ## Calculate sum of squared residual errors for observed 
+    for(i in 1:n_unit){
+       sobs[i] <- sum(Presi[i,1:miss[i]])
+       ssim[i] <- sum(Presi_new[i,1:miss[i]])
+    }
+    
+    SSEobs <- sum(sobs[])
+    SSEsim <- sum(ssim[])
     p_val <- step(SSEsim - SSEobs)  
   
   }
@@ -130,13 +138,14 @@ cat("
 ```{R Run Model, results = FALSE}
 fit_C1 <- jags(data = jags_data, 
                  model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModC1-ppcheck.txt",
-                 parameters.to.save = c("a0", "a1", "a2", "a3", "a4", "a5", "a6", "b0", "p_val","SSEobs", "SSEsim"),
+                 parameters.to.save = c("a0", "a1", "a2", "a3", "a4", "a5", "a6", "b0", "SSEobs","SSEsim","p_val"),
                  n.iter = 10000, 
                  n.burnin = 4000, 
                  n.chains = 3,
                  n.thin = 2,
+                 parallel = TRUE,
                  inits = init_func)
-beep(sound = 3)
+beep(sound = 5)
 ```
 
 

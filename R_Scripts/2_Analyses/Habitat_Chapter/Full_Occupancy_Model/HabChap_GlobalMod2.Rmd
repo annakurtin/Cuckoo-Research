@@ -1,0 +1,386 @@
+---
+title: "Full Occupancy Model 2"
+author: "Anna Kurtin"
+date: "2024-08-01"
+output: html_document
+---
+
+This is the second iteration of the full occupacy model. From each of the submodels, I carried forward any covariate with f statistic > .70. Changes from the first model include adding back floodplain shrub and implementing a posterior predictive check to assess goodness of fit.
+
+**Model structure:**
+
+State model with six covariates:
+
+* a1: tree species richness on point scale (from submodel A2)
+
+* a2: percent canopy on landscape scale (from submodel B2) 
+
+* a3: percent subcanopy on landscape scale (from submodel B2) 
+
+* a4: percent subcanopy on core scale (from submodel C5)
+
+* a5: subcanopy average height on core scale (from submodel C5)
+
+* a6: residual variation in total veg st dev regressed on canopy height (from submodel C5)
+
+* a7: floodplain dominant shrub community type (from submodel A1)
+
+
+$$
+z_i \sim Bernoulli(\psi | \alpha_{1}, \alpha_{2}, \alpha_{3}, \alpha_{4}, \alpha_{5}, \alpha_{6}, \alpha_{7})
+$$ 
+
+Process model with four covariates:  
+
+* b1: date
+
+* b2: quadratic effect of date
+
+* b3: average background decibels
+
+* b4: survey effort
+
+$$
+y_{ij} \sim Bernoulli(p| \beta_{1}, \beta_{2}^2,\beta_{3}, \beta_{4})
+$$
+
+**Handling of NAs:** omission for detections, imputation for habitat covariates
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(beepr)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+```{r Read in Data}
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_7-30.csv")
+
+detections <- full_dat[,2:7]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+
+# get the length of non-nas in the detection data
+get_na <- function(x){(max(which(!is.na(x))))}
+# Apply this to our data
+miss <- apply(detections, 1, get_na)
+```
+
+```{R Setup JAGS Data}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections,
+  # Native broadleaf tree spp richness
+  cova1 = full_dat$tree_spp_rich,
+  # % canopy landscape
+  cova2 = full_dat$pct_can_landsc,
+  # % subcanopy landscape
+  cova3 = full_dat$pct_subcan_landsc,
+  # % subcanopy core
+  cova4 = full_dat$pct_subcan_core,
+  # subcan avg height
+  cova5 = full_dat$ht_subcan_core,
+  # residual veg sd
+  cova6 = full_dat$veg_sd_resid,
+  # floodplain community
+  cova7 = full_dat$floodplain_shrub,
+  # Date
+  covb1 = full_dat[,35:40],
+  # Background noise
+  covb3 = full_dat[,22:27],
+  # Effort 
+  covb4 = full_dat[,29:34],
+  n_unit = nrow(detections),
+  miss = miss
+)
+
+# Set initial values 
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    a1 = rnorm(1, 0, 1),
+    a2 = rnorm(1, 0, 1),
+    a3 = rnorm(1, 0, 1),
+    a4 = rnorm(1, 0, 1),
+    a5 = rnorm(1, 0, 1),
+    a6 = rnorm(1, 0, 1),
+    a7 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b1Q = rnorm(1, 0 ,1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
+  )
+}
+```
+
+```{R Sub Model A2 Structure, eval = FALSE}
+cat("
+  model{
+        # Priors
+    a0 ~ dlogis(0, 1)
+    a1 ~ dlogis(0, 1)
+    a2 ~ dlogis(0, 1)
+    a3 ~ dlogis(0, 1)
+    a4 ~ dlogis(0, 1)
+    a5 ~ dlogis(0, 1)
+    a6 ~ dlogis(0, 1)
+    a7 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+    b1 ~ dlogis(0, 1)
+    b1Q ~ dlogis(0, 1)
+    b3 ~ dlogis(0, 1)
+    b4 ~ dlogis(0, 1)
+  
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      # Impute missing habitat data
+      cova1[i] ~ dnorm(0, 1)
+      cova2[i] ~ dnorm(0, 1)
+      cova3[i] ~ dnorm(0, 1)
+      cova4[i] ~ dnorm(0, 1)
+      cova5[i] ~ dnorm(0, 1)
+      cova6[i] ~ dnorm(0, 1)
+      cova7[i] ~ dnorm(0, 1)
+  
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0 + a1*cova1[i] + a2*cova2[i] + a3*cova3[i] + a4*cova4[i] + a5*cova5[i] + a6*cova6[i] + a7*cova7[i]
+      
+      for(j in 1:miss[i]){
+       # Impute missing detection data
+        covb1[i,j] ~ dnorm(0, 1)
+        covb3[i,j] ~ dnorm(0, 1)
+        covb4[i,j] ~ dnorm(0, 1)
+  
+        det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
+        mu_p[i,j] <- Z[i]*theta[i,j]
+        logit(theta[i,j]) <- p[i,j]
+        p[i,j] <- b0 + b1*covb1[i,j] + b1Q*(covb1[i,j]^2) + b3*covb3[i,j] + b4*covb4[i,j]
+        # Det NA
+        det_na[i,j] <- det_data[i,j]
+  
+        #Calculate Bayes p-value - plug the parameters into the equation for each sample of the posterior and use this to create new observations
+        Presi[i,j] <- (det_na[i,j] - theta[i,j])^2 # Calculate squared residual of observed data
+        y_new[i,j] ~ dbern(mu_p[i,j])             # Simulate observed data
+        Presi_new[i,j] <- (y_new[i,j] - theta[i,j])^2 # Calculate squared residual error of simulated data
+      }
+    }
+    
+    # Derived parameters
+    ## Back transform the parameters into probabilities
+    pct_can_core <- ilogit(a1)
+    pct_subcan_core <- ilogit(a2)
+    ## Calculate sum of squared residual errors for observed 
+    for(i in 1:n_unit){
+       sobs[i] <- sum(Presi[i,1:miss[i]])
+       ssim[i] <- sum(Presi_new[i,1:miss[i]])
+    }
+    
+    SSEobs <- sum(sobs[])
+    SSEsim <- sum(ssim[])
+    p_val <- step(SSEsim - SSEobs)  
+    
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Full_Occupancy_Model/Model_Structure_Files/JAGS_GlobMod2.txt")
+
+```
+
+```{R Run Model, results = FALSE}
+fit_g2 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Full_Occupancy_Model/Model_Structure_Files/JAGS_GlobMod2.txt",
+                 parameters.to.save = c("a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "b0", "b1", "b1Q", "b3", "b4","p_val"),
+                 n.iter = 10000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 inits = init_func)
+beep(sound = 5)
+#Drawing inference from this - need to back transform the parameters
+```
+
+```{R}
+summary(fit_g2)
+tracedens_jags(fit_g2, parmfrow = c(3,3))
+```
+
+* cova1: Native broadleaf tree spp richness
+
+* cova2: % canopy landscape
+
+* cova3: % subcanopy landscape
+
+* cova4: % subcanopy core
+
+* cova5: subcan avg height
+
+* cova6: residual veg sd
+
+* cova7: dominant floodplain community
+
+```{R Create Violin Plots, echo = FALSE}
+chains_g2 <- jags_df(fit_g2)
+# Select the chains for our covariates of interest
+chains_viol <- chains_g2 %>% select(a1,a2, a3, a4, a5, a6, a7)
+# Rename them to be more interpretable
+colnames(chains_viol) <- c("tree spp richness", "% can landsc", "% subcan landsc", "% subcan core", "subcan avg height", "residual veg sd", "floodplain shrub")
+# Pivot this longer so that we can visualize it
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("tree spp richness", "% can landsc", "% subcan landsc", "% subcan core", "subcan avg height", "residual veg sd", "floodplain shrub"),names_to = "Parameter", values_to = "Values")
+
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Global Model Covariates") +
+  scale_fill_manual(values = c("tree spp richness"=palette_8[1], "% can landsc" = palette_8[2], "% subcan landsc" = palette_8[3], "% subcan core" = palette_8[4], "subcan avg height" = palette_8[5], "residual veg sd" = palette_8[6], "floodplain shrub" = palette_8[7])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  theme_minimal()
+
+chains_beta <- chains_g2 %>% select(b1, b1Q, b3, b4)
+colnames(chains_beta) <- c("date", "quadratic date", "background dB", "effort")
+chains_beta_l <- chains_beta %>% pivot_longer(cols = c("date", "quadratic date", "background dB", "effort"),names_to = "Parameter", values_to = "Values")
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_beta_l, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Detection Covariates") +
+  scale_fill_manual(values = c("date" = palette_5[1], "quadratic date" = palette_5[2], "background dB" = palette_5[3], "effort" = palette_5[4])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  theme_minimal()
+```
+
+
+
+```{R WAIC G2, echo = FALSE}
+# Extract samples from the posterior
+g2_s <- jags.samples(fit_g2$model,
+                           c("WAIC","deviance"),
+                           type = "mean",
+                           n.iter = 5000,
+                           n.burnin = 1000,
+                           n.thin = 2)
+beep()
+# Duplicate WAIC samples - the WAIC is the posterior mean for that sample?
+g2_s$p_waic <- g2_s$WAIC
+# Calculate a new waic by adding the waic plus the deviance
+g2_s$waic_calc <- g2_s$deviance + g2_s$p_waic
+# Create a new vector of the sum across each array (sum WAIC, sum deviance, sum p_waic, and sum waic_calc)
+tmp <- sapply(g2_s, sum)
+# Pull out the sum of the WAIC we calculated and the p_waic we duplicated
+waic_g2 <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
+# Calculate the standard error for WAIC
+g2_waic_se <- sd(g2_s$waic_calc)/(sqrt(length(g2_s$waic_calc)))
+```
+
+
+#### Compare with Naive Model 
+```{R Setup Naive Model, echo = FALSE}
+# Create a list of data for JAGS
+naive_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections,
+  n_unit = nrow(detections),
+  miss = miss
+)
+
+# Set initial values 
+init_func_naive <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1)
+  )
+}
+```
+
+```{R Create Naive Model, eval = FALSE}
+cat("
+  model{
+        # Priors
+    a0 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+  
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      # Impute missing habitat data
+  
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0 
+      
+      for(j in 1:miss[i]){
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0
+        
+      }
+    }
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModNAIVE.txt")
+```
+
+```{R Run Naive Model, echo = FALSE, results = FALSE}
+fit_naive <- jags(data = naive_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModNAIVE.txt",
+                 parameters.to.save = c("a0", "b0"),
+                 n.iter = 10000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 #parallel = TRUE,
+                 inits = init_func_naive)
+beep()
+```
+
+```{R WAIC naive model, echo = FALSE, results = FALSE}
+# Extract samples from the posterior
+naive_s <- jags.samples(fit_naive$model,
+                           c("WAIC","deviance"),
+                           type = "mean",
+                           n.iter = 5000,
+                           n.burnin = 1000,
+                           n.thin = 2)
+beep()
+# Duplicate WAIC samples - the WAIC is the posterior mean for that sample?
+naive_s$p_waic <- naive_s$WAIC
+# Calculate a new waic by adding the waic plus the deviance
+naive_s$waic_calc <- naive_s$deviance + naive_s$p_waic
+# Create a new vector of the sum across each array (sum WAIC, sum deviance, sum p_waic, and sum waic_calc)
+tmp <- sapply(naive_s, sum)
+# Pull out the sum of the WAIC we calculated and the p_waic we duplicated
+waic_naive <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
+# Calculate the standard error for WAIC
+naive_waic_se <- sd(naive_s$waic_calc)/(sqrt(length(naive_s$waic_calc)))
+```
+
+
+Compare sub model and naive model via WAIC: 
+
+```{R Compare WAIC}
+waic_g2
+g2_waic_se
+waic_naive
+naive_waic_se
+```
+
+
+### Questions after seeing these results:
+
+* I think we have too many parameters in our model, but the model is converging and we're getting very significant effects even with our eleven covariates. 
+
+* What are the indications that there are too many parameters in the model?
+
+* What about coefficients that aren't significant anymore (% subcanopy core and subcanopy average height)? Should we leave these out and make another version of the global model?
+
+* The Bayesian p value (indicating model fit) isn't close to .5, indicating that there is an issue with the model. How can I troubleshoot this, or where in the model do we think the issues are originating from?
+
+* I double checked the math I am using to calculate WAIC and it seems correct. If the calculations are correct, why is the WAIC still extremely large when the naive model is extremely small? I've chatted with others using bayesian occupancy models, and they agree that if my global model is performing better it should have a lower WAIC than the naive model. 
