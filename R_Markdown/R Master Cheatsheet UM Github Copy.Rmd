@@ -1707,6 +1707,8 @@ df2
 # scale the variables that need scaling
 bbcu_wide <- bbcu_wide %>%
   mutate(julian_date=c(scale(julian_date)),time=c(scale(time)))
+# Making julian dates
+pb_dat_comb$date_s3 <- yday(pb_dat_comb$date_s3)
 # why does this put a [,1] if you don't have the c()? becuase scale() function returns a matrix
 # class(bbcu_wide$julian_date) numeric
 ```
@@ -3296,6 +3298,14 @@ Arguments to rpois()
 
 
 ```{r, Generating Simulation Datasets}
+# Making simple fake data
+sites <- c("CUL","CUL","AME","AME","ROB","ROB")
+survey_num <- c(1,2,1,2,1,2)
+sky_start <- c(2,3,2,2,1,4)
+temp_start <- c(55,65,54,57,48,62)
+r_dat <- data.frame("site" = sites,"survey" = survey_num, "sky_start" = sky_start, "temp_start" = temp_start)
+
+
 # randomly generating an integer number from a specified range
 row_num <- sample(1:10,1)
 print(row_num)

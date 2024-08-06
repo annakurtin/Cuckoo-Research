@@ -74,6 +74,12 @@ get_na <- function(x){(max(which(!is.na(x))))}
 miss <- apply(detections, 1, get_na)
 ```
 
+
+```{R Check relationships, include = FALSE}
+plot(full_dat$ht_subcan_core ~ full_dat$veg_sd_resid)
+cor.test(full_dat$ht_subcan_core, full_dat$veg_sd_resid)
+```
+
 ```{R Setup JAGS Data}
 # Create a list of data for JAGS
 jags_data <- list(
@@ -227,7 +233,7 @@ tracedens_jags(fit_g2, parmfrow = c(3,3))
 
 * cova6: residual veg sd
 
-* cova7: dominant floodplain community
+* cova7: floodplain shrubs dominant community
 
 ```{R Create Violin Plots, echo = FALSE}
 chains_g2 <- jags_df(fit_g2)
@@ -384,3 +390,5 @@ naive_waic_se
 * The Bayesian p value (indicating model fit) isn't close to .5, indicating that there is an issue with the model. How can I troubleshoot this, or where in the model do we think the issues are originating from?
 
 * I double checked the math I am using to calculate WAIC and it seems correct. If the calculations are correct, why is the WAIC still extremely large when the naive model is extremely small? I've chatted with others using bayesian occupancy models, and they agree that if my global model is performing better it should have a lower WAIC than the naive model. 
+
+* What does it mean that subcanopy height core has the opposite effect as in the core submodel? I don't see any major issues with colinearity, F stat went from .88 (median effect .48) in the core submodel C5 to .70 (median effect -.25) in the global model 2. I think this is just as a result of having more parameters in my global model. 

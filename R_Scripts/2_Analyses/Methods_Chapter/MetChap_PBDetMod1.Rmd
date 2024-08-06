@@ -1,0 +1,99 @@
+---
+title: "Playback Detection Model 1"
+author: "Anna Kurtin"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+This is the first version of the detection submodel for the playback data. 
+
+**Model structure:**
+
+Naive state model. 
+
+$$
+z_i \sim Bernoulli(\psi)
+$$ 
+
+Process model with six covariates:  
+
+* b1: date
+
+* b2: quadratic effect of date
+
+* b3: number of surveyors
+
+* b4: start time of survey
+
+* b5: wind condition
+
+* b6: starting temperature
+
+*note: I'm leaving out sky condition here since its a categorical variable*
+
+$$
+y_{ij} \sim Bernoulli(p| \beta_{1}, \beta_{2}^2,\beta_{3}, \beta_{4}, \beta_{5}, \beta_{6} )
+$$
+
+
+**Handling of NAs:** omission for detections, imputation for habitat covariates
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(beepr)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+```{r Read in Data}
+pb_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Playback_Results/2023/Outputs/2023_PBData_FormatforOccMod_8-5-24.csv")
+
+detections <- pb_dat[,2:4]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+
+# get the length of non-nas in the detection data
+get_na <- function(x){(max(which(!is.na(x))))}
+# Apply this to our data
+miss <- apply(detections, 1, get_na)
+```
+
+
+```{R Setup JAGS Data}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections,
+  # Date
+  covb1 = pb_dat[,8:10],
+  # Background noise
+  covb3 = full_dat[,22:27],
+  # Effort 
+  covb4 = full_dat[,29:34],
+  n_unit = nrow(detections),
+  miss = miss
+)
+
+# Set initial values 
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b1Q = rnorm(1, 0 ,1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1),
+    b5 = rnorm(1, 0, 1),
+    b6 = rnorm(1, 0 ,1)
+  )
+}
+```
