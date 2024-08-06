@@ -77,11 +77,6 @@ pb_dat_comb$date_s1 <- yday(pb_dat_comb$date_s1)
 pb_dat_comb$date_s2 <- yday(pb_dat_comb$date_s2)
 pb_dat_comb$date_s3 <- yday(pb_dat_comb$date_s3)
 
-#pb_dat_comb$midnight <- "00:00"
-#pb_dat_comb <- pb_dat_comb %>% mutate(midnight = hms::as_hms(paste0(midnight, ":00")))
-#pb_dat_comb <- pb_dat_comb %>% mutate(start_test1 = is.na(starttime_s1), NA, hms::as_hms(paste0(starttime_s1,":00")))
-# trying something else:
-
 # Definitely a better way to do this but it'll work
 
 pb_dat_comb <- pb_dat_comb %>% separate(starttime_s1, into = c("hr1","min1"), sep = ":") 
@@ -105,13 +100,47 @@ pb_dat_comb$hr_tomin3 <- pb_dat_comb$hr3 * 60
 pb_dat_comb$time_s3 <- pb_dat_comb$hr_tomin3 + pb_dat_comb$min3
 pb_dat_comb <- pb_dat_comb %>% select(-c(hr3,min3,hr_tomin3))
 
-test <- pb_dat_comb
+# make final datasheet of scaled covariates
+pb_dat_f <- pb_dat_comb
 # scale the covariates - observers, date, wind, temp
-pb_dat_comb[5:7] <- scale(pb_dat_comb[5:7])
+pb_dat_f[5:10] <- round(scale(pb_dat_comb[5:10]), 2)
+pb_dat_f[14:22] <- round(scale(pb_dat_comb[14:22]), 2)
 
-#write.csv(pb_dat_fin, "./Data/Playback_Results/2023/Outputs/2023_PBData_FormatforOccMod_8-5-24.csv", row.names = FALSE)
 
+# Select the order of the final columns
+pb_dat_f <- pb_dat_f %>% rename(s1 = "1", s2 = "2", s3 = "3")
+pb_dat_fin <- pb_dat_f %>% select(site_id,
+                                   s1, s2, s3,
+                                   num_obs_s1, num_obs_s2, num_obs_s3,
+                                   date_s1, date_s2, date_s3, 
+                                   time_s1, time_s2, time_s3,
+                                   temp_s1, temp_s2, temp_s3,
+                                   wind_s1, wind_s2, wind_s3,
+                                   sky_s1, sky_s2, sky_s3)
 # Write this 
+#write.csv(pb_dat_fin, "./Data/Playback_Results/2023/Outputs/2023_PBData_FormatforOccModSCALED_8-6-24.csv", row.names = FALSE)
+
+# Look at distributions
+hist(pb_dat_comb$num_obs_s1)
+hist(pb_dat_fin$num_obs_s1)
+
+hist(pb_dat_comb$date_s2)
+hist(pb_dat_fin$date_s2)
+
+hist(pb_dat_comb$date_s3, breaks = 7)
+hist(pb_dat_fin$date_s3, breaks = 7)
+# I think these look ok, I think scaling them is slightly changing the distribution
+
+hist(pb_dat_comb$wind_s1)
+hist(pb_dat_fin$wind_s1)
+
+hist(pb_dat_comb$temp_s1)
+hist(pb_dat_fin$temp_s1)
+
+hist(pb_dat_comb$temp_s3)
+hist(pb_dat_fin$temp_s3)
+
+
 # First fit just detection model, then try to fit full occupancy model using covariates from your habitat chapter
 # Will we even have enough sites for something like this???
 
@@ -120,6 +149,10 @@ pb_dat_comb[5:7] <- scale(pb_dat_comb[5:7])
 
 
 #### Graveyard/Figuring things out
+#pb_dat_comb$midnight <- "00:00"
+#pb_dat_comb <- pb_dat_comb %>% mutate(midnight = hms::as_hms(paste0(midnight, ":00")))
+#pb_dat_comb <- pb_dat_comb %>% mutate(start_test1 = is.na(starttime_s1), NA, hms::as_hms(paste0(starttime_s1,":00")))
+# trying something else:
 
 # make_mins <- function(time_col,num){
 #   pb_dat_comb <- pb_dat_comb %>% separate(time_col, into = c("hr","min"), sep = ":") 
