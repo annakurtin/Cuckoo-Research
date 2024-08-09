@@ -148,7 +148,7 @@ cat("
     b1Q ~ dlogis(0, 1)
     b3 ~ dlogis(0, 1)
     b4 ~ dlogis(0, 1)
-  
+    
     # Likelihood
     # Loop through each sampling unit
     for(i in 1:n_unit){
@@ -160,7 +160,7 @@ cat("
       cova5[i] ~ dnorm(0, 1)
       cova6[i] ~ dnorm(0, 1)
       cova7[i] ~ dnorm(0, 1)
-  
+       
       Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
       logit(psi[i]) <- a0 + a1*cova1[i] + a2*cova2[i] + a3*cova3[i] + a4*cova4[i] + a5*cova5[i] + a6*cova6[i] + a7*cova7[i]
       
@@ -169,14 +169,14 @@ cat("
         covb1[i,j] ~ dnorm(0, 1)
         covb3[i,j] ~ dnorm(0, 1)
         covb4[i,j] ~ dnorm(0, 1)
-  
+         
         det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
         mu_p[i,j] <- Z[i]*theta[i,j]
         logit(theta[i,j]) <- p[i,j]
         p[i,j] <- b0 + b1*covb1[i,j] + b1Q*(covb1[i,j]^2) + b3*covb3[i,j] + b4*covb4[i,j]
-        # Det NA
+        # Create detection data without NAs
         det_na[i,j] <- det_data[i,j]
-  
+         
         #Calculate Bayes p-value - plug the parameters into the equation for each sample of the posterior and use this to create new observations
         Presi[i,j] <- (det_na[i,j] - theta[i,j])^2 # Calculate squared residual of observed data
         y_new[i,j] ~ dbern(mu_p[i,j])             # Simulate observed data
@@ -188,6 +188,7 @@ cat("
     ## Back transform the parameters into probabilities
     pct_can_core <- ilogit(a1)
     pct_subcan_core <- ilogit(a2)
+    
     ## Calculate sum of squared residual errors for observed 
     for(i in 1:n_unit){
        sobs[i] <- sum(Presi[i,1:miss[i]])
@@ -220,6 +221,7 @@ beep(sound = 5)
 summary(fit_g2)
 tracedens_jags(fit_g2, parmfrow = c(3,3))
 ```
+
 
 * cova1: Native broadleaf tree spp richness
 
@@ -262,6 +264,9 @@ ggplot() +
   scale_fill_manual(values = c("date" = palette_5[1], "quadratic date" = palette_5[2], "background dB" = palette_5[3], "effort" = palette_5[4])) + 
   geom_hline(yintercept = 0, linetype = "solid", color = "black") +
   theme_minimal()
+
+
+# Plot the intercept and look at the certainty of it
 ```
 
 
@@ -385,10 +390,54 @@ naive_waic_se
 
 * What are the indications that there are too many parameters in the model?
 
-* What about coefficients that aren't significant anymore (% subcanopy core and subcanopy average height)? Should we leave these out and make another version of the global model?
-
-* The Bayesian p value (indicating model fit) isn't close to .5, indicating that there is an issue with the model. How can I troubleshoot this, or where in the model do we think the issues are originating from?
+* What about coefficients that aren't significant anymore (% subcanopy core)? Should we leave these out and make another version of the global model? *Update 8/7/2024 Andy said to not exclude them since we're trying to learn about this system.*
 
 * I double checked the math I am using to calculate WAIC and it seems correct. If the calculations are correct, why is the WAIC still extremely large when the naive model is extremely small? I've chatted with others using bayesian occupancy models, and they agree that if my global model is performing better it should have a lower WAIC than the naive model. 
 
-* What does it mean that subcanopy height core has the opposite effect as in the core submodel? I don't see any major issues with colinearity, F stat went from .88 (median effect .48) in the core submodel C5 to .70 (median effect -.25) in the global model 2. I think this is just as a result of having more parameters in my global model. 
+* What does it mean that subcanopy height core has the opposite effect as in the core submodel? I don't see any major issues with colinearity, F stat went from .88 (median effect .48) in the core submodel C5 to .70 (median effect -.25) in the global model 2. I think this is just as a result of having more parameters in my global model. *8/8/2024: This could be an issue with the parameter itself being colinear with another parameter*
+
+
+```{R Parameter Correlations}
+#fit_g2[[1]]$sims.list$a1
+chains_g2 <- jags_df(fit_g2)
+
+# Create a matrix of the mcmc chains for each parameter
+mat <- cbind(fit_g2$sims.list$a0,fit_g2$sims.list$a1,fit_g2$sims.list$a2,
+             fit_g2$sims.list$a3,fit_g2$sims.list$a4,fit_g2$sims.list$a5,
+             fit_g2$sims.list$a6,fit_g2$sims.list$a7)
+# run a correlation test on the chains - here, I'm looking for values that are larger than other values
+r <- cor(mat)
+# look at the information contained within the MCMC chains, if the last eigenvector is close to zero, you don't have a lot of information here, probably as a result of colinearity 
+eigen(r)
+
+# Do this again without intercept to keep things straight in your head
+mat2 <- cbind(fit_g2$sims.list$a1,fit_g2$sims.list$a2,
+             fit_g2$sims.list$a3,fit_g2$sims.list$a4,fit_g2$sims.list$a5,
+             fit_g2$sims.list$a6,fit_g2$sims.list$a7)
+# run a correlation test on the chains - here, I'm looking for values that are larger than other values
+r2 <- cor(mat2)
+# look at the information contained within the MCMC chains, if the last eigenvector is close to zero, you don't have a lot of information here, probably as a result of colinearity 
+eigen(r2)
+
+# Take a look at those with higher colinear values: 
+plot(chains_g2$a4 ~ chains_g2$a5) # % subcan core, subcan avg height
+# this means that you can't increase the effect of percent subcanopy core without increasing the effect of subcanopy average height
+plot(chains_g2$a5 ~ chains_g2$a2) # subcan avg height, % canopy landsc
+plot(chains_g2$a3 ~ chains_g2$a2) # % subcan landsc, % canopy landsc
+
+# Look at the distribution of the intercept
+plot(plogis(chains_g2$a0))
+
+
+# Old stuff
+# plot(chains_g2$a1 ~ chains_g2$a2)
+# plot(chains_g2$a1 ~ chains_g2$a3)
+# plot(chains_g2$a2 ~ chains_g2$a3)
+# plot(chains_g2$a3 ~ chains_g2$a7)
+# plot(chains_g2$a4 ~ chains_g2$a5)
+# plot(chains_g2$a5 ~ chains_g2$a6)
+# plot(chains_g2$a6 ~ chains_g2$a7)
+
+```
+
+```
