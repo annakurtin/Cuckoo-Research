@@ -81,6 +81,35 @@ corrgram(corr_dat, order=TRUE, lower.panel=panel.cor,
          main="Correlations in Habitat Covariates")
 ```
 
+```{R Look at Data Distributions}
+hist(full_dat$tree_spp_rich, main = "Decid tree Spp Richness")
+hist(full_dat$pct_can_landsc, breaks = 50, main = "Pct Can Landsc") # has a big positive tail - wouldn't this counter balance the negative tail of the veg sd?
+hist(full_dat$pct_subcan_landsc, breaks = 50, main = "Pct Subcan Landsc")
+hist(full_dat$pct_subcan_core, breaks = 50, main = "Pct Subcan Core")
+hist(full_dat$veg_sd_resid, breaks = 50, main = "Total Veg SD Residuals") # had a big negative tail, could this be what is biasing the mean occupancy low?
+hist(full_dat$floodplain_shrub, main = "Floodplain Shrub Community")
+```
+
+```{R}
+full_dat$bbcu <- apply(full_dat[, 2:7], 1, max, na.rm = TRUE)
+# How does points with BBCU vs not correspond to total veg sd resid?
+plot(full_dat$bbcu~full_dat$veg_sd_resid)
+#fit <- glm(bbcu ~ veg_sd_resid, data = full_dat, family = "binomial")
+
+ggplot(full_dat, aes(x = veg_sd_resid, y = bbcu)) +
+  geom_point(alpha = 0.6) +  # Scatter plot of the data
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, color = "blue") +  # Logistic regression curve
+  labs( x = "Vegetation SD Residuals", y = "BBCU Presence (1) / Absence (0)") +
+  theme_minimal()
+
+plot(full_dat$bbcu~full_dat$pct_can_landsc)
+ggplot(full_dat, aes(x = pct_can_landsc, y = bbcu)) +
+  geom_point(alpha = 0.6) +  # Scatter plot of the data
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, color = "blue") +  # Logistic regression curve
+  labs( x = "Percent Canopy Landscape", y = "BBCU Presence (1) / Absence (0)") +
+  theme_minimal()
+```
+
 ```{R Setup JAGS Data}
 # Create a list of data for JAGS
 jags_data <- list(
@@ -133,7 +162,7 @@ init_func <- function(){
 }
 ```
 
-```{R Sub Model A2 Structure, eval = FALSE}
+```{R Model 3 Structure, eval = FALSE}
 cat("
   model{
         # Priors
@@ -300,3 +329,7 @@ r <- cor(mat)
 eigen(r)
 
 ```
+
+**Thoughts after running this model:**
+
+* Deciduous tree species richness was found to have an effect, but we aren't really looking at whether they use conifer forests as well. I think it would be beneficial to go back to the submodel A1 and add in a metric for native conifer species richness. 

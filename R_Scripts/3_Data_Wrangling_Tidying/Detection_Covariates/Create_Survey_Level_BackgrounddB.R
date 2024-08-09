@@ -77,47 +77,49 @@ final_dat <- summary_dat %>%
 #write the output
 #write.csv(final_dat, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Detection_Covariates/BackgroundNoiseBandpass_2023_ARUPoints.csv" ,row.names = FALSE)
 
+
+
 ##### small example data for gpt #########
-site_id <- c(101,101,101,101,102,102,102,102)
-date <- c("05232023","05242023","05252023","05262023","05232023","05242023","05252023","05262023")
-avg_db <- c(-52.1,-34.5,-44.6,-20.0,-66.9,-70.1,-30.5,-50.3)
-ex_dat <- as.data.frame(cbind(site_id,date,avg_db))
-ex_dat$date <- as.Date(ex_dat$date, format = "%M%d%Y")
-
-rows <- c(101,102)
-colnames <- c("05-23-2023-05-24-2023","05-25-2023-05-26-2023")
-
-# Define your survey periods
-survey_periods <- list(
-  "2023-05-23_2023-05-24" = c(as.Date("2023-05-23"), as.Date("2023-05-24")),
-  "2023-05-25_2023-05-26" = c(as.Date("2023-05-25"), as.Date("2023-05-26"))
-)
-
-# Create a function to classify dates into periods
-classify_period <- function(date, periods) {
-  for (period in names(periods)) {
-    if (date >= periods[[period]][1] & date <= periods[[period]][2]) {
-      return(period)
-    }
-  }
-  return(NA)
-}
-
-# Apply the function to create a new column for the period
-ex_dat$period <- sapply(ex_dat$date, classify_period, periods = survey_periods)
-ex_dat$avg_db <- as.numeric(avg_db)
-
-# Group by site_id and period, then calculate the average decibel readings
-summary_dat <- ex_dat %>%
-  group_by(site_id, period) %>%
-  summarise(avg_db = mean(avg_db, na.rm = TRUE)) %>%
-  ungroup()
-
-# Spread the data to wide format
-final_dat <- summary_dat %>%
-  pivot_wider(names_from = period, values_from = avg_db)
-
-# Print the final data frame
-print(final_dat)
+# site_id <- c(101,101,101,101,102,102,102,102)
+# date <- c("05232023","05242023","05252023","05262023","05232023","05242023","05252023","05262023")
+# avg_db <- c(-52.1,-34.5,-44.6,-20.0,-66.9,-70.1,-30.5,-50.3)
+# ex_dat <- as.data.frame(cbind(site_id,date,avg_db))
+# ex_dat$date <- as.Date(ex_dat$date, format = "%M%d%Y")
+# 
+# rows <- c(101,102)
+# colnames <- c("05-23-2023-05-24-2023","05-25-2023-05-26-2023")
+# 
+# # Define your survey periods
+# survey_periods <- list(
+#   "2023-05-23_2023-05-24" = c(as.Date("2023-05-23"), as.Date("2023-05-24")),
+#   "2023-05-25_2023-05-26" = c(as.Date("2023-05-25"), as.Date("2023-05-26"))
+# )
+# 
+# # Create a function to classify dates into periods
+# classify_period <- function(date, periods) {
+#   for (period in names(periods)) {
+#     if (date >= periods[[period]][1] & date <= periods[[period]][2]) {
+#       return(period)
+#     }
+#   }
+#   return(NA)
+# }
+# 
+# # Apply the function to create a new column for the period
+# ex_dat$period <- sapply(ex_dat$date, classify_period, periods = survey_periods)
+# ex_dat$avg_db <- as.numeric(avg_db)
+# 
+# # Group by site_id and period, then calculate the average decibel readings
+# summary_dat <- ex_dat %>%
+#   group_by(site_id, period) %>%
+#   summarise(avg_db = mean(avg_db, na.rm = TRUE)) %>%
+#   ungroup()
+# 
+# # Spread the data to wide format
+# final_dat <- summary_dat %>%
+#   pivot_wider(names_from = period, values_from = avg_db)
+# 
+# # Print the final data frame
+# print(final_dat)
 
   

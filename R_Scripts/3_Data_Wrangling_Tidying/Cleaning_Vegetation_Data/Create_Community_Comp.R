@@ -4,8 +4,9 @@
 
 # Created 5/20/2024
 
-# Last modified: 6/16/2024
-# Updated after removing duplicat AME-1
+# Last modified: 8/9/2024
+# Updated 6/16/2024 after removing duplicat AME-1
+# Updated 8/9 to add conifer tree spp richness and look at the distribution of these covariates vs the total veg data
 
 #### Setup #################################
 packages <- c("tidyverse","janitor","forcats")

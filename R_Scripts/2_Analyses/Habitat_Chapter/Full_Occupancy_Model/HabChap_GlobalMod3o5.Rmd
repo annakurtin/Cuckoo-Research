@@ -1,0 +1,347 @@
+---
+title: "Full Occupancy Model 3.5"
+author: "Anna Kurtin"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+This is the occupancy model where I am trying to remove the veg sd residual data to see if removing this skewed data improves the posterior estimates of the intercept for psi.
+
+*Same as occupancy model 3 but I'm removing a6*
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(corrgram)
+library(ggplot2)
+library(beepr)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+```{r Read in Data}
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_7-30.csv")
+
+detections <- full_dat[,2:7]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+
+# get the length of non-nas in the detection data
+get_na <- function(x){(max(which(!is.na(x))))}
+# Apply this to our data
+miss <- apply(detections, 1, get_na)
+```
+
+```{R Visualize Correlations in Data}
+corr_dat <- full_dat %>% select(tree_spp_rich, pct_can_landsc, pct_subcan_landsc, pct_subcan_core, veg_sd_resid, floodplain_shrub)
+corrgram(corr_dat, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Habitat Covariates")
+```
+
+```{R Look at Data Distributions}
+hist(full_dat$tree_spp_rich, main = "Decid tree Spp Richness")
+hist(full_dat$pct_can_landsc, breaks = 50, main = "Pct Can Landsc") # has a big positive tail - wouldn't this counter balance the negative tail of the veg sd?
+hist(full_dat$pct_subcan_landsc, breaks = 50, main = "Pct Subcan Landsc")
+hist(full_dat$pct_subcan_core, breaks = 50, main = "Pct Subcan Core")
+hist(full_dat$veg_sd_resid, breaks = 50, main = "Total Veg SD Residuals") # had a big negative tail, could this be what is biasing the mean occupancy low?
+hist(full_dat$floodplain_shrub, main = "Floodplain Shrub Community")
+```
+
+```{R}
+full_dat$bbcu <- apply(full_dat[, 2:7], 1, max, na.rm = TRUE)
+# How does points with BBCU vs not correspond to total veg sd resid?
+plot(full_dat$bbcu~full_dat$veg_sd_resid)
+#fit <- glm(bbcu ~ veg_sd_resid, data = full_dat, family = "binomial")
+
+ggplot(full_dat, aes(x = veg_sd_resid, y = bbcu)) +
+  geom_point(alpha = 0.6) +  # Scatter plot of the data
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, color = "blue") +  # Logistic regression curve
+  labs( x = "Vegetation SD Residuals", y = "BBCU Presence (1) / Absence (0)") +
+  theme_minimal()
+
+plot(full_dat$bbcu~full_dat$pct_can_landsc)
+ggplot(full_dat, aes(x = pct_can_landsc, y = bbcu)) +
+  geom_point(alpha = 0.6) +  # Scatter plot of the data
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, color = "blue") +  # Logistic regression curve
+  labs( x = "Percent Canopy Landscape", y = "BBCU Presence (1) / Absence (0)") +
+  theme_minimal()
+```
+
+```{R Setup JAGS Data}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections,
+  # Native broadleaf tree spp richness
+  cova1 = full_dat$tree_spp_rich,
+  # % canopy landscape
+  cova2 = full_dat$pct_can_landsc,
+  # % subcanopy landscape
+  cova3 = full_dat$pct_subcan_landsc,
+  # % subcanopy core
+  cova4 = full_dat$pct_subcan_core,
+  # floodplain community
+  cova7 = full_dat$floodplain_shrub,
+  # Date
+  covb1 = full_dat[,35:40],
+  # Background noise
+  covb3 = full_dat[,22:27],
+  # Effort 
+  covb4 = full_dat[,29:34],
+  n_unit = nrow(detections),
+  miss = miss
+)
+
+```
+
+
+```{R}
+# Set initial values 
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    a1 = rnorm(1, 0, 1),
+    a2 = rnorm(1, 0, 1),
+    a3 = rnorm(1, 0, 1),
+    a4 = rnorm(1, 0, 1),
+    a7 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b1Q = rnorm(1, 0 ,1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
+  )
+}
+```
+
+
+```{R Model 3 Structure, eval = FALSE}
+cat("
+  model{
+        # Priors
+    a0 ~ dlogis(0, 1)
+    a1 ~ dlogis(0, 1)
+    a2 ~ dlogis(0, 1)
+    a3 ~ dlogis(0, 1)
+    a4 ~ dlogis(0, 1)
+    a7 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+    b1 ~ dlogis(0, 1)
+    b1Q ~ dlogis(0, 1)
+    b3 ~ dlogis(0, 1)
+    b4 ~ dlogis(0, 1)
+    
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      # Impute missing habitat data
+      cova1[i] ~ dnorm(0, 1)
+      cova2[i] ~ dnorm(0, 1)
+      cova3[i] ~ dnorm(0, 1)
+      cova4[i] ~ dnorm(0, 1)
+      cova7[i] ~ dnorm(0, 1)
+       
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0 + a1*cova1[i] + a2*cova2[i] + a3*cova3[i] + a4*cova4[i] + a7*cova7[i]
+      
+      for(j in 1:miss[i]){
+       # Impute missing detection data
+        covb1[i,j] ~ dnorm(0, 1)
+        covb3[i,j] ~ dnorm(0, 1)
+        covb4[i,j] ~ dnorm(0, 1)
+         
+        det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
+        mu_p[i,j] <- Z[i]*theta[i,j]
+        logit(theta[i,j]) <- p[i,j]
+        p[i,j] <- b0 + b1*covb1[i,j] + b1Q*(covb1[i,j]^2) + b3*covb3[i,j] + b4*covb4[i,j]
+        # Create detection data without NAs
+        det_na[i,j] <- det_data[i,j]
+         
+        #Calculate Bayes p-value - plug the parameters into the equation for each sample of the posterior and use this to create new observations
+        Presi[i,j] <- (det_na[i,j] - theta[i,j])^2 # Calculate squared residual of observed data
+        y_new[i,j] ~ dbern(mu_p[i,j])             # Simulate observed data
+        Presi_new[i,j] <- (y_new[i,j] - theta[i,j])^2 # Calculate squared residual error of simulated data
+      }
+    }
+    
+    # Derived parameters
+    ## Back transform the parameters into probabilities
+    #psi <- ilogit(a0)
+    
+    ## Calculate sum of squared residual errors for observed 
+    for(i in 1:n_unit){
+       sobs[i] <- sum(Presi[i,1:miss[i]])
+       ssim[i] <- sum(Presi_new[i,1:miss[i]])
+    }
+    
+    SSEobs <- sum(sobs[])
+    SSEsim <- sum(ssim[])
+    p_val <- step(SSEsim - SSEobs)  
+    
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Full_Occupancy_Model/Model_Structure_Files/JAGS_GlobMod3o5.txt")
+
+```
+
+```{R Run Model, results = FALSE}
+fit_g35 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Full_Occupancy_Model/Model_Structure_Files/JAGS_GlobMod3o5.txt",
+                 parameters.to.save = c("a0", "a1", "a2", "a3", "a4", "a7", "b0", "b1", "b1Q", "b3", "b4","p_val"),
+                 n.iter = 10000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 inits = init_func)
+beep(sound = 3)
+#Drawing inference from this - need to back transform the parameters
+```
+
+```{R}
+tracedens_jags(fit_g35, parmfrow = c(3,3))
+summary(fit_g35)
+```
+
+Transforming the a0 value, the estimated probability of use is 16.8, which is still less than our naive estimate of 18.7. Why?
+
+What if we removed percent canopy landscape?
+
+
+```{R Setup JAGS Data}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections,
+  # Native broadleaf tree spp richness
+  cova1 = full_dat$tree_spp_rich,
+  # % subcanopy landscape
+  cova3 = full_dat$pct_subcan_landsc,
+  # % subcanopy core
+  cova4 = full_dat$pct_subcan_core,
+  # floodplain community
+  cova7 = full_dat$floodplain_shrub,
+  # Date
+  covb1 = full_dat[,35:40],
+  # Background noise
+  covb3 = full_dat[,22:27],
+  # Effort 
+  covb4 = full_dat[,29:34],
+  n_unit = nrow(detections),
+  miss = miss
+)
+
+```
+
+
+```{R}
+# Set initial values 
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    a1 = rnorm(1, 0, 1),
+    a3 = rnorm(1, 0, 1),
+    a4 = rnorm(1, 0, 1),
+    a7 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b1Q = rnorm(1, 0 ,1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
+  )
+}
+```
+
+
+```{R Model 3 Structure, eval = FALSE}
+cat("
+  model{
+        # Priors
+    a0 ~ dlogis(0, 1)
+    a1 ~ dlogis(0, 1)
+    a3 ~ dlogis(0, 1)
+    a4 ~ dlogis(0, 1)
+    a7 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+    b1 ~ dlogis(0, 1)
+    b1Q ~ dlogis(0, 1)
+    b3 ~ dlogis(0, 1)
+    b4 ~ dlogis(0, 1)
+    
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      # Impute missing habitat data
+      cova1[i] ~ dnorm(0, 1)
+      cova3[i] ~ dnorm(0, 1)
+      cova4[i] ~ dnorm(0, 1)
+      cova7[i] ~ dnorm(0, 1)
+       
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0 + a1*cova1[i] + a3*cova3[i] + a4*cova4[i] + a7*cova7[i]
+      
+      for(j in 1:miss[i]){
+       # Impute missing detection data
+        covb1[i,j] ~ dnorm(0, 1)
+        covb3[i,j] ~ dnorm(0, 1)
+        covb4[i,j] ~ dnorm(0, 1)
+         
+        det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
+        mu_p[i,j] <- Z[i]*theta[i,j]
+        logit(theta[i,j]) <- p[i,j]
+        p[i,j] <- b0 + b1*covb1[i,j] + b1Q*(covb1[i,j]^2) + b3*covb3[i,j] + b4*covb4[i,j]
+        # Create detection data without NAs
+        det_na[i,j] <- det_data[i,j]
+         
+        #Calculate Bayes p-value - plug the parameters into the equation for each sample of the posterior and use this to create new observations
+        Presi[i,j] <- (det_na[i,j] - theta[i,j])^2 # Calculate squared residual of observed data
+        y_new[i,j] ~ dbern(mu_p[i,j])             # Simulate observed data
+        Presi_new[i,j] <- (y_new[i,j] - theta[i,j])^2 # Calculate squared residual error of simulated data
+      }
+    }
+    
+    # Derived parameters
+    ## Back transform the parameters into probabilities
+    #psi <- ilogit(a0)
+    
+    ## Calculate sum of squared residual errors for observed 
+    for(i in 1:n_unit){
+       sobs[i] <- sum(Presi[i,1:miss[i]])
+       ssim[i] <- sum(Presi_new[i,1:miss[i]])
+    }
+    
+    SSEobs <- sum(sobs[])
+    SSEsim <- sum(ssim[])
+    p_val <- step(SSEsim - SSEobs)  
+    
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Full_Occupancy_Model/Model_Structure_Files/JAGS_GlobMod3o52.txt")
+
+```
+
+```{R Run Model, results = FALSE}
+fit_g352 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Full_Occupancy_Model/Model_Structure_Files/JAGS_GlobMod3o52.txt",
+                 parameters.to.save = c("a0", "a1", "a3", "a4", "a7", "b0", "b1", "b1Q", "b3", "b4","p_val"),
+                 n.iter = 10000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 inits = init_func)
+beep(sound = 3)
+#Drawing inference from this - need to back transform the parameters
+```
+
+```{R}
+summary(fit_g352)
+
+```
