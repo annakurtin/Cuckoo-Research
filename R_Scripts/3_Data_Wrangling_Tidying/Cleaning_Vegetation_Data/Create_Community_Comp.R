@@ -59,7 +59,7 @@ ggplot(tree_counts, aes(x = tree_species, y = n, fill = sampling_design)) +
 # Creating native broadleaf species richness
 native_broadleaf <-  c("ACNE","FRPE", "PANG","PDEL","POPU","PTRI","SAMY") 
 non_native <- c("ELAN")
-conifer <- c("CRDO","JUSC","PIPO","PSME")
+conifer <- c("JUSC","PIPO","PSME")
 tree <- tree %>% mutate(tree_comm = case_when(
   tree_species %in% native_broadleaf ~ "native_broadleaf",
   tree_species %in% non_native ~ "non_native",
@@ -67,31 +67,47 @@ tree <- tree %>% mutate(tree_comm = case_when(
 ))
 
 # Create count of species richness
-spp_rich_tree1 <- tree %>% filter(tree_comm == "native_broadleaf") %>% group_by(site_id) %>% reframe(spp_richness = length(unique(tree_species)))
+spp_rich_tree1 <- tree %>% filter(tree_comm == "native_broadleaf") %>% group_by(site_id) %>% reframe(dspp_richness = length(unique(tree_species)))
 # join to the aru sites so that you also have the sites with no tree cover
 spp_rich_tree2 <- left_join(all_aru_sites,spp_rich_tree1)
 # mutate the NAs into 0s
 spp_rich_tree2 <- spp_rich_tree2 %>%
-  mutate(tree_spp_rich = ifelse(is.na(spp_richness), 0, spp_richness))
+  mutate(dtree_spp_rich = ifelse(is.na(dspp_richness), 0, dspp_richness)) %>% select(-dspp_richness)
+spp_rich_tree2 %>% filter(dtree_spp_rich > 0)
+hist(spp_rich_tree2$dtree_spp_rich, main = "Deciduous Tree Spp Richness")
+
+# Create count of conifer species richness
+spp_rich_tree3 <- tree %>% filter(tree_comm == "conifer") %>% group_by(site_id) %>% reframe(cspp_richness = length(unique(tree_species)))
+# join to the aru sites so that you also have the sites with no tree cover
+spp_rich_tree4 <- left_join(all_aru_sites,spp_rich_tree3)
+# mutate the NAs into 0s
+spp_rich_tree4 <- spp_rich_tree4 %>%
+  mutate(ctree_spp_rich = ifelse(is.na(cspp_richness), 0, cspp_richness)) %>% select(-cspp_richness)
+# Look at distribution of conifer trees
+spp_rich_tree4 %>% filter(ctree_spp_rich > 0) # 10 1's, 6 2's
+hist(spp_rich_tree4$ctree_spp_rich, main = "Conifer Tree Spp Richness")
+# deciding to keep as is - we thought that 17 floodplain sites was sufficient to include in the occupancy model. Just go through and see how this covariate performs and if it is colinear with things then move on
 
 # Join the sampling design to this
 site_sampd <- tree %>% group_by(site_id) %>% reframe(sampling_design = first(sampling_design))
-spp_rich_tree <- left_join(spp_rich_tree1, site_sampd, by = "site_id")
-hist(spp_rich_tree$spp_richness)
+spp_rich_samp <- left_join(spp_rich_tree2, site_sampd, by = "site_id")
+hist(spp_rich_samp$dspp_richness)
 # Not as wide of a distribution, make sure there are multiple points for each number
-richness_table <- spp_rich_tree %>% group_by(spp_richness) %>% summarize(n=n()) 
-richness_table
+richness_table <- spp_rich_tree2 %>% group_by(dspp_richness) %>% summarize(n=n()) 
 # Lots of points with only one species, only a handful with 3 or 4. Is there enough data to fit this?
-ggplot(spp_rich_tree, aes(x = spp_richness, fill = sampling_design)) +
+ggplot(spp_rich_samp, aes(x = dspp_richness, fill = sampling_design)) +
   geom_histogram(position = "dodge") +
-  labs(title = "Distribution of Tree Species Richness",
+  labs(title = "Distribution of Decid Tree Species Richness",
        x = "Tree Species Richness") +
   scale_fill_manual(values = c("habitat_grts" = palette_5[1], "mmr_grts" = palette_5[3], "selectedcu_nonrand" = palette_5[5]))
 # It doesn't look like the nonrandom sites are introducing major bias into this
 
+tree_fin <- left_join(spp_rich_tree2, spp_rich_tree4, by = "site_id")
 # Write this to .csv
 #write.csv(spp_rich_tree,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_TreeSppRich_6-19.csv",row.names = FALSE)
-write.csv(spp_rich_tree2,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_TreeSppRich_7-24.csv",row.names = FALSE)
+#write.csv(spp_rich_tree2,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_TreeSppRich_7-24.csv",row.names = FALSE)
+write.csv(tree_fin,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_TreeSppRich_8-12.csv",row.names = FALSE)
+
 
 
 
@@ -215,7 +231,7 @@ dev.off()
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Write the one you're going to use to .csv
-write.csv(dominant_shrub_sep,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_ShrubDominantCommunity_6-19.csv",row.names = FALSE)
+#write.csv(dominant_shrub_sep,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_ShrubDominantCommunity_6-19.csv",row.names = FALSE)
 
 
 

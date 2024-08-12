@@ -38,13 +38,16 @@ shrubs <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspa
 shrubs <- shrubs %>% select(site_id, dominant_community)
 # Change sites with no shrub cover to a different category instead of NA
 shrubs <- shrubs %>% mutate(dominant_community = ifelse(is.na(dominant_community),"no_shrub", dominant_community))
-# read in data on tree species richness
-tree_rich <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_TreeSppRich_7-24.csv")# %>% mutate(year = "23")
-tree_rich <- tree_rich %>% select(site_id, tree_spp_rich)
+# read in data on tree species richness - both deciduous and conifer
+#tree_rich <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_TreeSppRich_7-24.csv")# %>% mutate(year = "23")
+tree_rich <- read.csv("./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_TreeSppRich_8-12.csv")
+# create a dummary variable for conifer presence at site
+tree_rich <- tree_rich %>% mutate(ctree = ifelse(ctree_spp_rich > 0, 1, 0))
 # Combine these into one dataframe and select columns of interest
 all_dat <- left_join(points_forhabchap,lidar_23, by = "site_id")
 all_dat <- left_join(all_dat, shrubs, by ="site_id")
 all_dat <- left_join(all_dat, tree_rich, by = "site_id")
+
 
 # Create covariate of residuals
 # create the regression model
@@ -87,7 +90,9 @@ all_dat_fin <- all_dat %>% select(site_id,
                               invasive_shrub,
                               upland_shrub,
                               floodplain_shrub,
-                              tree_spp_rich,
+                              ctree,
+                              dtree_spp_rich,
+                              ctree_spp_rich,
                               pct_can_landsc,
                               pct_subcan_landsc,
                               pct_can_core,
@@ -98,18 +103,19 @@ all_dat_fin <- all_dat %>% select(site_id,
                               veg_sd_resid,
                               sd_allveg_core)
 
-write.csv(all_dat_fin, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_Veg_Covariates_7-24.csv", row.names = FALSE)
+#write.csv(all_dat_fin, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_Veg_Covariates_8-12.csv", row.names = FALSE)
 
 
 # Create another version of the data that has all of the covariates centered and scaled
 #all_scaled <- all_dat_fin
-dat1 <- all_dat_fin[,1:8]
-dat2 <- round(scale(all_dat_fin[,9:18]),2)
+dat1 <- all_dat_fin[,1:9]
+#dat1 <- all_dat_fin[,5:11]
+dat2 <- round(scale(all_dat_fin[,10:20]),2)
 all_scaled <- cbind(dat1,dat2)
 
-write.csv(all_scaled, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_VegCovs_Scaled_7-24.csv", row.names = FALSE)
+#write.csv(all_scaled, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_VegCovs_Scaled_8-12.csv", row.names = FALSE)
 
 ## Combine this with detection history data
 det <- read.csv("./Data/Detection_History/2023_All_ARUs/Outputs/SiteDetHist_TwoWeekSurvey_Cleaned_7-24.csv")
 det_veg_comb <- left_join(det, all_scaled) %>% select(-c(grts_grouped,x,y))
-write.csv(det_veg_comb, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/DetHist_VegCovs_Scaled_7-24.csv", row.names = FALSE)
+#write.csv(det_veg_comb, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/DetHist_VegCovs_Scaled_8-12.csv", row.names = FALSE)

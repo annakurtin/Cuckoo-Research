@@ -439,5 +439,3 @@ plot(plogis(chains_g2$a0))
 # plot(chains_g2$a6 ~ chains_g2$a7)
 
 ```
-
-```

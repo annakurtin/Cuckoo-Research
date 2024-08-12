@@ -1,0 +1,214 @@
+---
+title: 'Occupancy Sub Model A3: Point Scale Covariates'
+author: "Anna Kurtin"
+date: "2024-08-12"
+output: html_document
+---
+
+This is the third iteration of the point scale submodel (11.3 m radius of points) within the occupancy/state submodel. Based on ./R_Markdown/Evaluate_Distrib_ContCovs_ShrubComm.Rmd, the invasive shrub type has too little points, and upland is correlated with other covariates. Therefore, I will only be looking at floodplain vs non flooplain dominant shrub community. I also added on conifer tree species richness, to see if the presence of conifers has any effect on BBCU occupancy. 
+
+**Model structure:**
+
+State model with three covariates: deciduous tree species richness, conifer tree species richness, and a dummy variable for dominant shrub community
+
+$$
+z_i \sim Bernoulli(\psi | \alpha_{decid spp richness}, \alpha_{conifer spp richness}, \alpha_{floodplain shrub})
+$$ 
+
+Process model with four covariates:  
+
+$$
+y_{ij} \sim Bernoulli(p| \beta_{date}, \beta_{date}^2,\beta_{avg db}, \beta_{effort})
+$$
+
+**Handling of NAs:** omission for detections, imputation for habitat covariates
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(beepr)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+```{r Read in Data}
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_8-12.csv")
+
+detections <- full_dat[,2:7]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+
+# get the length of non-nas in the detection data
+get_na <- function(x){(max(which(!is.na(x))))}
+# Apply this to our data
+miss <- apply(detections, 1, get_na)
+```
+
+
+```{R Setup JAGS Data}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections,
+  # Native broadleaf tree spp richness
+  cova1 = full_dat$dtree_spp_rich,
+  # Native conifer tree spp richness
+  cova2 = full_dat$ctree_spp_rich,
+  # Floodplain shrub community
+  cova3 = full_dat$floodplain_shrub,
+  # Date
+  covb1 = full_dat[,37:42],
+  # Background noise
+  covb3 = full_dat[,24:29],
+  # Effort 
+  covb4 = full_dat[,31:36],
+  n_unit = nrow(detections),
+  miss = miss
+)
+
+# Set initial values 
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    a1 = rnorm(1, 0, 1),
+    a2 = rnorm(1, 0, 1),
+    a3 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b1Q = rnorm(1, 0 ,1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
+  )
+}
+```
+
+
+```{R Sub Model A2 Structure}
+cat("
+  model{
+        # Priors
+    a0 ~ dlogis(0, 1)
+    a1 ~ dlogis(0, 1)
+    a2 ~ dlogis(0, 1)
+    a3 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+    b1 ~ dlogis(0, 1)
+    b1Q ~ dlogis(0, 1)
+    b3 ~ dlogis(0, 1)
+    b4 ~ dlogis(0, 1)
+  
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      # Impute missing habitat data
+      cova1[i] ~ dnorm(0, 1)
+      cova2[i] ~ dnorm(0, 1)
+      cova3[i] ~ dnorm(0, 1)
+  
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0 + a1*cova1[i] + a2*cova2[i] + a3*cova3[i]
+      
+      for(j in 1:miss[i]){
+       # Impute missing detection data
+        covb1[i,j] ~ dnorm(0, 1)
+        covb3[i,j] ~ dnorm(0, 1)
+        covb4[i,j] ~ dnorm(0, 1)
+  
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Create detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0 + b1*covb1[i,j] + b1Q*(covb1[i,j]^2) + b3*covb3[i,j] + b4*covb4[i,j]
+        
+      }
+    }
+    
+    # Derived parameters
+    
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModA3.txt")
+
+```
+
+```{R Run Model, results = FALSE}
+fit_A3 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccModA3.txt",
+                 parameters.to.save = c("a0", "a1", "a2", "a3", "b0", "b1", "b1Q", "b3", "b4"),
+                 n.iter = 10000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 inits = init_func)
+beep(sound = 3)
+```
+
+```{R Evaluate Model}
+print(fit_A3)
+tracedens_jags(fit_A3, parmfrow = c(3,3))
+```
+
+a1 deciduous tree spp richness
+a2 conifer tree spp richness
+a3 floodplain shrub spp richness
+
+```{R Create Violin Plots}
+chains_a3 <- jags_df(fit_A3)
+# Select the chains for our covariates of interest
+chains_viol <- chains_a3 %>% select(a1,a2,a3)
+# Rename them to be more interpretable
+colnames(chains_viol) <- c("decid spp richness","conif spp richness", "floodplain shrub")
+# Pivot this longer so that we can visualize it
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("decid spp richness","conif spp richness", "floodplain shrub"),names_to = "Parameter", values_to = "Values")
+
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Point Level Covariates") +
+  scale_fill_manual(values = c("decid spp richness"=palette_5[1], "conif spp richness"=palette_5[2], "floodplain shrub" = palette_5[3])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  theme_minimal()
+
+chains_beta <- chains_a3 %>% select(b1, b1Q, b3, b4)
+colnames(chains_beta) <- c("date", "quadratic date", "background dB", "effort")
+chains_beta_l <- chains_beta %>% pivot_longer(cols = c("date", "quadratic date", "background dB", "effort"),names_to = "Parameter", values_to = "Values")
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_beta_l, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Detection Covariates") +
+  scale_fill_manual(values = c("date" = palette_8[1], "quadratic date" = palette_8[2], "background dB" = palette_8[3], "effort" = palette_8[4])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  theme_minimal()
+```
+
+
+
+
+
+```{R WAIC A3}
+# Extract samples from the posterior
+a3_s <- jags.samples(fit_A3$model,
+                           c("WAIC","deviance"),
+                           type = "mean",
+                           n.iter = 5000,
+                           n.burnin = 1000,
+                           n.thin = 2)
+beep()
+# Duplicate WAIC samples - the WAIC is the posterior mean for that sample?
+a3_s$p_waic <- a3_s$WAIC
+# Calculate a new waic by adding the waic plus the deviance
+a3_s$waic_calc <- a3_s$deviance + a3_s$p_waic
+# Create a new vector of the sum across each array (sum WAIC, sum deviance, sum p_waic, and sum waic_calc)
+tmp <- sapply(a3_s, sum)
+# Pull out the sum of the WAIC we calculated and the p_waic we duplicated
+waic_a3 <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
+# Calculate the standard error for WAIC
+a3_waic_se <- sd(a3_s$waic_calc)/(sqrt(length(a3_s$waic_calc)))
+```
+
+
