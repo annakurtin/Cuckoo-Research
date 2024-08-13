@@ -92,7 +92,7 @@ init_func <- function(){
 ```
 
 
-```{R Sub Model A2 Structure}
+```{R Sub Model A2 Structure, eval = FALSE}
 cat("
   model{
         # Priors
@@ -199,7 +199,9 @@ a3_s <- jags.samples(fit_A3$model,
                            n.burnin = 1000,
                            n.thin = 2)
 beep()
+# Calculate WAIC
 # Duplicate WAIC samples - the WAIC is the posterior mean for that sample?
+# Extract the average likelihood for each observation across all MCMC samples
 a3_s$p_waic <- a3_s$WAIC
 # Calculate a new waic by adding the waic plus the deviance
 a3_s$waic_calc <- a3_s$deviance + a3_s$p_waic
