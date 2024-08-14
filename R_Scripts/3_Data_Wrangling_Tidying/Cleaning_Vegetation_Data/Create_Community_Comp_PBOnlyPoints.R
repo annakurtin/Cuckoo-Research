@@ -1,0 +1,242 @@
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Create Community Comp Metric from Veg Survey Data ##
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## Purpose: to read in the cleaned data and create a variable for community composition of trees and shrubs at sites with ARUs for my habitat chapter
+
+# Created 8/14/2024 from create community comp from aru data
+
+# Last modified: 8/14/2024
+
+#### Setup #################################
+packages <- c("tidyverse","janitor","forcats")
+source("./R_Scripts/6_Function_Scripts/Install_Load_Packages.R")
+source("./R_Scripts/6_Function_Scripts/Create_Site_SamplingColumn_fromPointID.R")
+source("./R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+load_packages(packages)
+
+
+
+#### Read in Data ###################################
+tree_orig <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_TreeData_Cleaned6-19.csv")
+#tree_points <- unique(tree$point_id)
+shrub_orig <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_ShrubData_Cleaned6-19.csv")
+#shrub_points <- unique(shrub$point_id)
+
+# Remove the points that don't have an ARU at it
+veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned6-19.csv")
+veg_pb <- veg %>% filter(aru_present == "no")
+pb_sites <- veg_pb %>% group_by(site_id) %>% summarize(site_id = first(site_id))
+points_pb <- veg_pb$point_id
+
+tree <- tree_orig %>% filter(point_id %in% points_pb)
+shrub <- shrub_orig %>% filter(point_id %in% points_pb)
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Tree Data #####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Create count of species richness 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# See if the sampling design affects the distribution of the tree community
+# Creating native broadleaf species richness
+native_broadleaf <-  c("ACNE","FRPE", "PANG","PDEL","POPU","PTRI","SAMY")
+non_native <- c("ELAN")
+conifer <- c("JUSC","PIPO","PSME")
+tree <- tree %>% mutate(tree_comm = case_when(
+  tree_species %in% native_broadleaf ~ "native_broadleaf",
+  tree_species %in% non_native ~ "non_native",
+  tree_species %in% conifer ~ "conifer"
+))
+
+spp_rich_tree1 <- tree %>% filter(tree_comm == "native_broadleaf") %>% group_by(site_id) %>% reframe(dspp_richness = length(unique(tree_species)))
+# join to the aru sites so that you also have the sites with no tree cover
+spp_rich_tree2 <- left_join(pb_sites,spp_rich_tree1)
+# mutate the NAs into 0s
+spp_rich_tree2 <- spp_rich_tree2 %>%
+  mutate(dtree_spp_rich = ifelse(is.na(dspp_richness), 0, dspp_richness)) %>% select(-dspp_richness)
+spp_rich_tree2 %>% filter(dtree_spp_rich > 0)
+#hist(spp_rich_tree2$dtree_spp_rich, main = "Deciduous Tree Spp Richness")
+
+# Create count of conifer species richness
+spp_rich_tree3 <- tree %>% filter(tree_comm == "conifer") %>% group_by(site_id) %>% reframe(cspp_richness = length(unique(tree_species)))
+# join to the aru sites so that you also have the sites with no tree cover
+spp_rich_tree4 <- left_join(pb_sites,spp_rich_tree3)
+# mutate the NAs into 0s
+spp_rich_tree4 <- spp_rich_tree4 %>%
+  mutate(ctree_spp_rich = ifelse(is.na(cspp_richness), 0, cspp_richness)) %>% select(-cspp_richness)
+# Look at distribution of conifer trees
+spp_rich_tree4 %>% filter(ctree_spp_rich > 0) # 10 1's, 6 2's
+#hist(spp_rich_tree4$ctree_spp_rich, main = "Conifer Tree Spp Richness")
+# deciding to keep as is - we thought that 17 floodplain sites was sufficient to include in the occupancy model. Just go through and see how this covariate performs and if it is colinear with things then move on
+tree_fin <- left_join(spp_rich_tree2, spp_rich_tree4, by = "site_id")
+
+# Write this to .csv
+#write.csv(tree_fin,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_PBSites_TreeSppRich_8-14.csv",row.names = FALSE)
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Shrub Data ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Have a value for the dominant shrub species in an area
+dominant_shrub <- shrub %>% group_by(site_id) %>%
+  reframe(
+    max_x_cover = max(x_cover),
+    shrub_species_max_x_cover = shrub_species[which.max(x_cover)]
+  )
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# create shrub communities
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Based on Veg_Codes_Cheatsheet in resources folder
+floodplain_spp <- c("PANG","PDEL","POPU","PTRI","SAEX","SALI","SAMY")
+misc_broadl_spp <- c("FRPE","CRDO","COST","ATCO","ACNE","LONI","PRUN","PRVI","RHTR","RIBE","ROSA","SHCA","SHAR","SYAL","TOXI","UNBR")
+upland_spp <- c("ARCA","ARTR","ARAB","ARLU","GUSA","JUSC","JUCO","JUHO","KRLA","PIPO","PSME","SAVE","YUGA")
+invasives <- c("ELAN","TAMA")
+broadleaf_winvasives <- c("FRPE","CRDO","COST","ATCO","ACNE","LONI","PRUN","PRVI","RHTR","RIBE","ROSA","SHCA","SHAR","SYAL","TOXI","UNBR","ELAN","TAMA")
+
+shrub_invas_sep <- shrub %>% mutate(shrub_comm = case_when(
+  shrub_species %in% floodplain_spp ~ "floodplain",
+  shrub_species %in% misc_broadl_spp ~ "misc_broadleaf",
+  shrub_species %in% upland_spp ~ "upland",
+  shrub_species %in% invasives ~ "invasive"
+))
+# Are there any sites that are majority invasive?
+shrub_cov_sum_sep <- shrub_invas_sep %>% group_by(site_id,shrub_comm) %>% summarize(total_cover = sum(x_cover))
+# Create dominant shrub community
+dominant_shrub_sep <- shrub_cov_sum_sep %>% group_by(site_id) %>%
+  reframe(
+    max_cover = max(total_cover),
+    dominant_community = shrub_comm[which.max(total_cover)]
+  )
+shrub_samp <- shrub %>% group_by(site_id) %>% reframe(sampling_design = first(sampling_design))
+dominant_shrub_sep <- left_join(dominant_shrub_sep, shrub_samp, by = "site_id")
+
+shrub_fin <- dominant_shrub_sep %>% select(-c(sampling_design, max_cover))
+
+
+# Write the one you're going to use to .csv
+#write.csv(shrub_fin,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_PBSites_ShrubDominantCommunity_8-14.csv",row.names = FALSE)
+
+
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Gravy yard ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# # Look at how sampling design affects the distribution of the tree species
+# tree_counts <- tree %>% group_by(site_id) %>% count(tree_species, sampling_design) %>% arrange(desc(n))
+# # Reorder
+# tree_counts <- tree_counts %>%
+#   mutate(tree_species = fct_reorder(tree_species, -n))
+# # Is there skew with non random points included?
+# ggplot(tree_counts, aes(x = tree_species, y = n, fill = sampling_design)) +
+#   geom_bar(stat = "identity", position = "dodge") +
+#   labs(title = "Number of Sites with Tree Species",
+#        x = "Tree Species",
+#        y = "Number of Sites Present") +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+#   scale_fill_manual(values = c("habitat_grts" = palette_5[1], "mmr_grts" = palette_5[3], "selectedcu_nonrand" = palette_5[5]))
+# #### Something seems off to me about this graph????????????????????????????????????????????????
+# 
+
+# # Join the sampling design to this
+# site_sampd <- tree %>% group_by(site_id) %>% reframe(sampling_design = first(sampling_design))
+# spp_rich_samp <- left_join(spp_rich_tree2, site_sampd, by = "site_id")
+# hist(spp_rich_samp$dspp_richness)
+# # Not as wide of a distribution, make sure there are multiple points for each number
+# richness_table <- spp_rich_tree2 %>% group_by(dspp_richness) %>% summarize(n=n()) 
+# # Lots of points with only one species, only a handful with 3 or 4. Is there enough data to fit this?
+# ggplot(spp_rich_samp, aes(x = dspp_richness, fill = sampling_design)) +
+#   geom_histogram(position = "dodge") +
+#   labs(title = "Distribution of Decid Tree Species Richness",
+#        x = "Tree Species Richness") +
+#   scale_fill_manual(values = c("habitat_grts" = palette_5[1], "mmr_grts" = palette_5[3], "selectedcu_nonrand" = palette_5[5]))
+# # It doesn't look like the nonrandom sites are introducing major bias into this
+
+# # Could replace NAs with NONE here
+# # Look at the distribution of this covariate
+# hist(dominant_shrub$max_x_cover)
+# unique(shrub$shrub_species)
+# # Look at the distribution of percent cover per species
+# ggplot(data = shrub, mapping = aes(x = shrub_species, y = x_cover)) + 
+#   geom_boxplot()+
+#   theme(axis.text.x = element_text(angle = 45,hjust = 1))
+# # Look at the distribution of height per species
+# ggplot(data = shrub, mapping = aes(x = shrub_species, y = shrub_height_m)) + 
+#   geom_boxplot()+
+#   theme(axis.text.x = element_text(angle = 45,hjust = 1))
+# # Save these plots?
+# # Make sure that ISA and YWM-1, MUSH-184, MUSH-060, MUSH-169 has data even though it didn't have any shrubs present
+# # Looks good
+
+# # Plot this #####
+# #jpeg(paste("./Deliverables/Create_Habitat_Covariates/Habitat_Chapter/Shrub_Dominant_Community/Shrub_Community_Invasives_Separated.jpg"), width = 800, height = 600)
+# ggplot(dominant_shrub_sep, aes(x = fct_relevel(dominant_community, "floodplain","misc_broadleaf","upland","invasive"), fill = dominant_community)) +
+#   geom_histogram(stat = "count") +
+#   labs(title = "Shrub Communities - Invasives Separated",
+#        x = "Shrub Community",
+#        y = "Number of Sites") +
+#   theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+#   scale_fill_manual(values = c("floodplain" = palette_8[2],"misc_broadleaf" = palette_8[4], "upland" = palette_8[6], "invasive" = palette_8[8])) +
+#   scale_y_continuous(limits = c(0,60),breaks = c(10,20,30,40,50,60))
+# #dev.off()
+# 
+# # Look at the distribution of sampling design
+# #jpeg(paste("./Deliverables/Create_Habitat_Covariates/Habitat_Chapter/Shrub_Dominant_Community/Shrub_Community_by_Sampling_Design_Invasives_Separated.jpg"), width = 800, height = 600)
+# ggplot(dominant_shrub_sep, aes(x = fct_relevel(dominant_community, "floodplain","misc_broadleaf","upland","invasive"), fill = sampling_design)) +
+#   geom_histogram(stat = "count", position = "dodge") +
+#   labs(title = "Community by Sampling Design - Invasives Separated",
+#        x = "Shrub Community",
+#        y = "Number of Sites") +
+#   theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+#   scale_y_continuous(limits = c(0,60),breaks = c(10,20,30,40,50,60))+
+#   scale_fill_manual(values = c("habitat_grts" = palette_5[1], "mmr_grts" = palette_5[3], "selectedcu_nonrand" = palette_5[5]))
+# #dev.off()
+
+##### What about if we combine the invasives with the broadleaf, does this significantly change the communities? #####
+# shrub_invas_comb <-  shrub %>% mutate(shrub_comm = case_when(
+#   shrub_species %in% floodplain_spp ~ "floodplain",
+#   shrub_species %in% broadleaf_winvasives ~ "broadleaf_winvasive",
+#   shrub_species %in% upland_spp ~ "upland"
+# ))
+# #
+# shrub_cov_sum_comb <- shrub_invas_comb %>% group_by(site_id,shrub_comm) %>% summarize(total_cover = sum(x_cover))
+# # Create dominant shrub community 
+# dominant_shrub_comb <- shrub_cov_sum_comb %>% group_by(site_id) %>%
+#   reframe(
+#     max_cover = max(total_cover),
+#     dominant_community = shrub_comm[which.max(total_cover)]
+#   )
+# dominant_shrub_comb <- left_join(dominant_shrub_comb, shrub_samp, by = "site_id")
+# Plot this ####
+# jpeg(paste("./Deliverables/Create_Habitat_Covariates/Habitat_Chapter/Shrub_Dominant_Community/Shrub_Community_Invasives_Combined.jpg"), width = 800, height = 600)
+# ggplot(dominant_shrub_comb, aes(x = fct_relevel(dominant_community, "floodplain","broadleaf_winvasive","upland"), fill = dominant_community)) +
+#   geom_histogram(stat = "count") +
+#   labs(title = "Shrub Communities - Invasives Included with Broadleaf",
+#        x = "Shrub Community",
+#        y = "Number of Sites") +
+#   theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+#   scale_fill_manual(values = c("floodplain" = palette_8[2],"broadleaf_winvasive" = palette_8[4], "upland" = palette_8[6])) +
+#   scale_y_continuous(limits = c(0,60),breaks = c(10,20,30,40,50,60))
+# dev.off()
+# 
+# # Look at the distribution of sampling design
+# jpeg(paste("./Deliverables/Create_Habitat_Covariates/Habitat_Chapter/Shrub_Dominant_Community/Shrub_Community_by_Sampling_Design_Invasives_Combined.jpg"), width = 800, height = 600)
+# ggplot(dominant_shrub_comb, aes(x = fct_relevel(dominant_community, "floodplain","broadleaf_winvasive","upland"), fill = sampling_design)) +
+#   geom_histogram(stat = "count", position = "dodge") +
+#   labs(title = "Community by Sampling Design - Invasives in Broadleaf",
+#        x = "Shrub Community",
+#        y = "Number of Sites") +
+#   theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+#   scale_y_continuous(limits = c(0,60),breaks = c(10,20,30,40,50,60))+
+#   scale_fill_manual(values = c("habitat_grts" = palette_5[1], "mmr_grts" = palette_5[3], "selectedcu_nonrand" = palette_5[5]))
+# dev.off()
+#####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Invasives are the dominant shrub community at 10 sites
+# Since this is a fairly large category, it makes sense to me to leave this separate
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
