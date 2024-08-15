@@ -125,7 +125,7 @@ recs_last <- recs_withclips %>% group_by(point_id) %>% summarize(last_rec = max(
 recs_last <- recs_last %>% 
   mutate(last_rec = case_when(
     hour(last_rec) == 18 & month(last_rec) == 8 & mday(last_rec) == 15 ~ {
-      new_date <- as.Date("2023-08-16")
+      new_date <- as.Date("2022-08-16")
       as.POSIXct(paste(new_date, format(new_date, "%H:%M:%S"), " 00:00:00"))
     },
     TRUE ~ last_rec 
@@ -150,7 +150,7 @@ deploy_table3_fin <- left_join(deploy_table3,prob_period, by = "point_id")
 deploy_table3_fin <- create_site_col(deploy_table3_fin)
 deploy_table3_fin <- deploy_table3_fin %>% mutate(year = 2022)
 # save this
-saveRDS(deploy_table3_fin,file = "./Data/Detection_History/2022_All_ARUs/Outputs/2022_DeployPeriodTable_CorrectedEffort_ClipMaskedFinalRec_8-14.RData")
+saveRDS(deploy_table3_fin,file = "./Data/Detection_History/2022_All_ARUs/Outputs/2022_DeployPeriodTable_CorrectedEffort_ClipMaskedFinalRec_8-15.RData")
 
 
 

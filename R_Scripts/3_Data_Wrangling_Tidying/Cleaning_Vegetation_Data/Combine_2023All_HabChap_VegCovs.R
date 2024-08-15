@@ -103,7 +103,7 @@ all_dat_fin <- all_dat %>% select(site_id,
                               veg_sd_resid,
                               sd_allveg_core)
 
-#write.csv(all_dat_fin, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_Veg_Covariates_8-12.csv", row.names = FALSE)
+#write.csv(all_dat_fin, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2023Veg_Covariates_8-12.csv", row.names = FALSE)
 
 
 # Create another version of the data that has all of the covariates centered and scaled
@@ -113,9 +113,9 @@ dat1 <- all_dat_fin[,1:9]
 dat2 <- round(scale(all_dat_fin[,10:20]),2)
 all_scaled <- cbind(dat1,dat2)
 
-#write.csv(all_scaled, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_VegCovs_Scaled_8-12.csv", row.names = FALSE)
+#write.csv(all_scaled, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2023VegCovs_Scaled_8-12.csv", row.names = FALSE)
 
 ## Combine this with detection history data
 det <- read.csv("./Data/Detection_History/2023_All_ARUs/Outputs/SiteDetHist_TwoWeekSurvey_Cleaned_7-24.csv")
 det_veg_comb <- left_join(det, all_scaled) %>% select(-c(grts_grouped,x,y))
-#write.csv(det_veg_comb, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/DetHist_VegCovs_Scaled_8-12.csv", row.names = FALSE)
+#write.csv(det_veg_comb, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/DetHist_2023VegCovs_Scaled_8-12.csv", row.names = FALSE)

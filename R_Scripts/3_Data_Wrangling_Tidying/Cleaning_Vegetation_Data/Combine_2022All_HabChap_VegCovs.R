@@ -1,11 +1,15 @@
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Create all habitat covariates data for modeling####
-
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 packages <- c("tidyverse","janitor","ggplot2","corrgram")
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Install_Load_Packages.R")
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Create_Site_SamplingColumn_fromPointID.R")
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 load_packages(packages)
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Data cleaning
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Read in the monitoring locations
 points_forhabchap <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Monitoring_Points/21-23_AllMonitoringPoints_forLiDARExtractions.csv")
 # pull out just the 2022 points
@@ -37,15 +41,14 @@ shrubs_aru <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Wor
 shrubs_aru <- shrubs_aru %>% select(site_id, dominant_community)
 # Change sites with no shrub cover to a different category instead of NA
 shrubs_aru <- shrubs_aru %>% mutate(dominant_community = ifelse(is.na(dominant_community),"no_shrub", dominant_community))
-shrubs_pb <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_PBSites_ShrubDominantCommunity_8-14.csv")
-# remove JDO from this since it's a duplicate - FIGURE OUT WHY ************************************
+shrubs_pb <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_PBSites_ShrubDominantCommunity_8-15.csv")
 shrubs <- rbind(shrubs_aru,shrubs_pb)
 
 # read in data on tree species richness - both deciduous and conifer
 tree_rich_aru <- read.csv("./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_ARUSites_TreeSppRich_8-12.csv")
 # create a dummy variable for conifer presence at site
 tree_rich_aru <- tree_rich_aru %>% mutate(ctree = ifelse(ctree_spp_rich > 0, 1, 0))
-tree_rich_pb <- read.csv("./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_PBSites_TreeSppRich_8-14.csv")
+tree_rich_pb <- read.csv("./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_PBSites_TreeSppRich_8-15.csv")
 # create a dummy variable for conifer presence at site
 tree_rich_pb <- tree_rich_pb %>% mutate(ctree = ifelse(ctree_spp_rich > 0, 1, 0))
 tree_rich <- rbind(tree_rich_aru, tree_rich_pb)
@@ -53,8 +56,6 @@ tree_rich <- rbind(tree_rich_aru, tree_rich_pb)
 all_dat <- left_join(sites_22,lidar_22, by = "site_id")
 all_dat <- left_join(all_dat, shrubs, by ="site_id")
 all_dat <- left_join(all_dat, tree_rich, by = "site_id")
-# WHY IS JDO A MANY TO ONE RELTIONSHIP?????? CHECK THIS
-#length(is.na(all_dat$dtree_spp_rich))
 
 # Create covariate of residuals
 # create the regression model
@@ -109,17 +110,17 @@ all_dat_fin <- all_dat %>% select(site_id,
                               veg_sd_resid,
                               sd_allveg_core)
 
-#write.csv(all_dat_fin, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2022Veg_Covariates_8-14.csv", row.names = FALSE)
+#write.csv(all_dat_fin, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2022Veg_Covariates_8-15.csv", row.names = FALSE)
 
 
 # Create another version of the data that has all of the covariates centered and scaled
 #all_scaled <- all_dat_fin
-dat1 <- all_dat_fin[,1:9]
+dat1 <- all_dat_fin[,1:8]
 #dat1 <- all_dat_fin[,5:11]
-dat2 <- round(scale(all_dat_fin[,10:20]),2)
+dat2 <- round(scale(all_dat_fin[,9:19]),2)
 all_scaled <- cbind(dat1,dat2)
 
-#write.csv(all_scaled, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2022VegCovs_Scaled_8-14.csv", row.names = FALSE)
+#write.csv(all_scaled, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2022VegCovs_Scaled_8-15.csv", row.names = FALSE)
 
 
 

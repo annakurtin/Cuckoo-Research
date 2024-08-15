@@ -25,7 +25,7 @@ shrub_orig <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_ShrubData_
 
 # Remove the points that don't have an ARU at it
 veg <- read.csv("./Data/Vegetation_Data/Outputs/2023_VegSurvey_MainData_Cleaned6-19.csv")
-veg_pb <- veg %>% filter(aru_present == "no")
+veg_pb <- veg %>% filter(aru_present == "no") %>% filter(point_id != "JDO-3")
 pb_sites <- veg_pb %>% group_by(site_id) %>% summarize(site_id = first(site_id))
 points_pb <- veg_pb$point_id
 
@@ -74,7 +74,7 @@ spp_rich_tree4 %>% filter(ctree_spp_rich > 0) # 10 1's, 6 2's
 tree_fin <- left_join(spp_rich_tree2, spp_rich_tree4, by = "site_id")
 
 # Write this to .csv
-#write.csv(tree_fin,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_PBSites_TreeSppRich_8-14.csv",row.names = FALSE)
+#write.csv(tree_fin,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_PBSites_TreeSppRich_8-15.csv",row.names = FALSE)
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -118,7 +118,7 @@ shrub_fin <- dominant_shrub_sep %>% select(-c(sampling_design, max_cover))
 
 
 # Write the one you're going to use to .csv
-#write.csv(shrub_fin,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_PBSites_ShrubDominantCommunity_8-14.csv",row.names = FALSE)
+#write.csv(shrub_fin,"./Data/Habitat_Model_Covariates/Occupancy_Covariates/2023_PBSites_ShrubDominantCommunity_8-15.csv",row.names = FALSE)
 
 
 
