@@ -1,0 +1,225 @@
+---
+title: "Playback Detection Model 1"
+author: "Anna Kurtin"
+date: "2024-08-18"
+output: html_document
+---
+
+This is the second version of the detection submodel for the playback data. RIGHT NOW SAME AS MODEL 1 - NOTE USED YET
+**Model structure:**
+
+Naive state model:
+
+$$
+z_i \sim Bernoulli(\psi_i)
+$$ 
+
+$$
+logit(\psi_i) = \alpha_0
+$$ 
+Detection model with six covariates:  
+
+* b1: date
+
+* b2: quadratic effect of date
+
+* b3: number of surveyors
+
+* b4: start time of survey
+
+* b5: wind condition
+
+* b6: starting temperature
+
+
+
+$$
+y_{ij} \sim Bernoulli(p_{ij} * z_i)
+$$
+
+$$
+logit(p_{ij}) = \beta_0 + \beta_{1}*date + \beta_{2}^2*date + \beta_{3}*num obs + \beta_{4}*time + \beta_5*wind + \beta_6*temp
+$$
+
+**Handling of NAs:** omission for detections, imputation for habitat covariates
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(beepr)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+```{r Read in Data}
+pb_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Playback_Results/2023/Outputs/2023_PBData_FormatforOccModSCALED_8-6-24.csv")
+
+detections <- pb_dat[,2:4]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+
+# get the length of non-nas in the detection data
+get_na <- function(x){(max(which(!is.na(x))))}
+# Apply this to our data
+miss <- apply(detections, 1, get_na)
+```
+
+
+```{R Look at Colinearity}
+dates <- pb_dat %>% select(site_id, date_s1, date_s2, date_s3)
+
+# reference code for making the columns long and then combining them
+# dates_long <- dates %>% pivot_longer(cols = c(start_date_s1,
+#                                               start_date_s2,
+#                                               start_date_s3,
+#                                               start_date_s4,
+#                                               start_date_s5,
+#                                               start_date_s6), names_to = "survey_period",values_to = "date" )
+# # rename to s1, s2, etc
+# dates_long <- dates_long %>% mutate(survey_period = case_when(survey_period == "start_date_s1" ~ "s1",
+#                                                 survey_period == "start_date_s2" ~ "s2",
+#                                                 survey_period == "start_date_s3" ~ "s3",
+#                                                 survey_period == "start_date_s4" ~ "s4",
+#                                                 survey_period == "start_date_s5" ~ "s5",
+#                                                 survey_period == "start_date_s6" ~ "s6"))
+# # combine
+# dates_long <- unite(dates_long,site_survey,c(site_id, survey_period),sep="_",remove=TRUE)
+
+obs <- pb_dat %>% select(site_id, num_obs_s1, num_obs_s2, num_obs_s3)
+time <- pb_dat %>% select(site_id, time_s1, time_s2, time_s3)
+wind <- pb_dat %>% select(site_id, wind_s1, wind_s2, wind_s3)
+temp <- pb_dat %>% select(site_id, temp_s1, temp_s2, temp_s3)
+```
+
+```{R Setup JAGS Data}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections,
+  # Date
+  covb1 = dates[,2:4],
+  # num surveyors
+  covb3 = obs[,2:4],
+  # start time 
+  covb4 = time[,2:4],
+  # wind condition
+  covb5 = wind[,2:4],
+  # temp
+  covb6 = temp[,2:4],
+  n_unit = nrow(detections),
+  miss = miss
+)
+
+# Set initial values 
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b1Q = rnorm(1, 0 ,1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1),
+    b5 = rnorm(1, 0, 1),
+    b6 = rnorm(1, 0 ,1)
+  )
+}
+```
+
+```{R PB Model 1 Structure, eval = FALSE}
+cat("
+  model{
+        # Priors
+    a0 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+    b1 ~ dlogis(0, 1)
+    b1Q ~ dlogis(0, 1)
+    b3 ~ dlogis(0, 1)
+    b4 ~ dlogis(0, 1)
+    b5 ~ dlogis(0, 1)
+    b6 ~ dlogis(0, 1)
+  
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+  
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0 
+  
+      for(j in 1:miss[i]){
+       # Impute missing detection data
+        covb1[i,j] ~ dnorm(0, 1)
+        covb3[i,j] ~ dnorm(0, 1)
+        covb4[i,j] ~ dnorm(0, 1)
+        covb5[i,j] ~ dnorm(0, 1)
+        covb6[i,j] ~ dnorm(0, 1)
+  
+        det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
+        mu_p[i,j] <- Z[i]*theta[i,j]
+        logit(theta[i,j]) <- p[i,j]
+        p[i,j] <- b0 + b1*covb1[i,j] + b1Q*(covb1[i,j]^2) + b3*covb3[i,j] + b4*covb4[i,j] + b5*covb5[i,j] + b6*covb6[i,j]
+        # Det NA
+        det_na[i,j] <- det_data[i,j]
+  
+        #Calculate Bayes p-value - plug the parameters into the equation for each sample of the posterior and use this to create new observations
+        Presi[i,j] <- (det_na[i,j] - theta[i,j])^2 # Calculate squared residual of observed data
+        y_new[i,j] ~ dbern(mu_p[i,j])             # Simulate observed data
+        Presi_new[i,j] <- (y_new[i,j] - theta[i,j])^2 # Calculate squared residual error of simulated data
+      }
+    }
+    
+    # Derived parameters
+    ## Calculate sum of squared residual errors for observed 
+    for(i in 1:n_unit){
+       sobs[i] <- sum(Presi[i,1:miss[i]])
+       ssim[i] <- sum(Presi_new[i,1:miss[i]])
+    }
+    
+    SSEobs <- sum(sobs[])
+    SSEsim <- sum(ssim[])
+    p_val <- step(SSEsim - SSEobs)  
+    
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Model_Structure_Files/JAGS_PBMod1.txt")
+
+```
+
+```{R Run Model, results = FALSE}
+fit_1 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Model_Structure_Files/JAGS_PBMod1.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b1Q", "b3", "b4", "b5", "b6", "p_val"),
+                 n.iter = 10000, 
+                 n.burnin = 5000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 inits = init_func)
+beep(sound = 3)
+```
+
+```{R}
+summary(fit_1)
+tracedens_jags(fit_1, parmfrow = c(3,3))
+```
+
+
+```{R Create Violin Plots}
+chains_1 <- jags_df(fit_1)
+
+chains_beta <- chains_1 %>% select(b1, b1Q, b3, b4, b5, b6)
+colnames(chains_beta) <- c("date", "quadratic date", "number_obs", "start_time", "wind_strength","temp")
+chains_beta_l <- chains_beta %>% pivot_longer(cols = c("date", "quadratic date", "number_obs", "start_time", "wind_strength","temp"),names_to = "Parameter", values_to = "Values")
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_beta_l, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Detection Covariates") +
+  scale_fill_manual(values = c("date" = palette_8[1], "quadratic date" = palette_8[2], "number_obs" = palette_8[3], "start_time" = palette_8[4], "wind_strength" = palette_8[5], "temp" = palette_8[6])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  theme_minimal()
+```

@@ -1,0 +1,244 @@
+---
+title: "Methods Chapter ARU Detection Model"
+author: "Anna Kurtin"
+date: "2024-08-12"
+output: html_document
+---
+
+This is the model I will use for the ARU detection probability. I removed the effect of quadratic date to see if my results are the same as detection sub model 4 (they should be, if not it's likely an issue of the data)
+
+
+**Model structure:**
+
+Naive state model:
+$$
+z_i \sim Bernoulli(\psi_i)
+$$ 
+$$
+logit(\psi_i) = \alpha_0
+$$
+
+Process model with four covariates:  
+
+$$
+y_{ij} \sim Bernoulli(p_{ij} * z_i)
+$$
+
+$$
+logit(p_{ij}) = \beta_0 + \beta_{1}*date + \beta_{3} * avg db + \beta_{4}*effort + \beta_{5}*veg_dense
+$$
+
+**Handling of NAs:** Skip for missing detections, imputate missing covariates.
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(corrgram)
+library(beepr)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+Load in formatted data
+
+```{r Load in Data}
+#full_dat <- readRDS(file ="C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Full_DetectionDataSCALED_JAGSModels_HabChap.Rdata")
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_8-12.csv")
+# drop 8 through 23 for detection data
+det_dat <- full_dat[,-c(8:23)]
+
+detections <- full_dat[,2:7]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+
+# get the length of non-nas in the detection data
+get_na <- function(x){(max(which(!is.na(x))))}
+# Apply this to our data
+miss <- apply(detections, 1, get_na)
+```
+
+```{R Look at Covariance, warnings = FALSE, eval =FALSE, echo = FALSE}
+# Pivot this data long to be able to compare 
+dates <- select(det_dat, site_id, 21:26)
+dates_long <- dates %>% pivot_longer(cols = c(start_date_s1,
+                                              start_date_s2,
+                                              start_date_s3,
+                                              start_date_s4,
+                                              start_date_s5,
+                                              start_date_s6), names_to = "survey_period",values_to = "date" )
+# rename to s1, s2, etc
+dates_long <- dates_long %>% mutate(survey_period = case_when(survey_period == "start_date_s1" ~ "s1",
+                                                survey_period == "start_date_s2" ~ "s2",
+                                                survey_period == "start_date_s3" ~ "s3",
+                                                survey_period == "start_date_s4" ~ "s4",
+                                                survey_period == "start_date_s5" ~ "s5",
+                                                survey_period == "start_date_s6" ~ "s6"))
+# combine
+dates_long <- unite(dates_long,site_survey,c(site_id, survey_period),sep="_",remove=TRUE)
+
+db <- select(det_dat, site_id,8:13)
+db_long <- db %>% pivot_longer(cols = c(backdb_survey1,
+                                        backdb_survey2,
+                                        backdb_survey3,
+                                        backdb_survey4,
+                                        backdb_survey5,
+                                        backdb_survey6), names_to = "survey_period",values_to = "db" )
+db_long <- db_long %>% mutate(survey_period = case_when(survey_period == "backdb_survey1" ~ "s1",
+                                                survey_period == "backdb_survey2" ~ "s2",
+                                                survey_period == "backdb_survey3" ~ "s3",
+                                                survey_period == "backdb_survey4" ~ "s4",
+                                                survey_period == "backdb_survey5" ~ "s5",
+                                                survey_period == "backdb_survey6" ~ "s6"))
+db_long <- unite(db_long,site_survey,c(site_id, survey_period),sep="_",remove=TRUE)
+
+effort <- select(det_dat, site_id, 15:20)
+effort_long <- effort %>% pivot_longer(cols = c(effort_survey1,
+                                                effort_survey2,
+                                                effort_survey3,
+                                                effort_survey4,
+                                                effort_survey5,
+                                                effort_survey6), names_to = "survey_period",values_to = "effort" )
+effort_long <- effort_long %>% mutate(survey_period = case_when(survey_period == "effort_survey1" ~ "s1",
+                                                survey_period == "effort_survey2" ~ "s2",
+                                                survey_period == "effort_survey3" ~ "s3",
+                                                survey_period == "effort_survey4" ~ "s4",
+                                                survey_period == "effort_survey5" ~ "s5",
+                                                survey_period == "effort_survey6" ~ "s6"))
+effort_long <- unite(effort_long,site_survey,c(site_id, survey_period),sep="_",remove=TRUE)
+
+covs_long <- left_join(dates_long, db_long, by = "site_survey") %>% left_join(., effort_long, by = "site_survey")
+
+corrgram(covs_long, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in ARU Detection Metrics")
+
+# Include veg density in this comparison 
+# Reformat your long data
+lon2 <- covs_long %>% separate(site_survey, into = c("site_id","survey"), sep = "_") %>% select(-survey) %>% group_by(site_id) %>% summarize(date_avg = mean(date, na.rm = TRUE), db_avg = mean(db, na.rm = TRUE), effort_avg = mean(effort, na.rm = TRUE))
+# pull out veg values
+veg <- select(det_dat, site_id, veg_density_avg_scaled)
+# combine them for comparison
+covs2 <- left_join(lon2, veg, by = "site_id")
+covs2 <- covs2 %>% select(-date_avg)
+
+corrgram(covs2, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in ARU Detection Metrics")
+# veg data isn't colinear with the other covariates
+```
+
+
+```{R}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections,
+  # Date
+  covb1 = dates[,2:7],
+  # Background noise
+  covb3 = db[,2:7],
+  # Effort 
+  covb4 = effort[,2:7],
+  covb5 = veg[,2],
+  n_unit = nrow(detections),
+  miss = miss
+)
+
+# Set initial values 
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1),
+    b5 = rnorm(1, 0, 1)
+  )
+}
+```
+
+
+
+```{R Create Model, eval = FALSE}
+cat("
+  model{
+      # Priors
+    a0 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+    b1 ~ dlogis(0, 1)
+    b3 ~ dlogis(0, 1)
+    b4 ~ dlogis(0, 1)
+    b5 ~ dlogis(0, 1)
+    
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      covb5[i] ~ dnorm(0, 1)
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0
+      
+      
+      for(j in 1:miss[i]){
+        covb1[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        covb3[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        covb4[i,j] ~ dnorm(0, 1) # Assuming normal distribution for missing covariates
+        
+        det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
+        mu_p[i,j] <- Z[i]*theta[i,j]
+        logit(theta[i,j]) <- p[i,j]
+        p[i,j] <- b0 + b1*covb1[i,j] + b3*covb3[i,j] + b4*covb4[i,j] + b5*covb5[i]
+        # Det NA
+        det_na[i,j] <- det_data[i,j]
+  
+        #Calculate Bayes p-value - plug the parameters into the equation for each sample of the posterior and use this to create new observations
+        Presi[i,j] <- (det_na[i,j] - theta[i,j])^2 # Calculate squared residual of observed data
+        y_new[i,j] ~ dbern(mu_p[i,j])             # Simulate observed data
+        Presi_new[i,j] <- (y_new[i,j] - theta[i,j])^2 # Calculate squared residual error of simulated data
+        
+      }
+    }
+    # Derived parameters
+    ## Calculate sum of squared residual errors for observed 
+    for(i in 1:n_unit){
+       sobs[i] <- sum(Presi[i,1:miss[i]])
+       ssim[i] <- sum(Presi_new[i,1:miss[i]])
+    }
+    SSEobs <- sum(sobs[])
+    SSEsim <- sum(ssim[])
+    p_val <- step(SSEsim - SSEobs) 
+  } 
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Model_Structure_Files/JAGS_ARUMod3.txt")
+```
+
+```{R Run Model, eval= FALSE, results = FALSE}
+fit_3 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Model_Structure_Files/JAGS_ARUMod3.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b3", "b4", "b5", "p_val"),
+                 n.iter = 10000, 
+                 n.burnin = 5000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 inits = init_func)
+beep(sound = 3)
+```
+
+```{R Save Model, eval = FALSE, echo = FALSE}
+saveRDS(fit_3, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Models_Ran_Outputs/MetChap_ARUMod3.Rdata")
+```
+
+```{R}
+fit_3 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Models_Ran_Outputs/MetChap_ARUMod3.Rdata")
+summary(fit_3)
+tracedens_jags(fit_3, parmfrow = c(3,3))
+```
+
+This is giving the same results as detection model 4 for the habitat chapter. So it looks like it was the effect of adding the quadratic effect. Why are these affecting each other? Could it be because the parameters are colinear??
+
+

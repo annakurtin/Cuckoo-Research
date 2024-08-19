@@ -2,6 +2,9 @@
 
 # I am formatting the data for the playback survey detection submodel. As of 8/5/2024, this is a more rough and ready version. I haven't gone through with a fine tooth comb to decide which data I'm including and why (start time outside of survey period, didn't record start temp but recorded end temp, etc). If the playback model does converge, I'll go back and look at this in finer detail. 
 
+# Things to deal with - survey 1.5 where they did half of the sites one day?
+# Bailey's survey that started after 11 am?
+
 ### How many sites would we have if we used ARU data from 2021-2023?
 library(tidyverse)
 library(hms)

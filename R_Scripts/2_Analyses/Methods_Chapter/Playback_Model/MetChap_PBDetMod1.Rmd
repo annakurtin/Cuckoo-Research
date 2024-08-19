@@ -1,11 +1,11 @@
 ---
 title: "Playback Detection Model 1"
 author: "Anna Kurtin"
-date: "`r Sys.Date()`"
+date: "2024-08-18"
 output: html_document
 ---
 
-This is the first version of the detection submodel for the playback data. 
+This is the first version of the detection submodel for the playback data. I reviewed Haltermann 2009, Johnson and Benson 2022, and Frieze et al 2012 for effects of covariates on playbacks. Based on these studies, we should look at distance to first detection, temperature, and date (but see note in building habitat models OneNote about distance to first detection). Incorporating my a priori knowledge of the study system, I am incorporating the number of observer, wind speed, and start time of survey.
 
 **Model structure:**
 
@@ -53,6 +53,7 @@ library(tidyverse)
 library(jagshelper)
 library(ggplot2)
 library(beepr)
+library(corrgram)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 ```
 
@@ -73,30 +74,68 @@ miss <- apply(detections, 1, get_na)
 ```
 
 
-```{R Look at Colinearity}
+```{R Look at Colinearity, echo = FALSE, warnings = FALSE}
 dates <- pb_dat %>% select(site_id, date_s1, date_s2, date_s3)
-
-# reference code for making the columns long and then combining them
-# dates_long <- dates %>% pivot_longer(cols = c(start_date_s1,
-#                                               start_date_s2,
-#                                               start_date_s3,
-#                                               start_date_s4,
-#                                               start_date_s5,
-#                                               start_date_s6), names_to = "survey_period",values_to = "date" )
+# Make the columns long and then combine them
+dates_long <- dates %>% pivot_longer(cols = c(date_s1,
+                                              date_s2,
+                                              date_s3), names_to = "survey_period",values_to = "date" )
 # # rename to s1, s2, etc
-# dates_long <- dates_long %>% mutate(survey_period = case_when(survey_period == "start_date_s1" ~ "s1",
-#                                                 survey_period == "start_date_s2" ~ "s2",
-#                                                 survey_period == "start_date_s3" ~ "s3",
-#                                                 survey_period == "start_date_s4" ~ "s4",
-#                                                 survey_period == "start_date_s5" ~ "s5",
-#                                                 survey_period == "start_date_s6" ~ "s6"))
+dates_long <- dates_long %>% mutate(survey_period = case_when(survey_period == "date_s1" ~ "s1",
+                                                survey_period == "date_s2" ~ "s2",
+                                                survey_period == "date_s3" ~ "s3"))
 # # combine
-# dates_long <- unite(dates_long,site_survey,c(site_id, survey_period),sep="_",remove=TRUE)
+dates_long <- unite(dates_long,site_survey,c(site_id, survey_period),sep="_",remove=TRUE)
+hist(dates_long$date, main = "Distribution of Scaled Dates")
 
 obs <- pb_dat %>% select(site_id, num_obs_s1, num_obs_s2, num_obs_s3)
+obs_long <- obs %>% pivot_longer(cols = c(num_obs_s1,
+                                            num_obs_s2,
+                                            num_obs_s3), names_to = "survey_period",values_to = "obs" )
+obs_long <- obs_long %>% mutate(survey_period = case_when(survey_period == "num_obs_s1" ~ "s1",
+                                                survey_period == "num_obs_s2" ~ "s2",
+                                                survey_period == "num_obs_s3" ~ "s3"))
+obs_long <- unite(obs_long,site_survey,c(site_id, survey_period),sep="_",remove=TRUE)
+hist(obs_long$obs, main = "Distribution of Scaled Num Obs")
+
 time <- pb_dat %>% select(site_id, time_s1, time_s2, time_s3)
+time_long <- time %>% pivot_longer(cols = c(time_s1,
+                                            time_s2,
+                                            time_s3), names_to = "survey_period",values_to = "time" )
+time_long <- time_long %>% mutate(survey_period = case_when(survey_period == "time_s1" ~ "s1",
+                                                survey_period == "time_s2" ~ "s2",
+                                                survey_period == "time_s3" ~ "s3"))
+time_long <- unite(time_long,site_survey,c(site_id, survey_period),sep="_",remove=TRUE)
+hist(time_long$time, main = "Distribution of Scaled Start Time")
+
 wind <- pb_dat %>% select(site_id, wind_s1, wind_s2, wind_s3)
+wind_long <- wind %>% pivot_longer(cols = c(wind_s1,
+                                            wind_s2,
+                                            wind_s3), names_to = "survey_period",values_to = "wind" )
+wind_long <- wind_long %>% mutate(survey_period = case_when(survey_period == "wind_s1" ~ "s1",
+                                                survey_period == "wind_s2" ~ "s2",
+                                                survey_period == "wind_s3" ~ "s3"))
+wind_long <- unite(wind_long,site_survey,c(site_id, survey_period),sep="_",remove=TRUE)
+hist(wind_long$wind, main = "Distribution of Scaled Wind Category")
+# not normally distributed - what does this mean????????
+
 temp <- pb_dat %>% select(site_id, temp_s1, temp_s2, temp_s3)
+tmp_long <- temp %>% pivot_longer(cols = c(temp_s1,
+                                            temp_s2,
+                                            temp_s3), names_to = "survey_period",values_to = "temp" )
+tmp_long <- tmp_long %>% mutate(survey_period = case_when(survey_period == "temp_s1" ~ "s1",
+                                                survey_period == "temp_s2" ~ "s2",
+                                                survey_period == "temp_s3" ~ "s3"))
+tmp_long <- unite(tmp_long,site_survey,c(site_id, survey_period),sep="_",remove=TRUE)
+hist(tmp_long$temp, main = "Distribution of Scaled Temperature")
+
+
+covs_long <- left_join(dates_long, obs_long, by = "site_survey") %>% left_join(., time_long, by = "site_survey") %>% left_join(., wind_long, by = "site_survey") %>% left_join(., tmp_long, by = "site_survey")
+
+corrgram(covs_long, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in PB Detection Covariates")
+# These all look ok
 ```
 
 ```{R Setup JAGS Data}
@@ -205,13 +244,25 @@ fit_1 <- jags(data = jags_data,
 beep(sound = 3)
 ```
 
-```{R}
+* b1: date
+
+* b2: quadratic effect of date
+
+* b3: number of surveyors
+
+* b4: start time of survey
+
+* b5: wind condition
+
+* b6: starting temperature
+
+```{R, echo = FALSE}
 summary(fit_1)
 tracedens_jags(fit_1, parmfrow = c(3,3))
 ```
 
 
-```{R Create Violin Plots}
+```{R Create Violin Plots, echo = FALSE}
 chains_1 <- jags_df(fit_1)
 
 chains_beta <- chains_1 %>% select(b1, b1Q, b3, b4, b5, b6)
@@ -225,3 +276,25 @@ ggplot() +
   geom_hline(yintercept = 0, linetype = "solid", color = "black") +
   theme_minimal()
 ```
+
+Baseline detection probability:
+
+```{R, echo = FALSE}
+p <- plogis(fit_1$q50$b0)
+print(p)
+```
+
+Cumulative detection probability:
+
+```{R, echo = FALSE}
+n <- 3
+p_star <- 1 - (1 - p)^n
+print(p_star)
+# how does this line up with our naive estimates of how many sites had detections on ARU vs PB
+```
+
+No covariates super strongly supported (CI doesn't overlap 0)
+
+b1 (date), b2 (quadratic effect of date), b4 (start time of survey), b5 (wind condition) weakly supported by model (.7 < f < .975)
+
+b3 (number of observers) and b6 (temperature) not significant (f < .7)

@@ -30,4 +30,4 @@ all_dat <- all_dat %>% rename(det_s1 = det_survey1.x,
                    det_s6 = det_survey6.x)
 
 # write this to .csv
-write.csv(all_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_8-12.csv", row.names = FALSE)
+#write.csv(all_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_8-12.csv", row.names = FALSE)
