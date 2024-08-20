@@ -1,0 +1,469 @@
+---
+title: "Full Occupancy Model 3"
+author: "Anna Kurtin"
+date: "2024-08-08"
+output: html_document
+---
+This is the fourth iteration of the full occupacy model. From each of the submodels, I carried forward any covariate with f statistic > .70. I assessed covariance of the parameters in the previous model and assessed covariate stability, and discarded subcanopy average height (a5) from this model. This covariate had unstable signs of the parameter effects and was strongly colinear with the parameter estimates of percent subcanopy core (f = -0.483; meaning you can't increase or decrease the effect of one without decreasing or increasing the effect of another).
+
+I went back through and added the effect of conifer species richness after rerunning this submodel. I realized that we want inference on not only deciduous species richness but also to be able to say if they're using sites with conifers at all. 
+
+Still pending the results from why my baseline estimate for occupancy is low and why my waic is low.
+
+**Model structure:**
+
+State model with six covariates:
+
+* a1: tree species richness on point scale (from submodel A2)
+
+* a2: percent canopy on landscape scale (from submodel B2) 
+
+* a3: percent subcanopy on landscape scale (from submodel B2) 
+
+* a4: percent subcanopy on core scale (from submodel C5)
+
+* a6: residual variation in total veg st dev regressed on canopy height (from submodel C5)
+
+* a7: floodplain dominant shrub community type (from submodel A1)
+
+* a8: conifer species richness on a point scale (from submodel A3)
+
+
+$$
+z_i \sim Bernoulli(\psi | \alpha_{1}, \alpha_{2}, \alpha_{3}, \alpha_{4}, \alpha_{6}, \alpha_{7}, \alpha_{8})
+$$ 
+
+
+Process model with four covariates:  
+
+* b1: date
+
+* b2: quadratic effect of date
+
+* b3: average background decibels
+
+* b4: survey effort
+
+$$
+y_{ij} \sim Bernoulli(p| \beta_{1}, \beta_{2}^2,\beta_{3}, \beta_{4})
+$$
+
+**Handling of NAs:** omission for detections, imputation for habitat covariates
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(janitor)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(corrgram)
+library(ggplot2)
+library(beepr)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+```{r Read in Data}
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_8-12.csv")
+
+detections <- full_dat[,2:7]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+
+# get the length of non-nas in the detection data
+get_na <- function(x){(max(which(!is.na(x))))}
+# Apply this to our data
+miss <- apply(detections, 1, get_na)
+```
+
+```{R Visualize Correlations in Data}
+corr_dat <- full_dat %>% select(dtree_spp_rich, pct_can_landsc, pct_subcan_landsc, pct_subcan_core, veg_sd_resid, floodplain_shrub, ctree_spp_rich)
+corrgram(corr_dat, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Habitat Covariates")
+```
+
+```{R Look at Data Distributions}
+hist(full_dat$dtree_spp_rich, main = "Decid tree Spp Richness")
+hist(full_dat$ctree_spp_rich, main = "Conif tree Spp Richness")
+hist(full_dat$pct_can_landsc, breaks = 50, main = "Pct Can Landsc") # has a big positive tail - wouldn't this counter balance the negative tail of the veg sd?
+hist(full_dat$pct_subcan_landsc, breaks = 50, main = "Pct Subcan Landsc")
+hist(full_dat$pct_subcan_core, breaks = 50, main = "Pct Subcan Core")
+hist(full_dat$veg_sd_resid, breaks = 50, main = "Total Veg SD Residuals") # had a big negative tail, could this be what is biasing the mean occupancy low?
+hist(full_dat$floodplain_shrub, main = "Floodplain Shrub Community")
+```
+
+```{R Univariate Relationships, include = FALSE}
+full_dat$bbcu <- apply(full_dat[, 2:7], 1, max, na.rm = TRUE)
+# How does points with BBCU vs not correspond to total veg sd resid?
+plot(full_dat$bbcu~full_dat$veg_sd_resid)
+#fit <- glm(bbcu ~ veg_sd_resid, data = full_dat, family = "binomial")
+
+ggplot(full_dat, aes(x = veg_sd_resid, y = bbcu)) +
+  geom_point(alpha = 0.6) +  # Scatter plot of the data
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, color = "blue") +  # Logistic regression curve
+  labs( x = "Vegetation SD Residuals", y = "BBCU Presence (1) / Absence (0)") +
+  theme_minimal()
+
+plot(full_dat$bbcu~full_dat$pct_can_landsc)
+ggplot(full_dat, aes(x = pct_can_landsc, y = bbcu)) +
+  geom_point(alpha = 0.6) +  # Scatter plot of the data
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, color = "blue") +  # Logistic regression curve
+  labs( x = "Percent Canopy Landscape", y = "BBCU Presence (1) / Absence (0)") +
+  theme_minimal()
+```
+
+```{R Setup JAGS Data}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections,
+  # Native broadleaf tree spp richness
+  cova1 = full_dat$dtree_spp_rich,
+  # % canopy landscape
+  cova2 = full_dat$pct_can_landsc,
+  # % subcanopy landscape
+  cova3 = full_dat$pct_subcan_landsc,
+  # % subcanopy core
+  cova4 = full_dat$pct_subcan_core,
+  # residual veg sd
+  cova6 = full_dat$veg_sd_resid,
+  # floodplain community
+  cova7 = full_dat$floodplain_shrub,
+  # conifer tree spp richness
+  cova8 = full_dat$ctree_spp_rich,
+  # Date
+  covb1 = full_dat[,37:42],
+  # Background noise
+  covb3 = full_dat[,24:29],
+  # Effort 
+  covb4 = full_dat[,31:36],
+  n_unit = nrow(detections),
+  miss = miss
+)
+
+```
+
+
+```{R}
+# Set initial values 
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    a1 = rnorm(1, 0, 1),
+    a2 = rnorm(1, 0, 1),
+    a3 = rnorm(1, 0, 1),
+    a4 = rnorm(1, 0, 1),
+    a6 = rnorm(1, 0, 1),
+    a7 = rnorm(1, 0, 1),
+    a8 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b1Q = rnorm(1, 0 ,1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
+  )
+}
+```
+
+```{R Model 3 Structure, eval = FALSE}
+cat("
+  model{
+        # Priors
+    a0 ~ dlogis(0, 1)
+    a1 ~ dlogis(0, 1)
+    a2 ~ dlogis(0, 1)
+    a3 ~ dlogis(0, 1)
+    a4 ~ dlogis(0, 1)
+    a6 ~ dlogis(0, 1)
+    a7 ~ dlogis(0, 1)
+    a8 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+    b1 ~ dlogis(0, 1)
+    b1Q ~ dlogis(0, 1)
+    b3 ~ dlogis(0, 1)
+    b4 ~ dlogis(0, 1)
+    
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      # Impute missing habitat data
+      cova1[i] ~ dnorm(0, 1)
+      cova2[i] ~ dnorm(0, 1)
+      cova3[i] ~ dnorm(0, 1)
+      cova4[i] ~ dnorm(0, 1)
+      cova6[i] ~ dnorm(0, 1)
+      cova7[i] ~ dnorm(0, 1)
+      cova8[i] ~ dnorm(0, 1)
+       
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0 + a1*cova1[i] + a2*cova2[i] + a3*cova3[i] + a4*cova4[i] + a6*cova6[i] + a7*cova7[i]+ a8*cova8[i]
+      
+      for(j in 1:miss[i]){
+       # Impute missing detection data
+        covb1[i,j] ~ dnorm(0, 1)
+        covb3[i,j] ~ dnorm(0, 1)
+        covb4[i,j] ~ dnorm(0, 1)
+         
+        det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
+        mu_p[i,j] <- Z[i]*theta[i,j]
+        logit(theta[i,j]) <- p[i,j]
+        p[i,j] <- b0 + b1*covb1[i,j] + b1Q*(covb1[i,j]^2) + b3*covb3[i,j] + b4*covb4[i,j]
+        # Create detection data without NAs
+        det_na[i,j] <- det_data[i,j]
+         
+        #Calculate Bayes p-value - plug the parameters into the equation for each sample of the posterior and use this to create new observations
+        Presi[i,j] <- (det_na[i,j] - theta[i,j])^2 # Calculate squared residual of observed data
+        y_new[i,j] ~ dbern(mu_p[i,j])             # Simulate observed data
+        Presi_new[i,j] <- (y_new[i,j] - theta[i,j])^2 # Calculate squared residual error of simulated data
+      }
+    }
+    
+    # Derived parameters
+    ## Back transform the parameters into probabilities
+    pct_can_core <- ilogit(a1)
+    pct_subcan_core <- ilogit(a2)
+    
+    ## Calculate sum of squared residual errors for observed 
+    for(i in 1:n_unit){
+       sobs[i] <- sum(Presi[i,1:miss[i]])
+       ssim[i] <- sum(Presi_new[i,1:miss[i]])
+    }
+    
+    SSEobs <- sum(sobs[])
+    SSEsim <- sum(ssim[])
+    p_val <- step(SSEsim - SSEobs)  
+    
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Full_Occupancy_Model/Model_Structure_Files/JAGS_GlobMod4.txt")
+
+```
+
+```{R Run Model, results = FALSE}
+fit_g4 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Full_Occupancy_Model/Model_Structure_Files/JAGS_GlobMod4.txt",
+                 parameters.to.save = c("a0", "a1", "a2", "a3", "a4", "a6", "a7", "a8", "b0", "b1", "b1Q", "b3", "b4","p_val"),
+                 n.iter = 10000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 inits = init_func)
+beep(sound = 3)
+#Drawing inference from this - need to back transform the parameters
+```
+
+```{R, eval = FALSE, echo = FALSE}
+saveRDS(fit_g4,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Full_Occupancy_Model/Models_Ran_Outputs/HabChap_GlobMod4.Rdata")
+
+```
+
+```{R}
+fit_g4 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Full_Occupancy_Model/Models_Ran_Outputs/HabChap_GlobMod4.Rdata")
+```
+
+```{R}
+summary(fit_g4)
+tracedens_jags(fit_g4, parmfrow = c(3,3))
+```
+
+
+* cova1: Native broadleaf tree spp richness
+
+* cova2: % canopy landscape
+
+* cova3: % subcanopy landscape
+
+* cova4: % subcanopy core
+
+* cova6: residual veg sd
+
+* cova7: floodplain shrubs dominant community
+
+* cova8: Native conifer tree spp richness
+
+
+
+```{R Create Violin Plots, echo = FALSE}
+chains_g4 <- jags_df(fit_g4)
+# Select the chains for our covariates of interest
+chains_viol <- chains_g4 %>% select(a0, a1,a2, a3, a4, a6, a7, a8)
+# Rename them to be more interpretable
+colnames(chains_viol) <- c("psi","decid tree spp rich", "% can landsc", "% subcan landsc", "% subcan core", "residual veg sd", "floodplain shrub","conif tree spp rich")
+# Pivot this longer so that we can visualize it
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("psi", "decid tree spp rich",  "% can landsc", "% subcan landsc", "% subcan core", "residual veg sd", "floodplain shrub","conif tree spp rich"),names_to = "Parameter", values_to = "Values")
+med_vals <- data.frame(vals = c(fit_g4$q50$a0,
+                       fit_g4$q50$a1,
+                       fit_g4$q50$a2,
+                       fit_g4$q50$a3,
+                       fit_g4$q50$a4,
+                       fit_g4$q50$a5,
+                       fit_g4$q50$a6,
+                       fit_g4$q50$a7,
+                       fit_g4$q50$a8),
+                       names = c("psi",
+                                 "decid tree spp rich", 
+                                 "% can landsc", 
+                                 "% subcan landsc", 
+                                 "% subcan core", 
+                                 "residual veg sd", 
+                                 "floodplain shrub",
+                                 "conif tree spp rich")
+                       )
+
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  geom_point(data = med_vals, aes(x = names, y = vals)) +
+  labs(title = "Posterior Distribution of Global Model Covariates") +
+  scale_fill_manual(values = c("psi" = palette_8[8], "decid tree spp rich"=palette_8[1], "% can landsc" = palette_8[2], "% subcan landsc" = palette_8[3], "% subcan core" = palette_8[4],  "residual veg sd" = palette_8[6], "floodplain shrub" = palette_8[7], "conif tree spp rich" = palette_8[8])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  theme_minimal()
+
+chains_beta <- chains_g4 %>% select(b1, b1Q, b3, b4)
+colnames(chains_beta) <- c("date", "quadratic date", "background dB", "effort")
+chains_beta_l <- chains_beta %>% pivot_longer(cols = c("date", "quadratic date", "background dB", "effort"),names_to = "Parameter", values_to = "Values")
+# Create the violin plot
+ggplot() +
+  geom_violin(data=chains_beta_l, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  labs(title = "Posterior Distribution of Detection Covariates") +
+  scale_fill_manual(values = c("date" = palette_5[1], "quadratic date" = palette_5[2], "background dB" = palette_5[3], "effort" = palette_5[4])) + 
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  theme_minimal()
+```
+
+* a1: tree species richness on point scale (from submodel A2)
+
+* a2: percent canopy on landscape scale (from submodel B2) 
+
+* a3: percent subcanopy on landscape scale (from submodel B2) 
+
+* a4: percent subcanopy on core scale (from submodel C5)
+
+* a6: residual variation in total veg st dev regressed on canopy height (from submodel C5)
+
+* a7: floodplain dominant shrub community type (from submodel A1)
+
+* a8: conifer species richness on a point scale (from submodel A3)
+
+```{R Format Data for Caterpillar Plot, echo = FALSE}
+# Make the summary of the model into a dataframe
+cat_dat <- as.data.frame(fit_g4$summary)
+# Clean and change names, convert rownames into the columns
+cat_dat <- cat_dat %>% clean_names() %>% rename(ci_lower = x2_5_percent,median = x50_percent,ci_upper = x97_5_percent) %>% rownames_to_column("param")
+cat_dat <- cat_dat %>% mutate(f_stat = round(f,2))
+# Select columns of interest
+cat_dat <- cat_dat %>% select(param, ci_lower, median, ci_upper, overlap0, f_stat)
+# Drop p val and deviance
+cat_dat <- cat_dat[2:8,]
+# Change names to reflect actual parameters of interest
+cat_dat <- cat_dat %>% mutate(name = case_when(param == "a1" ~ "decid tree rich",
+                             param == "a2" ~ "% can landsc",
+                             param == "a3" ~ "% subcan landsc",
+                             param == "a4" ~ "% subcan core",
+                             param == "a6" ~ "resid veg sd",
+                             param == "a7" ~ "floodplain shrub",
+                             param == "a8" ~ "conifer tree rich"))
+```
+```{R Caterpillar Plots}
+# Plot this
+ggplot(data = cat_dat) +
+  geom_segment(mapping = aes(x = ci_lower, xend = ci_upper, y = name), linewidth = 2)+
+  geom_vline(xintercept = 0) +
+  geom_text(aes(x = ci_upper, y = name, label = f_stat), hjust = -0.2, color = "blue") +
+  labs(x = "95% Credible Interval", y = "Parameter") +
+  theme_minimal()
+
+```
+
+
+```{R WAIC G3, echo = FALSE}
+# Extract samples from the posterior
+g4_s <- jags.samples(fit_g4$model,
+                           c("WAIC","deviance"),
+                           type = "mean",
+                           n.iter = 5000,
+                           n.burnin = 1000,
+                           n.thin = 2)
+beep()
+# Duplicate WAIC samples - the WAIC is the posterior mean for that sample?
+g4_s$p_waic <- g4_s$WAIC
+# Calculate a new waic by adding the waic plus the deviance
+g4_s$waic_calc <- g4_s$deviance + g4_s$p_waic
+# Create a new vector of the sum across each array (sum WAIC, sum deviance, sum p_waic, and sum waic_calc)
+tmp <- sapply(g4_s, sum)
+# Pull out the sum of the WAIC we calculated and the p_waic we duplicated
+waic_g4 <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
+# Calculate the standard error for WAIC
+g4_waic_se <- sd(g4_s$waic_calc)/(sqrt(length(g4_s$waic_calc)))
+```
+
+
+```{R Look at Parameter Correlation}
+# Create a matrix of the mcmc chains for each parameter
+mat <- cbind(fit_g3$sims.list$a0,fit_g3$sims.list$a1,fit_g3$sims.list$a2,
+             fit_g3$sims.list$a3,fit_g3$sims.list$a4,
+             fit_g3$sims.list$a6,fit_g3$sims.list$a7)
+# run a correlation test on the chains - here, I'm looking for values that are larger than other values
+r <- cor(mat)
+# look at the information contained within the MCMC chains, if the last eigenvector is close to zero, you don't have a lot of information here, probably as a result of colinearity 
+eigen(r)
+
+```
+
+**Thoughts and lingering questions:**
+
+* Why is our intercept estimate baised low? (Pending input from Thomas R)
+
+
+```{R Graveyard, include = FALSE, eval = FALSE}
+# Format data from the summary
+cat_dat1 <- data.frame(names = c("psi",
+                                 "decid tree spp rich", 
+                                 "% can landsc", 
+                                 "% subcan landsc", 
+                                 "% subcan core", 
+                                 "residual veg sd", 
+                                 "floodplain shrub",
+                                 "conif tree spp rich",
+                                 "p",
+                                 "date",
+                                 "quad date",
+                                 "background noise",
+                                 "effort",
+                                 "p_val",
+                                 "deviance"),
+                       dist_lower = list(fit_g4$q2.5))
+cat_dat <- data.frame(names =  c("psi",
+                                 "decid tree spp rich", 
+                                 "% can landsc", 
+                                 "% subcan landsc", 
+                                 "% subcan core", 
+                                 "residual veg sd", 
+                                 "floodplain shrub",
+                                 "conif tree spp rich"),
+                      dist_lower = c(fit_g4$q2.5$a0,
+                                     fit_g4$q2.5$a1,
+                                     fit_g4$q2.5$a2,
+                                     fit_g4$q2.5$a3,
+                                     fit_g4$q2.5$a4,
+                                     fit_g4$q2.5$a5,
+                                     fit_g4$q2.5$a6,
+                                     fit_g4$q2.5$a7,
+                                     fit_g4$q2.5$a8),
+                      dist_upper = c(fit_g4$q97.5$a0,
+                                     fit_g4$q97.5$a1,
+                                     fit_g4$q97.5$a2,
+                                     fit_g4$q97.5$a3,
+                                     fit_g4$q97.5$a4,
+                                     fit_g4$q97.5$a5,
+                                     fit_g4$q97.5$a6,
+                                     fit_g4$q97.5$a7,
+                                     fit_g4$q97.5$a8))
+
+
+```

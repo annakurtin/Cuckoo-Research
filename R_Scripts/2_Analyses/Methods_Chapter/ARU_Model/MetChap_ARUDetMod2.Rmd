@@ -235,11 +235,24 @@ beep(sound = 3)
 saveRDS(fit_2, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Models_Ran_Outputs/MetChap_ARUMod2.Rdata")
 ```
 
+### Model outputs: 
 ```{R}
 fit_2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Models_Ran_Outputs/MetChap_ARUMod2.Rdata")
 summary(fit_2)
-tracedens_jags(fit_2, parmfrow = c(3,3))
+tracedens_jags(fit_2, parmfrow = c(3,4))
 ```
+
+**Reminder of covariates:**
+
+* covb1 = date
+
+* covb1Q: quadratic effect of date
+
+* covb3: background noise
+
+* covb4: effort
+
+* covb5: veg density 
 
 
 ```{R Create Violin Plots}
@@ -251,29 +264,29 @@ chains_viol <- chains_m %>% select(b1,b1Q,b3,b4, b5)
 colnames(chains_viol) <- c("date","quadratic date","background_noise","effort", "veg_density")
 # Pivot this longer so that we can visualize it
 chains_viol_long <- chains_viol %>% pivot_longer(cols = c("date","quadratic date","background_noise","effort", "veg_density"),names_to = "Parameter", values_to = "Values")
+# Select the median values and associate them with their names
+med_vals <- data.frame(vals = c(fit_2$q50$b1,fit_2$q50$b1Q, fit_2$q50$b3, fit_2$q50$b4, fit_2$q50$b5), name = c("date","quadratic date","background_noise","effort", "veg_density"))
 
 # Create the violin plot
 ggplot() +
   geom_violin(data=chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  geom_point(data = med_vals, aes(x = name, y = vals)) +
   labs(title = "Posterior Distribution of Detection Covariates") +
   scale_fill_manual(values = c("date"=palette_5[1], "quadratic date" = palette_5[5],"background_noise"=palette_5[2], "effort" = palette_5[3], "veg_density" = palette_5[4])) + 
   geom_hline(yintercept = 0, linetype = "solid", color = "black") +
   theme_minimal()
 ```
 
-Baseline detection probability:
 
-```{R, echo = FALSE}
-p <- plogis(fit_2$q50$b0)
-print(p)
-```
+Detection probability estimates:
 
-Cumulative detection probability:
+```{R}
+p <- round(plogis(fit_2$q50$b0),4)
+print(paste0("Estimate for detection probability of a single ARU survey:",p))
 
-```{R, echo = FALSE}
 n <- 6
-p_star <- 1 - (1 - p)^n
-print(p_star)
+p_star <- round(1 - (1 - p)^n, 4)
+print(paste0("Estimate for cumulative ARU detection probability:",p_star))
 # how does this line up with our naive estimates of how many sites had detections on ARU vs PB?
 pb_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Playback_Results/2023/Outputs/2023_PBData_FormatforOccModSCALED_8-6-24.csv")
 pb_dat$bbcu_pb <- apply(pb_dat[, 2:4], 1, max, na.rm = TRUE)
@@ -285,14 +298,24 @@ aru <- full_dat %>% select(site_id, bbcu_aru)
 #sum(aru$bbcu_aru)
 comp_dat <- inner_join(aru,pb, by = "site_id")
 
-naive_aru <- (sum(comp_dat$bbcu_aru)/nrow(comp_dat)) * 100
-naive_pb <- (sum(comp_dat$bbcu_pb)/nrow(comp_dat)) * 100
+comp_dat$pres <- apply(comp_dat[, 2:3], 1, max, na.rm = TRUE)
+# how many sites truly had cuckoos?
+sum(comp_dat$pres)
+
+# What is the naive estimate for detection probability for each method?
+# Naive occupancy estimate
+naiveocc_aru <- (sum(comp_dat$bbcu_aru)/nrow(comp_dat)) * 100
+naivedet_aru <- round((sum(comp_dat$bbcu_aru)/sum(comp_dat$pres)) * 100, 2)
+naiveocc_pb <- (sum(comp_dat$bbcu_pb)/nrow(comp_dat)) * 100
+naivedet_pb <- (sum(comp_dat$bbcu_pb)/sum(comp_dat$pres)) * 100
+print(paste0("Naive detection estimate:", naivedet_aru))
+# what would the value for occupancy with playbacks be if we corrected it by the detection?
 ```
 
-Thoughts: 
+*Thoughts and lingering questions:*
 
-Vegetation density changed the f statistic. 
+* Including vegetation density in this model: the f statistic changed from the model that didn't have the quadratic effect of date. 
 
-F statistics changed for veg density and effort. Veg density f statistic increased relative to the model without a quadratic effect on date, and survey effort f statistic decreased relative to model without quadratic effect on date. 
+* F statistics changed for veg density and effort. Veg density f statistic increased relative to the model without a quadratic effect on date, and survey effort f statistic decreased relative to model without quadratic effect on date. 
 
-Also, the playback esitmates of detection probability seem a bit high. 
+* When we compare aru vs playback detections, are we comparing the same thing??

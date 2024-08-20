@@ -5,7 +5,7 @@ date: "2024-08-18"
 output: html_document
 ---
 
-This is the first version of the detection submodel for the playback data. I reviewed Haltermann 2009, Johnson and Benson 2022, and Frieze et al 2012 for effects of covariates on playbacks. Based on these studies, we should look at distance to first detection, temperature, and date (but see note in building habitat models OneNote about distance to first detection). Incorporating my a priori knowledge of the study system, I am incorporating the number of observer, wind speed, and start time of survey.
+This is the first version of the detection submodel for the playback data. I reviewed Haltermann 2009, Johnson and Benson 2022, and Frieze et al 2012 for effects of covariates on playbacks. Based on these studies, we should look at distance to first detection, temperature, and date (but see note in building habitat models OneNote about distance to first detection). Incorporating my a priori knowledge of the study system, I am incorporating the number of observers, wind speed, and start time of survey.
 
 **Model structure:**
 
@@ -32,7 +32,7 @@ Detection model with six covariates:
 
 * b6: starting temperature
 
-*note: I'm leaving out sky condition here since its a categorical variable*
+*Note: I'm leaving out sky condition here since I haven't read anything that indicated cloud cover or presence of fog affects detection and as a categorical variable including all levels will decrease our power*
 
 
 $$
@@ -117,7 +117,7 @@ wind_long <- wind_long %>% mutate(survey_period = case_when(survey_period == "wi
                                                 survey_period == "wind_s3" ~ "s3"))
 wind_long <- unite(wind_long,site_survey,c(site_id, survey_period),sep="_",remove=TRUE)
 hist(wind_long$wind, main = "Distribution of Scaled Wind Category")
-# not normally distributed - what does this mean????????
+# not normally distributed - still not 100% sure if I'm imputing this the right way 
 
 temp <- pb_dat %>% select(site_id, temp_s1, temp_s2, temp_s3)
 tmp_long <- temp %>% pivot_longer(cols = c(temp_s1,
@@ -174,6 +174,7 @@ init_func <- function(){
 }
 ```
 
+
 ```{R PB Model 1 Structure, eval = FALSE}
 cat("
   model{
@@ -199,7 +200,7 @@ cat("
         covb1[i,j] ~ dnorm(0, 1)
         covb3[i,j] ~ dnorm(0, 1)
         covb4[i,j] ~ dnorm(0, 1)
-        covb5[i,j] ~ dnorm(0, 1)
+        covb5[i,j] ~ dnorm(0, 1) # changed from normal to negative binomial to be closer to the actual distribution of the data? changed back - since data is scaled, normal will work bc there are continuous and negative values
         covb6[i,j] ~ dnorm(0, 1)
   
         det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
@@ -244,6 +245,18 @@ fit_1 <- jags(data = jags_data,
 beep(sound = 3)
 ```
 
+```{R Save Model, eval = FALSE, echo = FALSE}
+saveRDS(fit_1, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Models_Ran_Outputs/MetChap_PBMod1.Rdata")
+```
+
+### Model Outputs: 
+
+```{R Read Model}
+fit_1 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Models_Ran_Outputs/MetChap_PBMod1.Rdata")
+```
+
+**Reminder of covariates:**
+
 * b1: date
 
 * b2: quadratic effect of date
@@ -258,7 +271,7 @@ beep(sound = 3)
 
 ```{R, echo = FALSE}
 summary(fit_1)
-tracedens_jags(fit_1, parmfrow = c(3,3))
+tracedens_jags(fit_1, parmfrow = c(3,4))
 ```
 
 
@@ -268,29 +281,16 @@ chains_1 <- jags_df(fit_1)
 chains_beta <- chains_1 %>% select(b1, b1Q, b3, b4, b5, b6)
 colnames(chains_beta) <- c("date", "quadratic date", "number_obs", "start_time", "wind_strength","temp")
 chains_beta_l <- chains_beta %>% pivot_longer(cols = c("date", "quadratic date", "number_obs", "start_time", "wind_strength","temp"),names_to = "Parameter", values_to = "Values")
+# Select the median values and associate them with their names
+med_vals <- data.frame(vals = c(fit_1$q50$b1,fit_1$q50$b1Q, fit_1$q50$b3, fit_1$q50$b4, fit_1$q50$b5, fit_1$q50$b6), name = c("date", "quadratic date", "number_obs", "start_time", "wind_strength","temp"))
 # Create the violin plot
 ggplot() +
   geom_violin(data=chains_beta_l, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+  geom_point(data = med_vals, aes(x = name, y = vals)) +
   labs(title = "Posterior Distribution of Detection Covariates") +
   scale_fill_manual(values = c("date" = palette_8[1], "quadratic date" = palette_8[2], "number_obs" = palette_8[3], "start_time" = palette_8[4], "wind_strength" = palette_8[5], "temp" = palette_8[6])) + 
   geom_hline(yintercept = 0, linetype = "solid", color = "black") +
   theme_minimal()
-```
-
-Baseline detection probability:
-
-```{R, echo = FALSE}
-p <- plogis(fit_1$q50$b0)
-print(p)
-```
-
-Cumulative detection probability:
-
-```{R, echo = FALSE}
-n <- 3
-p_star <- 1 - (1 - p)^n
-print(p_star)
-# how does this line up with our naive estimates of how many sites had detections on ARU vs PB
 ```
 
 No covariates super strongly supported (CI doesn't overlap 0)
@@ -298,3 +298,51 @@ No covariates super strongly supported (CI doesn't overlap 0)
 b1 (date), b2 (quadratic effect of date), b4 (start time of survey), b5 (wind condition) weakly supported by model (.7 < f < .975)
 
 b3 (number of observers) and b6 (temperature) not significant (f < .7)
+
+
+
+
+Detection probability estimates
+
+```{R Look at Detection Prob Estimates}
+p <- round(plogis(fit_1$q50$b0),4)
+print(paste0("Detection probability for one survey:",p*100))
+
+n <- 3
+p_star <- round(1 - (1 - p)^n,4)
+print(paste0("Cumulative estimated detection probability:",p_star*100))
+# how does this line up with our naive estimates of how many sites had detections on ARU vs PB
+
+# how does this line up with our naive estimates of how many sites had detections on ARU vs PB?
+aru_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_8-12.csv")
+aru_dat$bbcu_aru <- apply(aru_dat[, 2:7], 1, max, na.rm = TRUE)
+aru <- aru_dat %>% select(site_id, bbcu_aru)
+#sum(pb$bbcu_pb)
+
+pb_dat$bbcu_pb <- apply(pb_dat[,2:4], 1, max, na.rm = TRUE)
+pb <- pb_dat %>% select(site_id, bbcu_pb)
+#sum(aru$bbcu_aru)
+comp_dat <- inner_join(aru,pb, by = "site_id")
+
+comp_dat$pres <- apply(comp_dat[, 2:3], 1, max, na.rm = TRUE)
+# how many sites truly had cuckoos?
+#sum(comp_dat$pres)
+
+# What is the naive estimate for detection probability for each method?
+# Naive occupancy estimate
+naiveocc_aru <- (sum(comp_dat$bbcu_aru)/nrow(comp_dat)) * 100
+naivedet_aru <- (sum(comp_dat$bbcu_aru)/sum(comp_dat$pres)) * 100
+naiveocc_pb <- (sum(comp_dat$bbcu_pb)/nrow(comp_dat)) * 100
+naivedet_pb <- round((sum(comp_dat$bbcu_pb)/sum(comp_dat$pres)) * 100,2)
+print(paste0("Naive detection estimate:", naivedet_pb))
+# what would the value for occupancy with playbacks be if we corrected it by the detection?
+```
+
+
+*Thoughts and lingering questions:*
+
+* Why is the estimate of cumulative detection probability from the model so high?
+
+* Are there potentially too many covariates for this model? Are we suffering from low power?
+
+* When we compare aru vs playback detections, are we comparing the same thing??
