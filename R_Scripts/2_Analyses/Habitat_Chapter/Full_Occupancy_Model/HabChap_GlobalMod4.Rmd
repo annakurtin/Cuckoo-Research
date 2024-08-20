@@ -381,7 +381,7 @@ ggplot(data = cat_dat) +
 ```
 
 
-```{R WAIC G3, echo = FALSE}
+```{R WAIC G3, echo = FALSE, eval = FALSE}
 # Extract samples from the posterior
 g4_s <- jags.samples(fit_g4$model,
                            c("WAIC","deviance"),
@@ -405,9 +405,9 @@ g4_waic_se <- sd(g4_s$waic_calc)/(sqrt(length(g4_s$waic_calc)))
 
 ```{R Look at Parameter Correlation}
 # Create a matrix of the mcmc chains for each parameter
-mat <- cbind(fit_g3$sims.list$a0,fit_g3$sims.list$a1,fit_g3$sims.list$a2,
-             fit_g3$sims.list$a3,fit_g3$sims.list$a4,
-             fit_g3$sims.list$a6,fit_g3$sims.list$a7)
+mat <- cbind(fit_g4$sims.list$a0,fit_g4$sims.list$a1,fit_g4$sims.list$a2,
+             fit_g4$sims.list$a3,fit_g4$sims.list$a4,
+             fit_g4$sims.list$a6,fit_g4$sims.list$a7, fit_g4$sims.list$a8)
 # run a correlation test on the chains - here, I'm looking for values that are larger than other values
 r <- cor(mat)
 # look at the information contained within the MCMC chains, if the last eigenvector is close to zero, you don't have a lot of information here, probably as a result of colinearity 
