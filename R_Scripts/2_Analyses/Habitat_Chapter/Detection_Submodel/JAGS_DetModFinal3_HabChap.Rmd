@@ -1,0 +1,366 @@
+---
+title: "Habitat Chapter Detection Sub Model Final 3"
+author: "Anna Kurtin"
+date: "8/26/2024"
+output: html_document
+---
+
+#### Explanation of model: 
+
+This model is me redoing the detection submodel to streamline and clarify my covariate selection process for the final global model. Here is a list of  the previous iterations of this model (also on OneNote):
+
+* Detection Submodel 1: Nothing taken from this model, I did this wrong and had the wrong idea about priors. 
+
+* Detection Submodel 2: Used different priors (normal). All covariates, no quadratic effects.
+
+* Detection Submodel 3: No markdown from this iteration, skipped
+
+* Detection Submodel 4: Same model structure as submodel 3 but with proper logistic priors
+
+* Detection Submodel 5: Same model structure and priors as submodel 4 but with quadratic effect on date
+
+* Detection Submodel 6: Same model structure and priors as submodel 5 but with veg density (non significant effect) removed. 
+
+This model is all of the parameters plus a quadratic effect on background db. Looking at the distribution of the covariates, it looks like there might be a quadratic effect, since most of the detections are at intermediate levels of background db. However, I have a hunch that this might be just because the data is sparse on either end of this covariate. Additionally, the quiet nights with background noise way lower than average 
+
+
+#### Model structure:
+
+**State Model:** naive
+
+$$
+Z_i \sim Bernoulli(\psi_i)
+$$
+
+
+**Detection Model**: with 5 covariates
+
+$$
+y_{ij} \sim Bernoulli(p_{ij}| \beta_1, \beta_2, \beta_{2Q}, \beta_3, \beta_4)
+$$
+
+$$\beta_1: \text{vegetation density}$$ 
+
+$$\beta_2: \text{background decibels}$$ 
+
+$$\beta_3: \text{survey effort}$$ 
+
+$$\beta_4: \text{survey start date}$$  
+
+$$\beta_4Q: \text{quadratic effect of start date}$$ 
+
+
+
+**Handling of NAs:** imputation for missing habitat parameters, skipping missing detection data
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(patchwork)
+library(ggdist)
+library(beepr)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+ 
+
+```{R}
+# Load in most recent version of data
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_8-12.csv")
+```
+
+### Visualize distribution of scaled covariates
+
+```{R Visual Cov 1 Veg Dense}
+veg <- full_dat %>% select(2:7, veg_density_avg_scaled)
+veg$det <- apply(veg[,1:6], 1, max, na.rm = TRUE)
+
+vegplot <- ggplot(veg) +
+  geom_jitter(aes(x = veg_density_avg_scaled, y = det), color = palette_5[1], width = 0, height = .05) +
+  geom_smooth(aes(x = veg_density_avg_scaled, y = det), color = palette_5[1],se = FALSE, method = "glm", method.args = list(family = "binomial")) +
+  labs(x = "Vegetation Density", y = "Detection") + theme_minimal()
+```
+
+```{R Pivot Survey Level Data}
+survey_dat <- full_dat %>% select(2:7, 24:29,31:42)
+# first select the data columns of interest
+dates <- full_dat %>% select(site_id, 37:42)
+effort <- full_dat %>% select(site_id, 31:36)
+backdb <- full_dat %>% select(site_id, 24:29)
+
+# Then for each sub dataset, pivot longer, rename to s1,s2, etc and unite with site_id for site_survey
+dates_long <- dates %>% pivot_longer(cols = c(start_date_s1,
+                                               start_date_s2,
+                                               start_date_s3,
+                                               start_date_s4,
+                                               start_date_s5,
+                                               start_date_s6), names_to = "survey_period",values_to = "date") 
+dates_long <- dates_long %>% mutate(survey_period = case_when(survey_period == "start_date_s1" ~ "s1",
+                                                 survey_period == "start_date_s2" ~ "s2",
+                                                 survey_period == "start_date_s3" ~ "s3",
+                                                 survey_period == "start_date_s4" ~ "s4",
+                                                 survey_period == "start_date_s5" ~ "s5",
+                                                 survey_period == "start_date_s6" ~ "s6")) 
+dates_long <- dates_long %>% unite(site_survey, c("site_id", "survey_period"), sep = "_")
+
+effort_long <- effort %>% pivot_longer(cols = c(effort_survey1,
+                                               effort_survey2,
+                                               effort_survey3,
+                                               effort_survey4,
+                                               effort_survey5,
+                                               effort_survey6), names_to = "survey_period",values_to = "effort") 
+effort_long <- effort_long %>% mutate(survey_period = case_when(survey_period == "effort_survey1" ~ "s1",
+                                                 survey_period == "effort_survey2" ~ "s2",
+                                                 survey_period == "effort_survey3" ~ "s3",
+                                                 survey_period == "effort_survey4" ~ "s4",
+                                                 survey_period == "effort_survey5" ~ "s5",
+                                                 survey_period == "effort_survey6" ~ "s6")) 
+effort_long <- effort_long %>% unite(site_survey, c("site_id", "survey_period"), sep = "_")
+
+
+backdb_long <- backdb %>% pivot_longer(cols = c(backdb_survey1,
+                                               backdb_survey2,
+                                               backdb_survey3,
+                                               backdb_survey4,
+                                               backdb_survey5,
+                                               backdb_survey6), names_to = "survey_period",values_to = "backdb") 
+backdb_long <- backdb_long %>% mutate(survey_period = case_when(survey_period == "backdb_survey1" ~ "s1",
+                                                 survey_period == "backdb_survey2" ~ "s2",
+                                                 survey_period == "backdb_survey3" ~ "s3",
+                                                 survey_period == "backdb_survey4" ~ "s4",
+                                                 survey_period == "backdb_survey5" ~ "s5",
+                                                 survey_period == "backdb_survey6" ~ "s6")) 
+backdb_long <- backdb_long %>% unite(site_survey, c("site_id", "survey_period"), sep = "_")
+
+# Format detection data long as well 
+dets <- full_dat %>% select(1:7)
+det_long <- dets %>% pivot_longer(cols = c(det_s1,
+                                               det_s2,
+                                               det_s3,
+                                               det_s4,
+                                               det_s5,
+                                               det_s6), names_to = "survey_period", values_to = "det")
+det_long <- det_long %>% mutate(survey_period = case_when(survey_period == "det_s1" ~ "s1",
+                                                 survey_period == "det_s2" ~ "s2",
+                                                 survey_period == "det_s3" ~ "s3",
+                                                 survey_period == "det_s4" ~ "s4",
+                                                 survey_period == "det_s5" ~ "s5",
+                                                 survey_period == "det_s6" ~ "s6")) 
+det_long <- det_long %>% unite(site_survey, c("site_id", "survey_period"), sep = "_")
+
+# Unite all of them into one dataframe 
+dat_long <- det_long %>% left_join(dates_long, by = "site_survey") %>% left_join(effort_long, by = "site_survey") %>% left_join(backdb_long, by = "site_survey")
+```
+
+```{R Visual Cov 2 Back dB}
+dbplot <- ggplot(dat_long) +
+  geom_jitter(aes(x = backdb, y = det), color = palette_5[2], width = 0, height = .05) +
+  geom_smooth(aes(x = backdb, y = det), color = palette_5[2], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
+  labs(x = "Background Noise", y = "Detection") + theme_minimal()
+```
+
+```{R Visual Cov 3 Survey Effort}
+effortplot <- ggplot(dat_long) +
+  geom_jitter(aes(x = effort, y = det), color = palette_5[3], width = .05, height = .05) +
+  geom_smooth(aes(x = effort, y = det), color = palette_5[3], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
+  labs(x = "Survey Effort", y = "Detection") + theme_minimal()
+# What's going on with this????
+```
+
+```{R Visual Cov 4 Date}
+dateplot <- ggplot(dat_long) +
+  geom_jitter(aes(x = date, y = det), color = palette_5[4], width = .05, height = .05) +
+  geom_smooth(aes(x = date, y = det), color = palette_5[5], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
+  labs(x = "Date", y = "Detection") + theme_minimal()
+```
+
+```{R Arrange Figures}
+vegplot + dbplot
+
+effortplot + dateplot
+```
+
+```{R Set up Data}
+detections <- full_dat[,2:7]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+
+# get the length of non-nas in the detection data
+get_na <- function(x){(max(which(!is.na(x))))}
+# Apply this to our data
+miss <- apply(detections, 1, get_na)
+```
+
+$$\beta_1: \text{vegetation density}$$ 
+
+$$\beta_2: \text{background decibels}$$ 
+
+$$\beta_3: \text{survey effort}$$ 
+
+$$\beta_4: \text{survey start date}$$  
+
+$$\beta_{4Q}: \text{quadratic effect of start date}$$ 
+
+```{R}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections,
+  # Veg density
+  cov1 = veg$veg_density_avg_scaled,
+  # Background noise
+  cov2 = backdb[,-1],
+  # Effort 
+  cov3 = effort[,-1],
+  # Date
+  cov4 = dates[,-1],
+  n_unit = nrow(detections),
+  miss = miss
+)
+
+# Set initial values \
+init_func_fin3 <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b2 = rnorm(1, 0 ,1),
+    b2Q = rnorm(1, 0, 1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1)
+  )
+}
+# do we have informative priors for any of these???
+
+```
+
+
+#### Set up model with all the covariates used in this model. 
+```{R}
+cat("
+  model{
+        # Priors
+    a0 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+    b1 ~ dlogis(0, 1)
+    b2 ~ dlogis(0, 1)
+    b2Q ~ dlogis(0, 1)
+    b3 ~ dlogis(0, 1)
+    b4 ~ dlogis(0, 1)
+  
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      # Impute missing habitat data
+      cov1[i] ~ dnorm(0, 1)
+  
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0 
+      
+      for(j in 1:miss[i]){
+       # Impute missing detection data
+        cov2[i,j] ~ dnorm(0, 1)
+        cov3[i,j] ~ dnorm(0, 1)
+        cov4[i,j] ~ dnorm(0, 1)
+  
+        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
+        logit(theta[i,j]) <- b0 + b1*cov1[i] + b2*cov2[i,j] + b2Q*(cov2[i,j]^2) + b3*cov3[i,j] + b4*cov4[i,j]
+        
+      }
+    }
+    
+    # Derived parameters
+    
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_DetMod_Fin3.txt")
+
+
+```
+
+```{R Run Model, results = FALSE}
+habdet_f3 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_DetMod_Fin3.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b2", "b2Q","b3", "b4"),
+                 n.iter = 10000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 inits = init_func_fin3)
+beep()
+```
+
+```{R}
+summary(habdet_f3)
+tracedens_jags(habdet_f3, parmfrow = c(3,3))
+```
+
+
+#### Plot results and interpret output
+
+```{R Create Plots of Posterior Distribution}
+# plotting with ggdist: https://mjskay.github.io/ggdist/
+# Plot posterior distribution
+chains_f3 <- jags_df(habdet_f3)
+# Select the chains for our covariates of interest
+chains_viol <- chains_f3 %>% select(b1,b2,b2Q,b3,b4)
+# Rename them to be more interpretable
+colnames(chains_viol) <- c("veg density","background noise","quadratic background noise", "effort","date")
+# Pivot this longer so that we can visualize it
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("veg density","background noise","quadratic background noise","effort","date"),names_to = "parameter", values_to = "values")
+
+# Create the slab interval plot
+ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)) + 
+  # Plot posterior distributions
+  stat_slabinterval() +
+  # Establish colors
+  scale_fill_manual(values = c("veg density"=palette_5[1], "background noise" = palette_5[2],"quadratic background noise" = palette_8[1], "effort"=palette_5[3], "date" = palette_5[4], "quadratic date" = palette_5[5])) +
+  # Add a line for 0 to show overlap of posterior
+  geom_vline(xintercept = 0) +
+  # Remove background color from plots
+  theme_minimal() +
+  # Turn off the legend
+  guides(fill = FALSE)
+# How can I add the prior distributions on top of this?
+```
+
+#### Build model with quadratic effect on either veg density and date
+
+Should I build this separately from the rest of the model/do a univariate model?
+
+#### WAIC: compare with other models
+
+```{R Extract WAIC}
+# Extract samples from the posterior
+f3_s <- jags.samples(habdet_f3$model,
+                           c("WAIC","deviance"),
+                           type = "mean",
+                           n.iter = 5000,
+                           n.burnin = 1000,
+                           n.thin = 2)
+beep()
+# Duplicate WAIC samples - the WAIC is the posterior mean for that sample?
+f3_s$p_waic <- f3_s$WAIC
+# Calculate a new waic by adding the waic plus the deviance
+f3_s$waic_calc <- f3_s$deviance + f3_s$p_waic
+# Create a new vector of the sum across each array (sum WAIC, sum deviance, sum p_waic, and sum waic_calc)
+tmp <- sapply(f3_s, sum)
+# Pull out the sum of the WAIC we calculated and the p_waic we duplicated
+waic_f3 <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
+# Calculate the standard error for WAIC
+f3_waic_se <- sd(f3_s$waic_calc)/(sqrt(length(f3_s$waic_calc)))
+
+waic_f3
+f3_waic_se
+```
+
+
+

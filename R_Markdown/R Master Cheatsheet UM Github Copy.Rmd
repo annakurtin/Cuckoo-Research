@@ -412,6 +412,8 @@ ht
 # Margin: 1 to apply it to all rows in a dataset, 2 to apply it to all the columns in a dataset
 # Function: specify what you want to do to the rows or column in the data
 
+# ex: if you want to take the max value across other columns and create a new column with it:
+#pb_dat$bbcu <- apply(pb_dat[, 2:4], 1, max, na.rm = TRUE)
 
 # Can also do this to lists using lapply, sapply, etc
 
@@ -829,6 +831,22 @@ pivot_longer(cols=c(`1999`, `2000`), names_to = "year", values_to = "cases")
 # pivot_wider()
 pivot_wider(names_from = type, values_from = count)
 # decreases the number of rows and increases the number of columns
+
+# reference code for making columns long and then combining them
+# dates_long <- dates %>% pivot_longer(cols = c(start_date_s1,
+#                                               start_date_s2,
+#                                               start_date_s3,
+#                                               start_date_s4,
+#                                               start_date_s5,
+#                                               start_date_s6), names_to = "survey_period",values_to = "date" )
+# # rename to s1, s2, etc
+# dates_long <- dates_long %>% mutate(survey_period = case_when(survey_period == "start_date_s1" ~ "s1",
+#                                                 survey_period == "start_date_s2" ~ "s2",
+#                                                 survey_period == "start_date_s3" ~ "s3",
+#                                                 survey_period == "start_date_s4" ~ "s4",
+#                                                 survey_period == "start_date_s5" ~ "s5",
+#                                                 survey_period == "start_date_s6" ~ "s6"))
+# dates_long <- unite(dates_long,site_survey,c(site_id, survey_period),sep="_",remove=TRUE)
 
 # separate()
 separate(COLNAME, into = c("newcolumn1", "newcolumn2"))
@@ -1605,6 +1623,8 @@ college_location<-data.frame(college=c("UT Austin","Texas Tech","U of H"), city=
 college_size %>% left_join(college_location)
 #equivalently: left_join(college_size, college_location)
 #equivalently: college_size %>% left_join(college_location, by="college")
+# To string together multiple left_joins:
+dat_long <- dates_long %>% left_join(effort_long, by = "site_survey") %>% left_join(backdb_long, by = "site_survey")
 
 # inner_join()
 college_size %>% inner_join(college_location)
@@ -3159,6 +3179,26 @@ There are eight theme built into ggplot:
 # Further reading
 
 [R Graphics Cookbook by Winston Chang](http://www.cookbook-r.com/Graphs/)
+
+
+#### Plotting Uncertainty
+
+[ggdist package](https://mjskay.github.io/ggdist/)
+
+```{R}
+# example code
+df <- data.frame(parameter = sample(size = 1000,replace = TRUE, c("veg density", "background noise", "effort", "date")),
+                 values = rnorm(n = 1000, mean = 0, sd = 1))
+  
+# Create the slab interval plot based on example code
+ggplot(data = df, aes(x = values, y = parameter, fill = parameter)) + 
+  stat_slabinterval() +
+  scale_fill_manual(values = c("veg density"=palette_5[1], "background noise" = palette_5[2],"effort"=palette_5[3], "date" = palette_5[4])) +
+  geom_vline(xintercept = 0) +
+  theme_minimal() +
+  guides(fill = FALSE)
+
+```
 
 ```{R Exporting Publication Quality Graphics}
 
