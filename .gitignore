@@ -17,7 +17,7 @@
 *.pdf
 *.Rdata
 *.html
-R_Scripts/2_Analyses_Habitat_Chapter/**/*.html
+R_Scripts/2_Analyses/Habitat_Chapter/**/*.html
 
 # Folders
 Data/
