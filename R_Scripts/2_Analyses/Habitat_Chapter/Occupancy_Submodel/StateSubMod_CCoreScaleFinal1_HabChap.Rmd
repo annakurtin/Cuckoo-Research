@@ -1,0 +1,142 @@
+---
+title: 'Occupancy Sub Model C Final1: Core Scale Covariates'
+author: "Anna Kurtin"
+date: "8/28/2024"
+output: html_document
+---
+
+#### Explanation of Model
+
+This model is me redoing the core scale submodel to streamline and clarify my covariate selection process for the final global model. Here is a list of  the previous iterations of this model (also on OneNote):
+
+* Core Submodel 1: first iteration of the model: state model with percent canopy, percent subcanopy, canopy height, subcanopy height, standard deviation of subcanopy, residuals of veg standard deviation from regression with canopy height, naive detection model
+
+* Core Submodel 2: iteration of the model where I was trying to break apart colinearities: state model with percent canopy residuals from total veg sd, subcanopy percent canopy (unchanged), height of canopy residuals from total veg sd, height of subcanopy residuals from subcanopy sd, standard deviation of subcanopy (unchanged), total veg standard deviation (unchanged), naive detection model.
+
+* Core Submodel 3: state model with percent canopy (cov1) and subcanopy (cov2), height of canopy (cov3) and subcanopy (cov4), residuals of veg standard deviation from regression with canopy height (cov6), naive detection model
+
+* Core Submodel 4a: Model after I met with Lisa and she recommended using either sd or height metrics but not both. This is the model with height covaraites only. State model with percent canopy (cova1) and subcanopy (cova2), height of canopy (cova3) and subcanopy (cova4), detection model with date, quadratic effect of date, average decibels, and effort
+
+* Core submodel 4b: Model after I met with Lisa and she recommended using either sd or height metrics but not both. This is the model with sd covaraites only. State model with percent canopy (cova1) and subcanopy (cova2), sd of all veg (cova5) and sd of subcanopy (cova6), detection model with date, quadratic effect of date, average decibels, and effort
+
+* Core submodel 5: After talking with Andy and Erim, decided to not go with either height or sd becasue of the covariates that we want inference on and those that we believe are related biologically. We decided to include canopy height and veg sd residual, remove percent canopy cover b/c it's colinear with other covariates of interest (no way to separate out this one and it is accounted for by percent canopy landscape), remove subcan sd (it's nested within total veg sd and colinear with subcanopy veg height). State model with percent subcanopy, height of subcanopy, height of canopy, standard deviation of all veg residuals from regression with canopy height, detection model with date, quadratic effect of date, average decibels, and effort
+
+**Original covariates of interest:**
+
+I'll be using the same structure in this model, adding in the newly cleaned data and the detection model with veg density as a covariate. 
+
+
+#### Model structure:
+
+
+**State Model:** with four covariates
+
+$$
+Z_i \sim Bernoulli(\psi_i | \alpha_1, \alpha_2, \alpha_3, \alpha_4)
+$$
+
+$$ \alpha_1: \text{pct_subcan_core}$$
+
+$$ \alpha_2: \text{ht_can_core}$$
+
+$$ \alpha_3: \text{ht_subcan_core}$$
+
+$$ \alpha_3: \text{veg_sd_resid}$$
+
+**Detection Model**: with 5 covariates (from detection submodel final 2)
+
+$$
+y_{ij} \sim Bernoulli(p_{ij}| \beta_1, \beta_2, \beta_3, \beta_4, \beta_{4Q})
+$$
+
+$$\beta_1: \text{vegetation density}$$ 
+
+$$\beta_2: \text{background decibels}$$ 
+
+$$\beta_3: \text{survey effort}$$ 
+
+$$\beta_4: \text{survey start date}$$  
+
+$$\beta_4Q: \text{quadratic effect of start date}$$ 
+
+
+**Handling of NAs:** imputation for missing habitat parameters, skipping missing detection data
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(patchwork)
+library(ggdist)
+library(beepr)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+
+#### Read in data and look at distributions accross points
+
+```{R}
+# Load in most recent version of data
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_8-12.csv")
+# Make a detection column
+full_dat$bbcu <- apply(full_dat[2:7], 1, max, na.rm = TRUE)
+```
+
+### Visualize distribution of scaled covariates
+
+```{R}
+cancov <- full_dat %>% select(bbcu, pct_can_core)
+
+cancov_p1 <- cancov %>% ggplot() + geom_histogram(aes(x = pct_can_core),fill = palette_8[1]) + theme_minimal()
+cancov_p2 <- ggplot(cancov) + 
+  geom_jitter(aes(x = pct_can_core, y = bbcu), color = palette_8[1], width = .05, height = .05) +
+  geom_smooth(aes(x = pct_can_core, y = bbcu), color = palette_8[1], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
+  labs(x = "% Canopy Cover", y = "Detection") + theme_minimal()
+```
+
+*****ADDD ON THE REST*****
+
+
+
+
+```{R Visualize Correalations, warnings = FALSE, message = FALSE}
+corrdat <- full_dat %>% select(pct_can_core, pct_subcan_core, ht_can_core, ht_subcan_core, sd_subcan_core, sd_allveg_core)
+corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Core Scale Occupancy Metrics")
+```
+
+Standard deviation of veg is correlated very strongly with canopy height. Since we're interested in separating these effects, we'll instead take the residuals of veg sd regressed on canopy height.
+
+```{R Visualize Correalations, warnings = FALSE, message = FALSE}
+corrdat2 <- full_dat %>% select(pct_can_core, pct_subcan_core, ht_can_core, ht_subcan_core, sd_subcan_core, veg_sd_resid)
+corrgram(corrdat2, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Core Scale Occupancy Metrics")
+```
+
+There are still several colinear relationships here to resolve.
+
+We decided to not include percent canopy core because it correlates to percent canopy landscape and is colinear with two other covaraites. 
+
+```{R}
+corrdat3 <- full_dat %>% select(pct_can_core,pct_can_landsc)
+corrgram(corrdat3, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Metrics For Percent Canopy")
+```
+
+We also decided to not include not including subcanopy sd since it's colinear with subcanopy height, also the vertical complexity of the subcanopy is encapsulated within total veg sd.
+
+```{R Visualize Correalations, warnings = FALSE, message = FALSE}
+corrdat4 <- full_dat %>% select(pct_subcan_core, ht_can_core, ht_subcan_core, veg_sd_resid)
+corrgram(corrdat4, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Core Scale Occupancy Metrics")
+```
+
+With these covariates, we now have no colinear relationships.
+

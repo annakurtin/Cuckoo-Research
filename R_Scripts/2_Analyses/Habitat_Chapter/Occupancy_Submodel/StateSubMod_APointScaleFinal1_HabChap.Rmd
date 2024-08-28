@@ -9,11 +9,11 @@ output: html_document
 
 This model is me redoing the point scale submodel to streamline and clarify my covariate selection process for the final global model. Here is a list of  the previous iterations of this model (also on OneNote):
 
-* Point Submodel 1: Deciduous tree species richness, broadleaf, invasive, upland, floodplain shrub community. 
+* Point Submodel 1: Deciduous tree species richness, broadleaf, invasive, upland, floodplain shrub community, naive detection model. 
 
-* Point Submodel 2: Deciduous tree species richness, floodplain shrub community
+* Point Submodel 2: Deciduous tree species richness, floodplain shrub community parameterized detection model with date, quadratic effect of date, average db, and effort after talking with Lisa and going off of her model building process which is to add on the parameterized detection model when building the state model.
 
-* Point Submodel 3: Deciduous tree species richness, floodplain shrub community, conifer tree species richness
+* Point Submodel 3: Deciduous tree species richness, floodplain shrub community, conifer tree species richness, parameterized detection model with date, quadratic effect of date, average db, and effort. I went back and included conifer tree species richness because I realized we want to say something about species composition effects on occupancy and with the previous iterations we could only say something about deciduous tree richness not about conifer tree richness. 
 
 I'll be combining all of these covaraites in this model sans invasive shrub type and upland. Based on ./R_Markdown/Evaluate_Distrib_ContCovs_ShrubComm.Rmd, the invasive shrub type has too little points, and upland is correlated with other covariates. Therefore, all the covariates included are deciduous tree species richness, conifer tree species richness, broadleaf shrub, and floodplain shrub.
 
@@ -120,6 +120,13 @@ bshrub_p2 <- ggplot(bshrub) +
 ```{R Visualize Data Distribution}
 drich_p2 + crich_p2
 fshrub_p2 + bshrub_p2
+```
+
+```{R Visualize Correalations, warnings = FALSE, message = FALSE}
+corrdat <- full_dat %>% select(dtree_spp_rich, ctree_spp_rich, floodplain_shrub, broadleaf_shrub)
+corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Point Scale Occupancy Metrics")
 ```
 
 
@@ -311,7 +318,7 @@ ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)
   # Turn off the legend
   guides(fill = "none") +
   # Add median values as text labels
-  geom_text(data = f_stat, aes(x = 3.5, y = parameter, label = median_value), color = "black", hjust = .6)  # Adjust hjust to position the text
+  geom_text(data = f_stat, aes(x = 3.5, y = parameter, label = median_value), color = "black", hjust = .6)  
 ```
 
 #### Median effect sizes: 
@@ -332,4 +339,20 @@ print(paste0("Floodplain shrub community:", a3))
 
 a4 <- round(plogis(fit_AF1$q50$a4), 3)
 print(paste0("Broadleaf shrub community:", a4))
+```
+
+
+#### Check for correlated parameters
+
+```{R Check Parameter Correlations}
+# Create a matrix of the mcmc chains for each parameter
+mat <- cbind(fit_AF1$sims.list$a0,fit_AF1$sims.list$a1,fit_AF1$sims.list$a2,
+             fit_AF1$sims.list$a3,fit_AF1$sims.list$a4)
+# run a correlation test on the chains - here, I'm looking for values that are larger than other values
+r <- cor(mat)
+r
+# Only one that is larger is the correlation between a0 and a4 - what is the logic of these parameters being correlated? Is this really something we need to worry about?
+# look at the information contained within the MCMC chains, if the last eigenvector is close to zero, you don't have a lot of information here, probably as a result of colinearity 
+eigen(r)
+
 ```
