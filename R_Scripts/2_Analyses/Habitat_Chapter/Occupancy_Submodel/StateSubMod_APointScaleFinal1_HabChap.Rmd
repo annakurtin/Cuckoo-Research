@@ -66,6 +66,7 @@ library(ggplot2)
 library(patchwork)
 library(ggdist)
 library(beepr)
+library(corrgram)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 ```
 
@@ -86,7 +87,9 @@ drich_p1 <- drich %>% ggplot() + geom_histogram(aes(x = dtree_spp_rich),fill = p
 drich_p2 <- ggplot(drich) + 
   geom_jitter(aes(x = dtree_spp_rich, y = bbcu), color = palette_8[1], width = .05, height = .05) +
   geom_smooth(aes(x = dtree_spp_rich, y = bbcu), color = palette_8[1], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
-  labs(x = "Deciduous Tree Spp Richness", y = "Detection") + theme_minimal()
+  labs(x = "Deciduous Tree Spp Richness", y = "Detection") + 
+  scale_y_continuous(breaks = seq(0, 1, by = 1)) +
+  theme_minimal()
 ```
 
 ```{R}
@@ -95,7 +98,9 @@ crich_p1 <- crich %>% ggplot() + geom_histogram(aes(x = ctree_spp_rich), fill = 
 crich_p2 <- ggplot(crich) + 
   geom_jitter(aes(x = ctree_spp_rich, y = bbcu), color = palette_8[2], width = .05, height = .05) +
   geom_smooth(aes(x = ctree_spp_rich, y = bbcu), color = palette_8[2], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
-  labs(x = "Conifer Tree Spp Richness", y = "Detection") + theme_minimal()
+  labs(x = "Conifer Tree Spp Richness", y = "Detection") + 
+  scale_y_continuous(breaks = seq(0, 1, by = 1)) +
+  theme_minimal()
 ```
 
 ```{R}
@@ -104,7 +109,9 @@ fshrub_p1 <- fshrub %>% ggplot() + geom_histogram(aes(x = floodplain_shrub), fil
 fshrub_p2 <- ggplot(fshrub) + 
   geom_jitter(aes(x = floodplain_shrub, y = bbcu), color = palette_8[3], width = .05, height = .05) +
   geom_smooth(aes(x = floodplain_shrub, y = bbcu), color = palette_8[3], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
-  labs(x = "Floodplain Shrub Community Dominant", y = "Detection") + theme_minimal()
+  labs(x = "Floodplain Shrub Community Dominant", y = "Detection") + 
+  scale_y_continuous(breaks = seq(0, 1, by = 1)) +
+  theme_minimal()
 ```
 
 ```{R}
@@ -113,7 +120,9 @@ bshrub_p1 <- bshrub %>% ggplot() + geom_histogram(aes(x = broadleaf_shrub), fill
 bshrub_p2 <- ggplot(bshrub) + 
   geom_jitter(aes(x = broadleaf_shrub, y = bbcu), color = palette_8[4], width = .05, height = .05) +
   geom_smooth(aes(x = broadleaf_shrub, y = bbcu), color = palette_8[4], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
-  labs(x = "Floodplain Shrub Community Dominant", y = "Detection") + theme_minimal()
+  labs(x = "Floodplain Shrub Community Dominant", y = "Detection") + 
+  scale_y_continuous(breaks = seq(0, 1, by = 1)) +
+  theme_minimal()
 ```
 
 
@@ -156,11 +165,11 @@ backdb <- full_dat[,24:29]
 
 $$ \alpha_1: \text{Deciduous tree spp richness}$$
 
-$$ \alpha_1: \text{Conifer tree spp richnesss}$$
+$$ \alpha_2: \text{Conifer tree spp richnesss}$$
 
-$$ \alpha_1: \text{Floodplain shrub community}$$
+$$ \alpha_3: \text{Floodplain shrub community}$$
 
-$$ \alpha_1: \text{Broadleaf shrub community}$$
+$$ \alpha_4: \text{Broadleaf shrub community}$$
 
 ```{R}
 # Create a list of data for JAGS
@@ -243,13 +252,32 @@ cat("
         covb3[i,j] ~ dnorm(0, 1)
         covb4[i,j] ~ dnorm(0, 1)
   
-        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
-        logit(theta[i,j]) <- b0 + b1*covb1[i] + b2*covb2[i,j] + b3*covb3[i,j] + b4*covb4[i,j] + b4Q*(covb4[i,j]^2)
+        det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
+        mu_p[i,j] <- Z[i]*theta[i,j]
+        logit(theta[i,j]) <- p[i,j]
+        p[i,j] <- b0 + b1*covb1[i] + b2*covb2[i,j] + b3*covb3[i,j] + b4*covb4[i,j] + b4Q*(covb4[i,j]^2)
+  
+        # Create detection data without NAs
+        det_na[i,j] <- det_data[i,j]
+         
+        #Calculate Bayes p-value - plug the parameters into the equation for each sample of the posterior and use this to create new observations
+        Presi[i,j] <- (det_na[i,j] - theta[i,j])^2 # Calculate squared residual of observed data
+        y_new[i,j] ~ dbern(mu_p[i,j])             # Simulate observed data
+        Presi_new[i,j] <- (y_new[i,j] - theta[i,j])^2 # Calculate squared residual error of simulated data
         
       }
     }
     
     # Derived parameters
+    ## Calculate sum of squared residual errors for observed 
+    for(i in 1:n_unit){
+       sobs[i] <- sum(Presi[i,1:miss[i]])
+       ssim[i] <- sum(Presi_new[i,1:miss[i]])
+    }
+    
+    SSEobs <- sum(sobs[])
+    SSEsim <- sum(ssim[])
+    p_val <- step(SSEsim - SSEobs)
     
   }
   ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccMod_AFin1.txt")
@@ -258,7 +286,7 @@ cat("
 ```{R Run Model, eval = FALSE}
 fit_AF1 <- jags(data = jags_data, 
                  model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccMod_AFin1.txt",
-                 parameters.to.save = c("a0", "a1", "a2", "a3","a4", "b0", "b1", "b3", "b4", "b4Q"),
+                 parameters.to.save = c("a0", "a1", "a2", "a3","a4", "b0", "b1", "b3", "b4", "b4Q","p_val", "SSEobs","SSEsim"),
                  n.iter = 10000, 
                  n.burnin = 4000, 
                  n.chains = 3,
@@ -276,17 +304,24 @@ fit_AF1 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspa
 
 $$ \alpha_1: \text{Deciduous tree spp richness}$$
 
-$$ \alpha_1: \text{Conifer tree spp richnesss}$$
+$$ \alpha_2: \text{Conifer tree spp richnesss}$$
 
-$$ \alpha_1: \text{Floodplain shrub community}$$
+$$ \alpha_3: \text{Floodplain shrub community}$$
 
-$$ \alpha_1: \text{Broadleaf shrub community}$$
+$$ \alpha_4: \text{Broadleaf shrub community}$$
 
 ```{R Evaluate Model}
 summary(fit_AF1)
 tracedens_jags(fit_AF1, parmfrow = c(2,3))
 ```
 
+#### Examine model fit:
+
+```{R Make Inference on P Value}
+plot(fit_AF1$sims.list$SSEobs,fit_AF1$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
+abline(0,1,lwd = 2, col = "red")
+print(paste0("P value is: ",round(fit_AF1$mean$p_val, 2)))
+```
 
 #### Posterior distributions and F statistics:
 
@@ -352,7 +387,28 @@ mat <- cbind(fit_AF1$sims.list$a0,fit_AF1$sims.list$a1,fit_AF1$sims.list$a2,
 r <- cor(mat)
 r
 # Only one that is larger is the correlation between a0 and a4 - what is the logic of these parameters being correlated? Is this really something we need to worry about?
+```
+
+Need to potential check the correlation between parameters for a4 (broadleaf shrub) and a1 (decid tree spp rich)
+
+#### Check the last eigenvalue for evidence of correlated parameters
+
+```{R Check Eigenvalues}
 # look at the information contained within the MCMC chains, if the last eigenvector is close to zero, you don't have a lot of information here, probably as a result of colinearity 
 eigen(r)
 
 ```
+
+### Interpreting output:
+
+**Strongly significant covariates (CI doesn't overlap 0):** none
+
+**Weakly significant covariates (F > .70):** 
+
+* Native deciduous tree species richness: there is an 82% chance that the true parameter for this covariate's effect on the probability of habitat use during the breeding season is positive. The median estimate for this parameter converted to probability space is 0.563, which means that for every one standard deviation increase in deciduous tree species richness above the mean (0.92 spp increase above average of .96 species), the probability of use by BBCU increases by 56.3%.
+
+* Native conifer tree spp richness: there is a 93% chance that the true parameter for this covariate's effect on the probability of habitat use during the breeding season is negative. The median estimate for this parameter converted to probability space is 0.355, which means that for every one standard deviation increase in conifer tree species richness above the mean (0.20 increase above a mean of 0.52), the probability of use by bbcu decreases by 35.5% 
+
+* Shrub community dominated by floodplain shrub species (cottonwood and willow): there is a 89% chance that the true parameter for this covariate's effect on the probability of habitat use during the breeding season is negative. The median estimate for this parameter converted to probability space is 0.274, which means that for sites that have a floodplain species dominated shrub community, the probability of use by BBCU decreases by 27.4% compared to sites that don't have this dominant community.
+
+* Shrub community dominated by broadleaf shrub (deciduous shrubs not cottonwood, willow, or invasive species): there is an 83% chance that the true parameter for this covariate's effect on the probability of habiat use during the breeding season is positive. The median estiate for this parameter converted to probability space is 0.631, which means that for sites that have a broadleaf species dominanted shrub community, the probability of use by BBCU increases by 63.1% compared to sites that don't have this dominant community. 

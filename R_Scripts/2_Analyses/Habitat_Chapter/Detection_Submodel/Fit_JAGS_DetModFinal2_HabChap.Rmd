@@ -274,13 +274,32 @@ cat("
         cov3[i,j] ~ dnorm(0, 1)
         cov4[i,j] ~ dnorm(0, 1)
   
-        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
-        logit(theta[i,j]) <- b0 + b1*cov1[i] + b2*cov2[i,j] + b3*cov3[i,j] + b4*cov4[i,j] + b4Q*(cov4[i,j]^2)
+        det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
+        mu_p[i,j] <- Z[i]*theta[i,j]
+        logit(theta[i,j]) <- p[i,j]
+        p[i,j] <- b0 + b1*cov1[i] + b2*cov2[i,j] + b3*cov3[i,j] + b4*cov4[i,j] + b4Q*(cov4[i,j]^2)
+  
+        # Create detection data without NAs
+        det_na[i,j] <- det_data[i,j]
+         
+        #Calculate Bayes p-value - plug the parameters into the equation for each sample of the posterior and use this to create new observations
+        Presi[i,j] <- (det_na[i,j] - theta[i,j])^2 # Calculate squared residual of observed data
+        y_new[i,j] ~ dbern(mu_p[i,j])             # Simulate observed data
+        Presi_new[i,j] <- (y_new[i,j] - theta[i,j])^2 # Calculate squared residual error of simulated data
         
       }
     }
     
     # Derived parameters
+    ## Calculate sum of squared residual errors for observed 
+    for(i in 1:n_unit){
+       sobs[i] <- sum(Presi[i,1:miss[i]])
+       ssim[i] <- sum(Presi_new[i,1:miss[i]])
+    }
+    
+    SSEobs <- sum(sobs[])
+    SSEsim <- sum(ssim[])
+    p_val <- step(SSEsim - SSEobs)
     
   }
   ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_DetMod_Fin2.txt")
@@ -289,7 +308,7 @@ cat("
 ```{R Run Model, results = FALSE}
 habdet_f2 <- jags(data = jags_data, 
                  model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_DetMod_Fin2.txt",
-                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4","b4Q"),
+                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4","b4Q", "p_val", "SSEobs","SSEsim"),
                  n.iter = 10000, 
                  n.burnin = 4000, 
                  n.chains = 3,
@@ -305,12 +324,18 @@ habdet_f2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Works
 
 ```{R}
 summary(habdet_f2)
-tracedens_jags(habdet_f2, parmfrow = c(3,3))
+tracedens_jags(habdet_f2, parmfrow = c(2,3))
 ```
 
-**Transforming outputs into probabilities:**
+#### Examine model fit
 
-Posterior median for each parameter: 
+```{R Make Inference on P Value}
+plot(habdet_f2$sims.list$SSEobs,habdet_f2$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
+abline(0,1,lwd = 2, col = "red")
+print(paste0("P value is:",round(habdet_f2$mean$p_val, 2)))
+```
+
+#### Median effect sizes: 
 
 ```{R Transform Parameter Estimates}
 # Transform median values from posterior distribution into probability 
@@ -350,6 +375,11 @@ colnames(chains_viol) <- c("veg density","background noise","effort","date", "qu
 # Pivot this longer so that we can visualize it
 chains_viol_long <- chains_viol %>% pivot_longer(cols = c("veg density","background noise","effort","date", "quadratic date"),names_to = "parameter", values_to = "values")
 
+f_stat <- data.frame(
+  parameter = c("veg density","background noise","effort","date", "quadratic date"),
+  median_value = c(round(habdet_f2$f$b1,2), round(habdet_f2$f$b2,2), round(habdet_f2$f$b3,2), round(habdet_f2$f$b4,2), round(habdet_f2$f$b4Q,2))
+)
+
 # Create the slab interval plot
 ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)) + 
   # Plot posterior distributions
@@ -361,7 +391,9 @@ ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)
   # Remove background color from plots
   theme_minimal() +
   # Turn off the legend
-  guides(fill = FALSE)
+  guides(fill = FALSE)+
+  # Add median values as text labels
+  geom_text(data = f_stat, aes(x = 3.5, y = parameter, label = median_value), color = "black", hjust = .6) 
 # How can I add the prior distributions on top of this?
 ```
 
@@ -392,4 +424,21 @@ f2_waic_se <- sd(f2_s$waic_calc)/(sqrt(length(f2_s$waic_calc)))
 waic_f2
 f2_waic_se
 ```
+
+
+#### Interpreting outputs:
+
+**Strongly significant covariates (CI doesn't overlap 0):**
+
+* Date: *How to interpret this?*
+
+* Quadratic effect of date: *How to interpret this?*
+
+**Weakly significant covariates (F > .70):**
+
+* Vegetation density (relative number of trees combined with relative density of shrubs > 1m tall - unitless composite metric): There is a 70% change that the true effect of vegetation density at a site on probability of detecting a BBCU given that it is present at a site is positive. The median estimate for the effect of vegetation density on detection probability is 0.532, which means that for every 1 sd increase in vegetation density above the mean (.23 increase above mean of .27), the probability of detecting a cuckoo increases by 53.2%
+
+* Effort: There is a 73% chance that the true effect of survey effort at a site during a given survey period on probability of detecting a BBCU given that they are present at a site is positive. The median estimate for the effect of survey effort on detection probability is 0.533, which means that for every 1 sd increase in survey effort above the mean (10 increase above 17).
+
+* Background noise: There is an 80% chance that the true effect of the average decibels in the band of cuckoo calling (I think it's 200  -3500?) is negative. The median estimate for the effect of background noise on detection probability is 0.451, which means for every 1 sd increase in background noise above the mean (4 dB increase above mean of -61 dB), the probability of detecting a BBCU given they are present decreases by 45.1%. 
 

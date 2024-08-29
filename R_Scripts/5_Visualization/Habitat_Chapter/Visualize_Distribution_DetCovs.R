@@ -25,15 +25,17 @@ full_dat_us <- readRDS(file ="C:/Users/annak/OneDrive/Documents/UM/Research/Codi
 # Veg density
 hist(full_dat_us$veg_density_avg, xlab = "Average Composite Density at a Site", main = "Histogram of Vegetation Density", col = palette_5[1])
 #hist(scale(full_dat_us$veg_density_avg), xlab = "Average Composite Density at a Site", main = "Scaled Histogram of Vegetation Density", col = palette_5[1])
-
+mean(full_dat_us$veg_density_avg, na.rm = TRUE)
+sd(full_dat_us$veg_density_avg, na.rm = TRUE)
 
 # average dB
 db <- full_dat_us[,8:13]
 db_long <- db %>% pivot_longer(cols = c(backdb_survey1,backdb_survey2,backdb_survey3,backdb_survey4,backdb_survey5,backdb_survey6), names_to = "survey_period",values_to = "db" )
 hist(db_long$db, xlab = "Background dB", main = "Histogram of Background Noise", col = palette_5[2])
+mean(db_long$db, na.rm = TRUE)
+sd(db_long$db, na.rm = TRUE)
 
 # Date
-# uniform distribution between 152-208 - does this include those values?
 dates_us <- full_dat_us[,21:26]
 dates_us_long <- dates_us %>% pivot_longer(cols = c(start_date_s1,start_date_s2,start_date_s3,start_date_s4,start_date_s5,start_date_s6), names_to = "survey_period",values_to = "date" )
 min(dates_us_long$date) # -1.46
@@ -44,7 +46,8 @@ hist(dates_us_long$date, xlab = "Date", main = "Histogram of Survey Start Date",
 efforts_us <- full_dat_us[,15:20]
 efforts_us_long <- efforts_us %>% pivot_longer(cols = c(effort_survey1,effort_survey2,effort_survey3,effort_survey4,effort_survey5,effort_survey6), names_to = "survey_period",values_to = "effort" )
 hist(efforts_us_long$effort, xlab = "Effort", main = "Histogram of Survey Effort", col = cuckoo_palette[1])
-
+mean(efforts_us_long$effort, na.rm = TRUE)
+sd(efforts_us_long$effort, na.rm = TRUE)
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

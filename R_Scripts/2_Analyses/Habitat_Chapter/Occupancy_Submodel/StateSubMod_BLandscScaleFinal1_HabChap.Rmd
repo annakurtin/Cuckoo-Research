@@ -27,7 +27,7 @@ $$
 
 $$ \alpha_1: \text{Landscape percent canopy cover}$$
 
-$$ \alpha_1: \text{Landscape percent subcanopy cover}$$
+$$ \alpha_2: \text{Landscape percent subcanopy cover}$$
 
 **Detection Model**: with 5 covariates (from detection submodel final 2)
 
@@ -58,6 +58,7 @@ library(ggplot2)
 library(patchwork)
 library(ggdist)
 library(beepr)
+library(corrgram)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 ```
 
@@ -79,7 +80,9 @@ cancov_p1 <- cancov %>% ggplot() + geom_histogram(aes(x = pct_can_landsc),fill =
 cancov_p2 <- ggplot(cancov) + 
   geom_jitter(aes(x = pct_can_landsc, y = bbcu), color = palette_8[8], width = .05, height = .05) +
   geom_smooth(aes(x = pct_can_landsc, y = bbcu), color = palette_8[8], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
-  labs(x = "% Canopy Cover", y = "Detection") + theme_minimal()
+  labs(x = "% Canopy Cover", y = "Detection") + 
+  scale_y_continuous(breaks = seq(0, 1, by = 1)) +
+  theme_minimal()
 ```
 
 ```{R}
@@ -89,7 +92,9 @@ subcancov_p1 <- subcancov %>% ggplot() + geom_histogram(aes(x = pct_subcan_lands
 subcancov_p2 <- ggplot(subcancov) + 
   geom_jitter(aes(x = pct_subcan_landsc, y = bbcu), color = palette_8[6], width = .05, height = .05) +
   geom_smooth(aes(x = pct_subcan_landsc, y = bbcu), color = palette_8[6], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
-  labs(x = "% Subcanopy Cover", y = "Detection") + theme_minimal()
+  labs(x = "% Subcanopy Cover", y = "Detection") + 
+  scale_y_continuous(breaks = seq(0, 1, by = 1)) +
+  theme_minimal()
 ```
 
 ```{R Visualize Quest}
@@ -128,7 +133,7 @@ backdb <- full_dat[,24:29]
 
 $$ \alpha_1: \text{Landscape percent canopy cover}$$
 
-$$ \alpha_1: \text{Landscape percent subcanopy cover}$$
+$$ \alpha_2: \text{Landscape percent subcanopy cover}$$
 
 ```{R}
 # Create a list of data for JAGS
@@ -201,13 +206,32 @@ cat("
         covb3[i,j] ~ dnorm(0, 1)
         covb4[i,j] ~ dnorm(0, 1)
   
-        det_data[i,j] ~  dbern(Z[i]*theta[i,j])  # Detection data drawn from a bernoulli distribution incorporating the true presence (Z) with probability of detection theta
-        logit(theta[i,j]) <- b0 + b1*covb1[i] + b2*covb2[i,j] + b3*covb3[i,j] + b4*covb4[i,j] + b4Q*(covb4[i,j]^2)
+        det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
+        mu_p[i,j] <- Z[i]*theta[i,j]
+        logit(theta[i,j]) <- p[i,j]
+        p[i,j] <- b0 + b1*covb1[i] + b2*covb2[i,j] + b3*covb3[i,j] + b4*covb4[i,j] + b4Q*(covb4[i,j]^2)
+  
+        # Create detection data without NAs
+        det_na[i,j] <- det_data[i,j]
+         
+        #Calculate Bayes p-value - plug the parameters into the equation for each sample of the posterior and use this to create new observations
+        Presi[i,j] <- (det_na[i,j] - theta[i,j])^2 # Calculate squared residual of observed data
+        y_new[i,j] ~ dbern(mu_p[i,j])             # Simulate observed data
+        Presi_new[i,j] <- (y_new[i,j] - theta[i,j])^2 # Calculate squared residual error of simulated data
         
       }
     }
     
     # Derived parameters
+    ## Calculate sum of squared residual errors for observed 
+    for(i in 1:n_unit){
+       sobs[i] <- sum(Presi[i,1:miss[i]])
+       ssim[i] <- sum(Presi_new[i,1:miss[i]])
+    }
+    
+    SSEobs <- sum(sobs[])
+    SSEsim <- sum(ssim[])
+    p_val <- step(SSEsim - SSEobs)
     
   }
   ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccMod_BFin1.txt")
@@ -216,7 +240,7 @@ cat("
 ```{R Run Model, eval = FALSE}
 fit_BF1 <- jags(data = jags_data, 
                  model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccMod_BFin1.txt",
-                 parameters.to.save = c("a0", "a1", "a2", "b0", "b1", "b3", "b4", "b4Q"),
+                 parameters.to.save = c("a0", "a1", "a2", "b0", "b1", "b3", "b4", "b4Q", "p_val", "SSEobs", "SSEsim"),
                  n.iter = 10000, 
                  n.burnin = 4000, 
                  n.chains = 3,
@@ -239,9 +263,16 @@ $$ \alpha_1: \text{Landscape percent subcanopy cover}$$
 
 ```{R Evaluate Model}
 summary(fit_BF1)
-tracedens_jags(fit_BF1, parmfrow = c(3,3))
+tracedens_jags(fit_BF1, parmfrow = c(2,3))
 ```
 
+#### Examine model fit:
+
+```{R Make Inference on P Value}
+plot(fit_BF1$sims.list$SSEobs,fit_BF1$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
+abline(0,1,lwd = 2, col = "red")
+print(paste0("P value is: ",round(fit_BF1$mean$p_val, 2)))
+```
 
 #### Posterior distributions and F statistics:
 
@@ -300,7 +331,23 @@ mat <- cbind(fit_BF1$sims.list$a0,fit_BF1$sims.list$a1,fit_BF1$sims.list$a2)
 r <- cor(mat)
 r
 # Only one that is larger is the correlation between a0 and a3 - what is the logic of these parameters being correlated? Is this really something we need to worry about?
+```
+
+#### Check the last eigenvalue for evidence of correlated parameters
+
+```{R Check Eigenvalues}
 # look at the information contained within the MCMC chains, if the last eigenvector is close to zero, you don't have a lot of information here, probably as a result of colinearity 
 eigen(r)
 
 ```
+
+
+### Interpreting output:
+
+**Strongly significant covariates (CI doesn't overlap 0): **
+
+* Percent subcanopy cover landscape: There is an 100% chance that the true effect of subcanopy cover at a landscape (1km) scale on BBCU probability of use during the breeding season is negative. The median estimate for the effect of subcanopy cover on use transformed into probability space is is 0.627, which means that for every 1 sd increase in percent subcanopy cover above the mean (increase of 8 percentage points over the mean of 16 percentage points), the probability of use by a BBCU decreases by 62.7%.
+
+**Weakly significant covariates (F > .70):** 
+
+* Percent canopy cover landscape: There is a 97% chance that the true effect of canopy cover at a landscape (1 km ) scale on BBCU probability of use during the breeding season is positive. The median estimate for the effect of canopy cover on use transformed into probability space is 0.259, which means that for every 1 sd increase in percent canopy cover above the mean (increase of 6 percentage points over mean of 7), the probability of use by BBCU increases by 25.9%.

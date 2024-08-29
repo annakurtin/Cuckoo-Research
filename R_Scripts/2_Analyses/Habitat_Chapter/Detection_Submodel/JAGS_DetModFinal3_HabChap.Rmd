@@ -43,11 +43,12 @@ $$\beta_1: \text{vegetation density}$$
 
 $$\beta_2: \text{background decibels}$$ 
 
+$$\beta_2Q: \text{quadratic effect of background db}$$ 
+
 $$\beta_3: \text{survey effort}$$ 
 
 $$\beta_4: \text{survey start date}$$  
 
-$$\beta_4Q: \text{quadratic effect of start date}$$ 
 
 
 
