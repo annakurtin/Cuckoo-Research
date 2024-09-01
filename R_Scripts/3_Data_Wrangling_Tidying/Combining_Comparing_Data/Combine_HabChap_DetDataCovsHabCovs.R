@@ -81,4 +81,4 @@ write.csv(all_dat_us_fin,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_W
 class_dat <- all_dat_us_fin %>% select(-c(x, y, veg_sd_resid,ctree))
 class_dat$site_id <- c(1:110)
 # check csv for this
-#write.csv(class_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_ClassData.csv", row.names = FALSE)
+write.csv(class_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_ClassData.csv", row.names = FALSE)

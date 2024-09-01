@@ -314,10 +314,10 @@ ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)
 psi <- round(plogis(fit_BF1$q50$a0), 3)
 print(paste0("psi:", psi))
 
-a1 <- round(plogis(fit_BF1$q50$a1), 3)
+a1 <- round(plogis(fit_BF1$q50$a0 + fit_BF1$q50$a1), 3)
 print(paste0("% Canopy landscape:", a1))
 
-a2 <- round(plogis(fit_BF1$q50$a2), 3)
+a2 <- round(plogis(fit_BF1$q50$a0 + fit_BF1$q50$a2), 3)
 print(paste0("% Subcanopy landscape:", a2))
 ```
 
@@ -346,8 +346,8 @@ eigen(r)
 
 **Strongly significant covariates (CI doesn't overlap 0): **
 
-* Percent subcanopy cover landscape: There is an 100% chance that the true effect of subcanopy cover at a landscape (1km) scale on BBCU probability of use during the breeding season is negative. The median estimate for the effect of subcanopy cover on use transformed into probability space is is 0.627, which means that for every 1 sd increase in percent subcanopy cover above the mean (increase of 8 percentage points over the mean of 16 percentage points), the probability of use by a BBCU decreases by 62.7%.
+* Percent subcanopy cover landscape: There is an 100% chance that the true effect of subcanopy cover at a landscape (1km) scale on BBCU probability of use during the breeding season is negative. The median estimate for the effect of subcanopy cover on use transformed into probability space is is 0.065, which means that for every 1 sd increase in percent subcanopy cover above the mean (increase of 8 percentage points over the mean of 16 percentage points), the probability of use by a BBCU decreases by 6.5%.
 
 **Weakly significant covariates (F > .70):** 
 
-* Percent canopy cover landscape: There is a 97% chance that the true effect of canopy cover at a landscape (1 km ) scale on BBCU probability of use during the breeding season is positive. The median estimate for the effect of canopy cover on use transformed into probability space is 0.259, which means that for every 1 sd increase in percent canopy cover above the mean (increase of 6 percentage points over mean of 7), the probability of use by BBCU increases by 25.9%.
+* Percent canopy cover landscape: There is a 97% chance that the true effect of canopy cover at a landscape (1 km ) scale on BBCU probability of use during the breeding season is positive. The median estimate for the effect of canopy cover on use transformed into probability space is 0.254, which means that for every 1 sd increase in percent canopy cover above the mean (increase of 6 percentage points over mean of 7), the probability of use by BBCU increases by 25.4%.

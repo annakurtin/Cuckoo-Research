@@ -363,16 +363,16 @@ ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)
 psi <- round(plogis(fit_AF1$q50$a0), 3)
 print(paste0("psi:", psi))
 
-a1 <- round(plogis(fit_AF1$q50$a1), 3)
+a1 <- round(plogis(fit_AF1$q50$a0 + fit_AF1$q50$a1), 3)
 print(paste0("Deciduous tree spp richness:", a1))
 
-a2 <- round(plogis(fit_AF1$q50$a2), 3)
+a2 <- round(plogis(fit_AF1$q50$a0 + fit_AF1$q50$a2), 3)
 print(paste0("Conifer tree spp richness:", a2))
 
-a3 <- round(plogis(fit_AF1$q50$a3), 3)
+a3 <- round(plogis(fit_AF1$q50$a0 + fit_AF1$q50$a3), 3)
 print(paste0("Floodplain shrub community:", a3))
 
-a4 <- round(plogis(fit_AF1$q50$a4), 3)
+a4 <- round(plogis(fit_AF1$q50$a0 + fit_AF1$q50$a4), 3)
 print(paste0("Broadleaf shrub community:", a4))
 ```
 
@@ -405,10 +405,10 @@ eigen(r)
 
 **Weakly significant covariates (F > .70):** 
 
-* Native deciduous tree species richness: there is an 82% chance that the true parameter for this covariate's effect on the probability of habitat use during the breeding season is positive. The median estimate for this parameter converted to probability space is 0.563, which means that for every one standard deviation increase in deciduous tree species richness above the mean (0.92 spp increase above average of .96 species), the probability of use by BBCU increases by 56.3%.
+* Native deciduous tree species richness: there is an 82% chance that the true parameter for this covariate's effect on the probability of habitat use during the breeding season is positive. The median estimate for this parameter converted to probability space is 0.202, which means that at the mean value of the other covariates, for every one standard deviation increase in deciduous tree species richness above the mean (0.92 spp increase above average of .96 species), the probability of use by BBCU increases by 20.2%.
 
-* Native conifer tree spp richness: there is a 93% chance that the true parameter for this covariate's effect on the probability of habitat use during the breeding season is negative. The median estimate for this parameter converted to probability space is 0.355, which means that for every one standard deviation increase in conifer tree species richness above the mean (0.20 increase above a mean of 0.52), the probability of use by bbcu decreases by 35.5% 
+* Native conifer tree spp richness: there is a 93% chance that the true parameter for this covariate's effect on the probability of habitat use during the breeding season is negative. The median estimate for this parameter converted to probability space is 0.099, which means that at the mean values of the other covariates, for every one standard deviation increase in conifer tree species richness above the mean (0.20 increase above a mean of 0.52), the probability of use by bbcu decreases by 9.9% 
 
-* Shrub community dominated by floodplain shrub species (cottonwood and willow): there is a 89% chance that the true parameter for this covariate's effect on the probability of habitat use during the breeding season is negative. The median estimate for this parameter converted to probability space is 0.274, which means that for sites that have a floodplain species dominated shrub community, the probability of use by BBCU decreases by 27.4% compared to sites that don't have this dominant community.
+* Shrub community dominated by floodplain shrub species (cottonwood and willow): there is a 89% chance that the true parameter for this covariate's effect on the probability of habitat use during the breeding season is negative. The median estimate for this parameter converted to probability space is 0.069, which means that at the mean values of the other covariates, for sites that have a floodplain species dominated shrub community, the probability of use by BBCU decreases by 6.9% compared to sites that don't have this dominant community.
 
-* Shrub community dominated by broadleaf shrub (deciduous shrubs not cottonwood, willow, or invasive species): there is an 83% chance that the true parameter for this covariate's effect on the probability of habiat use during the breeding season is positive. The median estiate for this parameter converted to probability space is 0.631, which means that for sites that have a broadleaf species dominanted shrub community, the probability of use by BBCU increases by 63.1% compared to sites that don't have this dominant community. 
+* Shrub community dominated by broadleaf shrub (deciduous shrubs not cottonwood, willow, or invasive species): there is an 83% chance that the true parameter for this covariate's effect on the probability of habiat use during the breeding season is positive. The median estiate for this parameter converted to probability space is 0.256, which means that at the mean values of the other covariates, for sites that have a broadleaf species dominanted shrub community, the probability of use by BBCU increases by 25.6% compared to sites that don't have this dominant community. 

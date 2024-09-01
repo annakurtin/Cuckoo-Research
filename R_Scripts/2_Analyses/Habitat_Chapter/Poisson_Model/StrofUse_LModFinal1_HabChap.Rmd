@@ -1,0 +1,290 @@
+---
+title: "Linear Model Final 1"
+author: "Anna Kurtin"
+date: "8/31/2024"
+output: html_document
+---
+
+This is the second iteration of the poisson model I will be using to test strength of habitat use across sites. I will be looking at number of days with a cuckoo vocalization at all sites (since p* is high so we don't need to account for detection) and the habitat covariates from the occupancy scale models with an f statistic >.9.
+
+
+too:
+Add in Bayesian P value into the linear model
+Finish out model analysis after running it
+
+### Model structure
+
+$$
+\theta \sim NegBinomial(\gamma_0 + \gamma_{1} + \gamma_{2} + \gamma_{3}  + \gamma_{4}  + \gamma_{5})
+$$
+
+$$ \gamma_{1}: \text{conifer spp richness} $$
+
+$$ \gamma_{2}: \text{percent canopy cover on a landscape scale} $$
+
+$$ \gamma_{3}: \text{percent subcanopy cover on a landscape scale} $$
+
+$$ \gamma_{3}: \text{veg sd residuals on a core scale} $$
+
+$$ \gamma_{4}: \text{percent subcanopy cover on a core scale} $$
+
+
+**Handling of NAs (only occur in habitat covs):** Imputation 
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(beepr)
+library(corrgram)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+
+
+### Visualize Data and Colinearity 
+
+```{R Read in Data}
+full_dat <- read.csv("./Data/Habitat_Model_Covariates/Linear_Model/HabChap_22-23_DaysCalls_HabCovs.csv")
+#"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Linear_Model/Archive/HabChap_PoissonMod_DaysBBCU_HavCovs.csv")
+##### NEED TO REDO THE DATA TO GET AT CONIFER TREE SPP RICHNESS
+```
+
+```{R Conifer Spp Richness}
+ggplot(full_dat) + geom_point(aes(x = ctree_spp_rich, y = pct_days_wcall), size = 3, col = palette_5[1]) + 
+  labs(x = "Conifer Tree Species Richness", y = "% of Days With Calls") +
+  theme_minimal()
+```
+
+```{R Pct Canopy Landsape}
+ggplot(full_dat) + geom_point(aes(x = pct_can_landsc, y = pct_days_wcall), size = 3, color = palette_5[2]) + 
+  labs(x = "% Canopy 1 km Radius", y = "% of Days With Calls") +
+  theme_minimal()
+```
+
+```{R Pct Suanopy Landsape}
+ggplot(full_dat) + geom_point(aes(x = pct_subcan_landsc, y = pct_days_wcall), size = 3, color = palette_5[3]) + 
+  labs(x = "% Subcanopy 1 km Radius", y = "% of Days With Calls") +
+  theme_minimal()
+```
+
+```{R Veg SD Residuals}
+ggplot(full_dat) + geom_point(aes(x = veg_sd_resid, y = pct_days_wcall), size = 3, color = palette_5[4]) + 
+  labs(x = "All Vegetation St Dev Residuals on Canopy Height", y = "% of Days With Calls") +
+  theme_minimal()
+```
+
+```{R Percent Subcanopy Core}
+ggplot(full_dat) + geom_point(aes(x = pct_subcan_core, y = pct_days_wcall), size = 3, color = palette_5[5]) + 
+  labs(x = "% Subcanopy 130 m Radius", y = "% of Days With Calls") +
+  theme_minimal()
+```
+
+```{R Look at Correlations, warnings = FALSE, message = FALSE}
+corrdat <- full_dat %>% select(ctree_spp_rich, pct_can_landsc, pct_subcan_landsc, veg_sd_resid, pct_subcan_core)
+corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Habitat Metrics")
+```
+
+
+### Set up model 
+
+```{R Format Data for JAGS}
+# Create a list of data for JAGS
+jags_data <- list(
+  # Percentage of days with bbcu 
+  days = full_dat$pct_days_wcall,
+  # Conifer spp richness
+  cov1 = full_dat$ctree_spp_rich,
+  # % canopy landscape
+  cov2 = full_dat$pct_can_landsc,
+  # % subcanopy landscape
+  cov3 = full_dat$pct_subcan_landsc,
+  # residual veg sd
+  cov4 = full_dat$veg_sd_resid,
+  # % subcanopy core
+  cov5 = full_dat$pct_subcan_core,
+  n_unit = nrow(full_dat)
+)
+
+# Set initial values 
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    a1 = rnorm(1, 0, 1),
+    a2 = rnorm(1, 0, 1),
+    a3 = rnorm(1, 0, 1),
+    a4 = rnorm(1, 0, 1),
+    a5 = rnorm(1, 0, 1)
+  )
+}
+```
+
+
+```{R Create Linear Model}
+cat("
+  model{
+        # Priors
+    a0 ~ dnorm(0, 1)
+    a1 ~ dnorm(0, 1)
+    a2 ~ dnorm(0, 1)
+    a3 ~ dnorm(0, 1)
+    a4 ~ dnorm(0, 1)
+    a5 ~ dnorm(0, 1)
+    sigma ~ dunif(0,10)
+    tau <- 1/ (sigma*sigma)
+    r ~ dunif(0,10) # prior for the dispersion parameter on negative binomial
+  
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      # Impute missing habitat data
+      cov1[i] ~ dnorm(0, 1)
+      cov2[i] ~ dnorm(0, 1)
+      cov3[i] ~ dnorm(0, 1)
+      cov4[i] ~ dnorm(0, 1)
+      cov5[i] ~ dnorm(0, 1)
+  
+      days[i] ~ dnegbin(p[i], r)  # changed this to negative binomial from dpois()
+      p[i] <- r / (r + lambda[i]) # Compute probability parameter for negative binomial using lambda (mean) and r (dispersion), I thought moments for negative binomial are mean and dispersion, not probability and dispersion, but I'm not sure if R takes things differently 
+      log(lambda[i]) <- a0 + a1*cov1[i] + a2*cov2[i] + a3*cov3[i] + a4*cov4[i] + a5*cov5[i] + eps[i]
+      eps[i] ~ dnorm(0, tau)
+    }
+    
+    # Derived parameters - add in Bayesian p value here
+    
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLinearModFinal1.txt")
+```
+
+*Error message: Node inconsistent with parents*
+
+```{R Run Model, results = FALSE}
+fit_lmF1 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLinearModFinal1.txt",
+                 parameters.to.save = c("a0", "a1", "a3", "a4", "a5"),
+                 n.iter = 10000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 inits = init_func)
+beep(sound = 3)
+```
+
+### Look at outputs
+
+$$ \gamma_{1}: \text{conifer spp richness} $$
+
+$$ \gamma_{2}: \text{percent canopy cover on a landscape scale} $$
+
+$$ \gamma_{3}: \text{percent subcanopy cover on a landscape scale} $$
+
+$$ \gamma_{3}: \text{veg sd residuals on a core scale} $$
+
+$$ \gamma_{4}: \text{percent subcanopy cover on a core scale} $$
+
+```{R Evaluate Model}
+summary(fit_lmF1)
+tracedens_jags(fit_lmF1, parmfrow = c(2,3))
+```
+
+### Examine model fit:
+
+```{R Make Inference on P Value}
+plot(fit_lmF1$sims.list$SSEobs,fit_lmF1$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
+abline(0,1,lwd = 2, col = "red")
+print(paste0("P value is: ",round(fit_BF1$mean$p_val, 2)))
+```
+
+
+### Posterior distributions and F statistics:
+
+```{R Create Plots of Posterior Distribution}
+# Plot posterior distribution
+chains_lmf1 <- jags_df(fit_lmF1)
+# Select the chains for our covariates of interest
+chains_viol <- chains_lmf1 %>% select(a1,a2)
+# Rename them to be more interpretable
+colnames(chains_viol) <- c("Conifer Spp Richness", "% Canopy Cover Landsc","% Subcanopy Cover Landsc", "Veg SD Resid", "% Subcanopy Cover Core")
+# Pivot this longer so that we can visualize it
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("Conifer Spp Richness", "% Canopy Cover Landsc","% Subcanopy Cover Landsc", "Veg SD Resid", "% Subcanopy Cover Core"),names_to = "parameter", values_to = "values")
+
+# f_stat <- data.frame(
+#   parameter = c("Conifer Spp Richness", "% Canopy Cover Landsc","% Subcanopy Cover Landsc", "Veg SD Resid", "% Subcanopy Cover Core"),
+#   median_value = c(round(fit_lmF1$f$a1,2), round(fit_lmF1$f$a2,2))
+# )
+
+# Create the slab interval plot
+ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)) + 
+  # Plot posterior distributions
+  stat_slabinterval() +
+  # Establish colors
+  scale_fill_manual(values = c("Conifer Spp Richness"=palette_5[1], "% Canopy Cover Landsc" = palette_5[2], "% Subcanopy Cover" = palette_5[3], "Veg SD Resid" = palette_5[4], "% Subcanopy Cover Core" = palette_5[5])) +
+  # Add a line for 0 to show overlap of posterior
+  geom_vline(xintercept = 0) +
+  # Remove background color from plots
+  theme_minimal() +
+  # Turn off the legend
+  guides(fill = "none") +
+  # Add median values as text labels
+  geom_text(data = f_stat, aes(x = 3.5, y = parameter, label = median_value), color = "black", hjust = .6)  
+```
+
+### Median effect sizes: 
+
+```{R Transform Parameter Estimates}
+# Transform median values from posterior distribution into probability 
+psi <- round(plogis(fit_lmF1$q50$a0), 3)
+print(paste0("psi:", psi))
+
+a1 <- round(plogis(fit_lmF1$q50$a0 + fit_lmF1$q50$a1), 3)
+print(paste0("Conifer Spp Richness", a1))
+
+a2 <- round(plogis(fit_lmF1$q50$a0 + fit_lmF1$q50$a2), 3)
+print(paste0("% Canopy landscape:", a2))
+
+a3 <- round(plogis(fit_lmF1$q50$a0 + fit_lmF1$q50$a3), 3)
+print(paste0("% Subcanopy landscape:", a3))
+
+a4 <- round(plogis(fit_lmF1$q50$a0 + fit_lmF1$q50$a4), 3)
+print(paste0("Veg SD Resid", a4))
+
+a5 <- round(plogis(fit_lmF1$q50$a0 + fit_lmF1$q50$a5), 3)
+print(paste0("% Subcanopy Cover Core", a5))
+```
+
+### Check for correlated parameters
+
+```{R Check Parameter Correlations}
+# Create a matrix of the mcmc chains for each parameter
+mat <- cbind(fit_lmF1$sims.list$a0, 
+             fit_lmF1$sims.list$a1, 
+             fit_lmF1$sims.list$a2, 
+             fit_lmF1$sims.list$a3, 
+             fit_lmF1$sims.list$a4, 
+             fit_lmF1$sims.list$a5)
+# run a correlation test on the chains - here, I'm looking for values that are larger than other values
+r <- cor(mat)
+r
+```
+
+### Check the last eigenvalue for evidence of correlated parameters
+
+```{R Check Eigenvalues}
+# look at the information contained within the MCMC chains, if the last eigenvector is close to zero, you don't have a lot of information here, probably as a result of colinearity 
+eigen(r)
+```
+
+
+### Interpreting output:
+
+**Strongly significant covariates (CI doesn't overlap 0): **
+
+
+
+**Weakly significant covariates (F > .70):** 
