@@ -56,8 +56,8 @@ pct_days <- round(full_dat$pct_days_wcall,0)
 # Create a list of data for JAGS
 jags_data <- list(
   # Percentage of days with bbcu
-  #days = scale_dat, 
-  days = pct_days,
+  days = pct_days, 
+  # days = pct_days, didn't help with model convergence
   # Native broadleaf tree spp richness
   cov1 = full_dat$tree_spp_rich,
   # % canopy landscape
@@ -72,7 +72,7 @@ jags_data <- list(
   cov6 = full_dat$veg_sd_resid,
   # floodplain community
   cov7 = full_dat$floodplain_shrub,
-  n_unit = nrow(lm_dat)
+  n_unit = nrow(full_dat)
 )
 
 # Set initial values 

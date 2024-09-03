@@ -25,10 +25,10 @@ y_{ij} \sim Bernoulli(p_{ij} * z_i)
 $$
 
 $$
-logit(p_{ij}) = \beta_0 + \beta_{1}*date + \beta_{3} * avg db + \beta_{4}*effort + \beta_{5}*veg_dense
+logit(p_{ij}) = \beta_0 + \beta_{1}*date + \beta_{3} * avg db + \beta_{4}*effort + \beta_{5}*vegdense
 $$
 
-**Handling of NAs:** Skip for missing detections, imputate missing covariates.
+**Handling of NAs:** Skip for missing detections, impute missing covariates.
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE)

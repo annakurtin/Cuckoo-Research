@@ -5,7 +5,7 @@ date: "8/31/2024"
 output: html_document
 ---
 
-This is the second iteration of the poisson model I will be using to test strength of habitat use across sites. I will be looking at number of days with a cuckoo vocalization at all sites (since p* is high so we don't need to account for detection) and the habitat covariates from the occupancy scale models with an f statistic >.9.
+This is the second iteration of the poisson model I will be using to test strength of habitat use across sites. I tried looking at number of days with a cuckoo vocalization at all sites (since p* is high so we don't need to account for detection) but the negative binomial parameterization of my model only works on data with % of days with BBCU > 0, so I separated out these days. I included the habitat covariates from the occupancy scale models with an f statistic >.9.
 
 
 too:
@@ -24,9 +24,9 @@ $$ \gamma_{2}: \text{percent canopy cover on a landscape scale} $$
 
 $$ \gamma_{3}: \text{percent subcanopy cover on a landscape scale} $$
 
-$$ \gamma_{3}: \text{veg sd residuals on a core scale} $$
+$$ \gamma_{4}: \text{veg sd residuals on a core scale} $$
 
-$$ \gamma_{4}: \text{percent subcanopy cover on a core scale} $$
+$$ \gamma_{5}: \text{percent subcanopy cover on a core scale} $$
 
 
 **Handling of NAs (only occur in habitat covs):** Imputation 
@@ -50,8 +50,10 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 
 ```{R Read in Data}
 full_dat <- read.csv("./Data/Habitat_Model_Covariates/Linear_Model/HabChap_22-23_DaysCalls_HabCovs.csv")
-#"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Linear_Model/Archive/HabChap_PoissonMod_DaysBBCU_HavCovs.csv")
-##### NEED TO REDO THE DATA TO GET AT CONIFER TREE SPP RICHNESS
+# Round the percentage of days with calls
+full_dat$pct_days_wcall <- round(full_dat$pct_days_wcall,0)
+scaled_dat <- scale(round(full_dat$pct_days_wcall,0))
+full_dat$pct_days_scaled <- round(scaled_dat[,1],0)
 ```
 
 ```{R Conifer Spp Richness}
@@ -91,6 +93,11 @@ corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
          main="Correlations in Habitat Metrics")
 ```
 
+```{R Chunk Out Data}
+# The only thing that was different from our original model was the percentage of days with calls was always > 0, trying to redo this to see if I can get the model to converge this way
+## if we needed to parse down the number of covariates we have we could kick out conifer tree spp richness since it's negatively associated with use at all
+full_dat <- full_dat %>% filter(pct_days_wcall > 0)
+```
 
 ### Set up model 
 
@@ -115,7 +122,8 @@ jags_data <- list(
 # Set initial values 
 init_func <- function(){
   list(
-    a0 = rnorm(1, 0, 1),
+    a0 = rnorm(1, 0, 1), # does this need to be drawn from a different distribution? I don't think so
+    #a0 = rnbinom(1, mu = 0, size = 1),
     a1 = rnorm(1, 0, 1),
     a2 = rnorm(1, 0, 1),
     a3 = rnorm(1, 0, 1),
@@ -126,7 +134,7 @@ init_func <- function(){
 ```
 
 
-```{R Create Linear Model}
+```{R Create Linear Model, eval = FALSE}
 cat("
   model{
         # Priors
@@ -176,6 +184,13 @@ fit_lmF1 <- jags(data = jags_data,
 beep(sound = 3)
 ```
 
+
+```{R figurin shit out}
+t <- rnbinom(1000, mu = 5, size = 1)
+hist(t)
+# size is dispersion parameter
+# mu is the mean
+```
 ### Look at outputs
 
 $$ \gamma_{1}: \text{conifer spp richness} $$

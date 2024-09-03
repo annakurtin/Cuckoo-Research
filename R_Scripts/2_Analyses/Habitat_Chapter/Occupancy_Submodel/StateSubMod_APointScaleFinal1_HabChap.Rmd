@@ -5,20 +5,21 @@ date: "8/27/2024"
 output: html_document
 ---
 
-#### Explanation of model: 
+### Explanation of model: 
 
 This model is me redoing the point scale submodel to streamline and clarify my covariate selection process for the final global model. Here is a list of  the previous iterations of this model (also on OneNote):
 
-* Point Submodel 1: Deciduous tree species richness, broadleaf, invasive, upland, floodplain shrub community, naive detection model. 
+* Point Submodel 1: Based on covariates we're interested in: state model with deciduous tree species richness; broadleaf, invasive, upland, and floodplain shrub community; naive detection model. 
 
-* Point Submodel 2: Deciduous tree species richness, floodplain shrub community parameterized detection model with date, quadratic effect of date, average db, and effort after talking with Lisa and going off of her model building process which is to add on the parameterized detection model when building the state model.
+* Point Submodel 2: After talking with Lisa E and following her recommendations for model building which is to add on the parameterized detection model when building the state model.
+State model includes deciduous tree species richness and floodplain shrub community after deciding that the other shrub communities were not of interest (broadleaf), didn't have sufficient data points (invasive), or are colinear with other covariates (upland). Parameterized detection model with date, quadratic effect of date, average db, and effort. 
 
-* Point Submodel 3: Deciduous tree species richness, floodplain shrub community, conifer tree species richness, parameterized detection model with date, quadratic effect of date, average db, and effort. I went back and included conifer tree species richness because I realized we want to say something about species composition effects on occupancy and with the previous iterations we could only say something about deciduous tree richness not about conifer tree richness. 
+* Point Submodel 3: I went back and included conifer tree species richness because I realized we want to say something about species composition effects on occupancy and with the previous iterations we could only say something about deciduous tree richness not about conifer tree richness. State model with deciduous tree species richness, floodplain shrub community, conifer tree species richness, parameterized detection model with date, quadratic effect of date, average db, and effort. 
 
-I'll be combining all of these covaraites in this model sans invasive shrub type and upland. Based on ./R_Markdown/Evaluate_Distrib_ContCovs_ShrubComm.Rmd, the invasive shrub type has too little points, and upland is correlated with other covariates. Therefore, all the covariates included are deciduous tree species richness, conifer tree species richness, broadleaf shrub, and floodplain shrub.
+In the current iteration I'll be combining all of these covariates in this model sans invasive shrub and upland shrub community type. Based on ./R_Markdown/Evaluate_Distrib_ContCovs_ShrubComm.Rmd, the invasive shrub type has too little points, and upland is correlated with other covariates. However, we are interested in floodplain shrub vs broadleaf shrub community at the point.  Therefore, all the covariates included are deciduous tree species richness, conifer tree species richness, broadleaf shrub, and floodplain shrub.
 
 
-#### Model structure:
+### Model structure:
 
 
 **State Model:** with four covariates
@@ -70,7 +71,6 @@ library(corrgram)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 ```
 
-#### Read in data and look at distributions accross points
 
 ```{R}
 # Load in most recent version of data
@@ -79,9 +79,9 @@ full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Works
 full_dat$bbcu <- apply(full_dat[2:7], 1, max, na.rm = TRUE)
 ```
 
-### Visualize distribution of scaled covariates
+### Visualize Distribution of Scaled Covariates
 
-```{R}
+```{R, message = FALSE}
 drich <- full_dat %>% select(bbcu, dtree_spp_rich)
 drich_p1 <- drich %>% ggplot() + geom_histogram(aes(x = dtree_spp_rich),fill = palette_8[1]) + theme_minimal()
 drich_p2 <- ggplot(drich) + 
@@ -92,7 +92,7 @@ drich_p2 <- ggplot(drich) +
   theme_minimal()
 ```
 
-```{R}
+```{R, message = FALSE}
 crich <- full_dat %>% select(bbcu, ctree_spp_rich)
 crich_p1 <- crich %>% ggplot() + geom_histogram(aes(x = ctree_spp_rich), fill = palette_8[2]) + theme_minimal()
 crich_p2 <- ggplot(crich) + 
@@ -103,7 +103,7 @@ crich_p2 <- ggplot(crich) +
   theme_minimal()
 ```
 
-```{R}
+```{R, message = FALSE}
 fshrub <- full_dat %>% select(bbcu, floodplain_shrub)
 fshrub_p1 <- fshrub %>% ggplot() + geom_histogram(aes(x = floodplain_shrub), fill = palette_8[3]) + theme_minimal()
 fshrub_p2 <- ggplot(fshrub) + 
@@ -114,22 +114,24 @@ fshrub_p2 <- ggplot(fshrub) +
   theme_minimal()
 ```
 
-```{R}
+```{R, message = FALSE}
 bshrub <- full_dat %>% select(bbcu, broadleaf_shrub)
 bshrub_p1 <- bshrub %>% ggplot() + geom_histogram(aes(x = broadleaf_shrub), fill = palette_8[4]) + theme_minimal()
 bshrub_p2 <- ggplot(bshrub) + 
   geom_jitter(aes(x = broadleaf_shrub, y = bbcu), color = palette_8[4], width = .05, height = .05) +
   geom_smooth(aes(x = broadleaf_shrub, y = bbcu), color = palette_8[4], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
-  labs(x = "Floodplain Shrub Community Dominant", y = "Detection") + 
+  labs(x = "Broadleaf Shrub Community Dominant", y = "Detection") + 
   scale_y_continuous(breaks = seq(0, 1, by = 1)) +
   theme_minimal()
 ```
 
 
-```{R Visualize Data Distribution}
+```{R Visualize Data Distribution, message = FALSE}
 drich_p2 + crich_p2
 fshrub_p2 + bshrub_p2
 ```
+
+### Visualize Correlations Between Covariates
 
 ```{R Visualize Correalations, warnings = FALSE, message = FALSE}
 corrdat <- full_dat %>% select(dtree_spp_rich, ctree_spp_rich, floodplain_shrub, broadleaf_shrub)
@@ -139,7 +141,7 @@ corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
 ```
 
 
-#### Set up model
+#### Set Up Model
 
 
 ```{R Set up Data}
@@ -275,6 +277,7 @@ cat("
        ssim[i] <- sum(Presi_new[i,1:miss[i]])
     }
     
+    # Use SSEs to calculate Bayesian p value
     SSEobs <- sum(sobs[])
     SSEsim <- sum(ssim[])
     p_val <- step(SSEsim - SSEobs)
@@ -300,7 +303,7 @@ saveRDS(fit_AF1,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/
 fit_AF1 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Models_Ran_Outputs/StateSubModel_AFinal1.Rdata")
 ```
 
-#### Evaluate model outputs
+### Evaluate Model Outputs and Convergence
 
 $$ \alpha_1: \text{Deciduous tree spp richness}$$
 
@@ -315,7 +318,7 @@ summary(fit_AF1)
 tracedens_jags(fit_AF1, parmfrow = c(2,3))
 ```
 
-#### Examine model fit:
+### Examine Model Fit:
 
 ```{R Make Inference on P Value}
 plot(fit_AF1$sims.list$SSEobs,fit_AF1$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
@@ -323,7 +326,7 @@ abline(0,1,lwd = 2, col = "red")
 print(paste0("P value is: ",round(fit_AF1$mean$p_val, 2)))
 ```
 
-#### Posterior distributions and F statistics:
+### Posterior distributions and F statistics:
 
 ```{R Create Plots of Posterior Distribution}
 # Plot posterior distribution
@@ -336,8 +339,16 @@ colnames(chains_viol) <- c("Decid Spp Rich","Conif Spp Rich","Floodplain Shrub",
 chains_viol_long <- chains_viol %>% pivot_longer(cols = c("Decid Spp Rich","Conif Spp Rich","Floodplain Shrub","Broadleaf Shrub"),names_to = "parameter", values_to = "values")
 
 f_stat <- data.frame(
-  parameter = c("Decid Spp Rich", "Conif Spp Rich", "Floodplain Shrub", "Broadleaf Shrub"),
-  median_value = c(round(fit_AF1$f$a1,2), round(fit_AF1$f$a2,2), round(fit_AF1$f$a3,2), round(fit_AF1$f$a4,2))
+  parameter = c(
+    "Decid Spp Rich", 
+    "Conif Spp Rich", 
+    "Floodplain Shrub", 
+    "Broadleaf Shrub"),
+  median_value = c(
+    paste0("F:",round(fit_AF1$f$a1,2)),
+    paste0("F:",round(fit_AF1$f$a2,2)),
+    paste0("F:",round(fit_AF1$f$a3,2)),
+    paste0("F:",round(fit_AF1$f$a4,2)))
 )
 
 # Create the slab interval plot
@@ -345,7 +356,10 @@ ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)
   # Plot posterior distributions
   stat_slabinterval() +
   # Establish colors
-  scale_fill_manual(values = c("Decid Spp Rich"=palette_8[1], "Conif Spp Rich" = palette_8[2],"Floodplain Shrub"=palette_8[3], "Broadleaf Shrub" = palette_5[4], "quadratic date" = palette_8[5])) +
+  scale_fill_manual(values = c("Decid Spp Rich"=palette_8[1], 
+                               "Conif Spp Rich" = palette_8[2],
+                               "Floodplain Shrub"=palette_8[3], 
+                               "Broadleaf Shrub" = palette_5[4])) +
   # Add a line for 0 to show overlap of posterior
   geom_vline(xintercept = 0) +
   # Remove background color from plots
@@ -353,10 +367,10 @@ ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)
   # Turn off the legend
   guides(fill = "none") +
   # Add median values as text labels
-  geom_text(data = f_stat, aes(x = 3.5, y = parameter, label = median_value), color = "black", hjust = .6)  
+  geom_text(data = f_stat, aes(x = 3.5, y = parameter, label = median_value), color = "black", hjust = .6) 
 ```
 
-#### Median effect sizes: 
+### Median effect sizes: 
 
 ```{R Transform Parameter Estimates}
 # Transform median values from posterior distribution into probability 
@@ -377,7 +391,7 @@ print(paste0("Broadleaf shrub community:", a4))
 ```
 
 
-#### Check for correlated parameters
+### Check for correlated parameters
 
 ```{R Check Parameter Correlations}
 # Create a matrix of the mcmc chains for each parameter
@@ -407,8 +421,8 @@ eigen(r)
 
 * Native deciduous tree species richness: there is an 82% chance that the true parameter for this covariate's effect on the probability of habitat use during the breeding season is positive. The median estimate for this parameter converted to probability space is 0.202, which means that at the mean value of the other covariates, for every one standard deviation increase in deciduous tree species richness above the mean (0.92 spp increase above average of .96 species), the probability of use by BBCU increases by 20.2%.
 
-* Native conifer tree spp richness: there is a 93% chance that the true parameter for this covariate's effect on the probability of habitat use during the breeding season is negative. The median estimate for this parameter converted to probability space is 0.099, which means that at the mean values of the other covariates, for every one standard deviation increase in conifer tree species richness above the mean (0.20 increase above a mean of 0.52), the probability of use by bbcu decreases by 9.9% 
+* Native conifer tree spp richness: there is a 92% chance that the true parameter for this covariate's effect on the probability of habitat use during the breeding season is negative. The median estimate for this parameter converted to probability space is 0.099, which means that at the mean values of the other covariates, for every one standard deviation increase in conifer tree species richness above the mean (0.20 increase above a mean of 0.52), the probability of use by BBCU decreases by 9.9% 
 
 * Shrub community dominated by floodplain shrub species (cottonwood and willow): there is a 89% chance that the true parameter for this covariate's effect on the probability of habitat use during the breeding season is negative. The median estimate for this parameter converted to probability space is 0.069, which means that at the mean values of the other covariates, for sites that have a floodplain species dominated shrub community, the probability of use by BBCU decreases by 6.9% compared to sites that don't have this dominant community.
 
-* Shrub community dominated by broadleaf shrub (deciduous shrubs not cottonwood, willow, or invasive species): there is an 83% chance that the true parameter for this covariate's effect on the probability of habiat use during the breeding season is positive. The median estiate for this parameter converted to probability space is 0.256, which means that at the mean values of the other covariates, for sites that have a broadleaf species dominanted shrub community, the probability of use by BBCU increases by 25.6% compared to sites that don't have this dominant community. 
+* Shrub community dominated by broadleaf shrub (deciduous shrubs not cottonwood, willow, or invasive species): there is an 83% chance that the true parameter for this covariate's effect on the probability of habiat use during the breeding season is positive. The median estimate for this parameter converted to probability space is 0.256, which means that at the mean values of the other covariates, for sites that have a broadleaf species dominanted shrub community, the probability of use by BBCU increases by 25.6% compared to sites that don't have this dominant community. 

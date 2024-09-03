@@ -5,28 +5,26 @@ date: "8/28/2024"
 output: html_document
 ---
 
-#### Explanation of Model
+### Explanation of Model
 
 This model is me redoing the core scale submodel to streamline and clarify my covariate selection process for the final global model. Here is a list of  the previous iterations of this model (also on OneNote):
 
-* Core Submodel 1: first iteration of the model: state model with percent canopy, percent subcanopy, canopy height, subcanopy height, standard deviation of subcanopy, residuals of veg standard deviation from regression with canopy height, naive detection model
+* Core Submodel 1: Based on covariates of interest (on Google Sheets) state model with percent canopy, percent subcanopy, canopy height, subcanopy height, standard deviation of subcanopy, residuals of veg standard deviation from regression with canopy height, naive detection model
 
 * Core Submodel 2: iteration of the model where I was trying to break apart colinearities: state model with percent canopy residuals from total veg sd, subcanopy percent canopy (unchanged), height of canopy residuals from total veg sd, height of subcanopy residuals from subcanopy sd, standard deviation of subcanopy (unchanged), total veg standard deviation (unchanged), naive detection model.
 
 * Core Submodel 3: state model with percent canopy (cov1) and subcanopy (cov2), height of canopy (cov3) and subcanopy (cov4), residuals of veg standard deviation from regression with canopy height (cov6), naive detection model
 
-* Core Submodel 4a: Model after I met with Lisa and she recommended using either sd or height metrics but not both. This is the model with height covaraites only. State model with percent canopy (cova1) and subcanopy (cova2), height of canopy (cova3) and subcanopy (cova4), detection model with date, quadratic effect of date, average decibels, and effort
+* Core Submodel 4a: Model after I met with Lisa and she recommended using either sd or height metrics but not both, she also recommended to build state submodels with parameterized detection model. This is the model with height covariates only. State model with percent canopy (cova1) and subcanopy (cova2), height of canopy (cova3) and subcanopy (cova4), detection model with date, quadratic effect of date, average decibels, and effort.
 
-* Core submodel 4b: Model after I met with Lisa and she recommended using either sd or height metrics but not both. This is the model with sd covaraites only. State model with percent canopy (cova1) and subcanopy (cova2), sd of all veg (cova5) and sd of subcanopy (cova6), detection model with date, quadratic effect of date, average decibels, and effort
+* Core submodel 4b: Model after I met with Lisa and she recommended using either sd or height metrics but not both, she also recommended to build state submodels with parameterized detection model. This is the model with sd covaraites only. State model with percent canopy (cova1) and subcanopy (cova2), sd of all veg (cova5) and sd of subcanopy (cova6), detection model with date, quadratic effect of date, average decibels, and effort
 
 * Core submodel 5: After talking with Andy and Erim, decided to not go with either height or sd becasue of the covariates that we want inference on and those that we believe are related biologically. We decided to include canopy height and veg sd residual, remove percent canopy cover b/c it's colinear with other covariates of interest (no way to separate out this one and it is accounted for by percent canopy landscape), remove subcan sd (it's nested within total veg sd and colinear with subcanopy veg height). State model with percent subcanopy, height of subcanopy, height of canopy, standard deviation of all veg residuals from regression with canopy height, detection model with date, quadratic effect of date, average decibels, and effort
 
-**Original covariates of interest:**
-
-I'll be using the same structure in this model, adding in the newly cleaned data and the detection model with veg density as a covariate. 
+I'll be using the same structure in this model, adding in the newly cleaned data and the new detection model that includes veg density as a covariate. 
 
 
-#### Model structure:
+### Model structure:
 
 
 **State Model:** with four covariates
@@ -35,13 +33,13 @@ $$
 Z_i \sim Bernoulli(\psi_i | \alpha_1, \alpha_2, \alpha_3, \alpha_4)
 $$
 
-$$ \alpha_1: \text{pct_subcan_core}$$
+$$ \alpha_1: \text{% subcanopy core area}$$
 
-$$ \alpha_2: \text{ht_can_core}$$
+$$ \alpha_2: \text{canopy height core area}$$
 
-$$ \alpha_3: \text{ht_subcan_core}$$
+$$ \alpha_3: \text{subcanopy height core area}$$
 
-$$ \alpha_4: \text{veg_sd_resid}$$
+$$ \alpha_4: \text{veg st dev residual from reg w/ canopy height core}$$
 
 **Detection Model**: with 5 covariates (from detection submodel final 2)
 
@@ -76,9 +74,6 @@ library(corrgram)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 ```
 
-
-#### Read in data and look at distributions accross points
-
 ```{R}
 # Load in most recent version of data
 full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_8-12.csv")
@@ -86,7 +81,7 @@ full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Works
 full_dat$bbcu <- apply(full_dat[2:7], 1, max, na.rm = TRUE)
 ```
 
-### Visualize distribution of scaled covariates
+### Visualize Distribution of Scaled Covariates
 
 ```{R}
 cancov <- full_dat %>% select(bbcu, pct_can_core)
@@ -172,7 +167,7 @@ sdvegr_p2 <- ggplot(sd_vegr) +
   theme_minimal()
 ```
 
-```{R Visualize Plots}
+```{R Visualize Plots, message = FALSE}
 cancov_p2 + subcancov_p2
 
 htcan_p2 + htsubcan_p2
@@ -180,7 +175,9 @@ htcan_p2 + htsubcan_p2
 sdveg_p2 + sdsubcan_p2
 ```
 
-#### Visualize correlation among covariates
+### Visualize correlation among covariates
+
+Let's look at the correlation between all the core scale covariates and walk through how to resolve them. 
 
 ```{R Visualize Correlations 1, warnings = FALSE, message = FALSE}
 corrdat <- full_dat %>% select(pct_can_core, pct_subcan_core, ht_can_core, ht_subcan_core, sd_subcan_core, sd_allveg_core)
@@ -211,6 +208,8 @@ corrgram(corrdat3, order=TRUE, lower.panel=panel.cor,
 
 We also decided to not include not including subcanopy sd since it's colinear with subcanopy height, also the vertical complexity of the subcanopy is encapsulated within total veg sd.
 
+Now, let's take a look at the remaining covariates.
+
 ```{R Visualize Correlations 4, warnings = FALSE, message = FALSE}
 corrdat4 <- full_dat %>% select(pct_subcan_core, ht_can_core, ht_subcan_core, veg_sd_resid)
 corrgram(corrdat4, order=TRUE, lower.panel=panel.cor,
@@ -218,9 +217,9 @@ corrgram(corrdat4, order=TRUE, lower.panel=panel.cor,
          main="Correlations in Core Scale Occupancy Metrics")
 ```
 
-With these covariates, we now have no colinear relationships.
+With these covariates, we now have no colinear relationships and are good to include them in the model. 
 
-### Set up model
+### Set up Model
 
 ```{R Set up Data}
 detections <- full_dat[,2:7]
@@ -346,6 +345,7 @@ cat("
        ssim[i] <- sum(Presi_new[i,1:miss[i]])
     }
     
+    # Use SSEs to calculate Bayesian P values
     SSEobs <- sum(sobs[])
     SSEsim <- sum(ssim[])
     p_val <- step(SSEsim - SSEobs)
@@ -375,13 +375,13 @@ fit_CF1 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspa
 
 #### Evaluate model outputs
 
-$$ \alpha_1: \text{pct_subcan_core}$$
+$$ \alpha_1: \text{% subcanopy core area}$$
 
-$$ \alpha_2: \text{ht_can_core}$$
+$$ \alpha_2: \text{canopy height core area}$$
 
-$$ \alpha_3: \text{ht_subcan_core}$$
+$$ \alpha_3: \text{subcanopy height core area}$$
 
-$$ \alpha_4: \text{veg_sd_resid}$$
+$$ \alpha_4: \text{veg st dev residual from reg w/ canopy height core}$$
 
 
 ```{R Evaluate Model}
@@ -410,8 +410,14 @@ colnames(chains_viol) <- c("% Subcanopy Cover","Canopy Height", "Subcanopy Heigh
 chains_viol_long <- chains_viol %>% pivot_longer(cols = c("% Subcanopy Cover","Canopy Height", "Subcanopy Height", "Veg SD Resid"),names_to = "parameter", values_to = "values")
 
 f_stat <- data.frame(
-  parameter = c("% Subcanopy Cover","Canopy Height", "Subcanopy Height", "Veg SD Resid"),
-  median_value = c(round(fit_CF1$f$a1,2), round(fit_CF1$f$a2,2),round(fit_CF1$f$a3,2), round(fit_CF1$f$a4,2))
+  parameter = c("% Subcanopy Cover",
+                "Canopy Height", 
+                "Subcanopy Height", 
+                "Veg SD Resid"),
+  median_value = c(paste0("F: ",round(fit_CF1$f$a1,2)),
+                   paste0("F: ",round(fit_CF1$f$a2,2)),
+                   paste0("F: ",round(fit_CF1$f$a3,2)), 
+                   paste0("F: ",round(fit_CF1$f$a4,2)))
 )
 
 # Create the slab interval plot
