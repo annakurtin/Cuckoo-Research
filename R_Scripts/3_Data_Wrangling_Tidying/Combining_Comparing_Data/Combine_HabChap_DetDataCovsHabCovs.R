@@ -11,7 +11,7 @@ load_packages(packages)
 
 #### read in data ####
 
-hab_covs_det <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/DetHist_VegCovs_Scaled_8-12.csv")
+hab_covs_det <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/DetHist_2023VegCovs_Scaled_9-4.csv")
 det_covs <- readRDS(file ="C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Full_DetectionDataSCALED_JAGSModels_HabChap.Rdata")
 # round this to make it more readable
 det_covs[,8:26] <- round(det_covs[,8:26],2)
@@ -20,7 +20,7 @@ det_covs[,8:26] <- round(det_covs[,8:26],2)
 all_dat <- left_join(hab_covs_det, det_covs, by = "site_id")
  
 # remove the duplicate detection column
-all_dat <- all_dat %>% select(-c(24:29))
+all_dat <- all_dat %>% select(-c(26:31))
 # rename
 all_dat <- all_dat %>% rename(det_s1 = det_survey1.x,
                    det_s2 = det_survey2.x,
@@ -30,14 +30,14 @@ all_dat <- all_dat %>% rename(det_s1 = det_survey1.x,
                    det_s6 = det_survey6.x)
 
 # write this to .csv
-#write.csv(all_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_8-12.csv", row.names = FALSE)
+#write.csv(all_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_9-4.csv", row.names = FALSE)
 
 
 
 ### Create combined data unscaled
 
 # State covariates
-hab_covs_det_us <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2023Veg_Covariates_8-12.csv")
+hab_covs_det_us <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2023Veg_Covariates_9-4.csv")
 # Detection covariates
 det_covs_us <- readRDS(file ="C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Full_DetectionData_JAGSModels_HabChap.Rdata")
 
@@ -68,11 +68,11 @@ all_dat_us <- all_dat_us %>% rename(det_s1 = det_survey1,
 # Select relevant columns
 all_dat_us_fin <- all_dat_us %>% select(site_id,
                                         x, y,
-                                        21:45,
-                                        5:20) 
+                                        23:47,
+                                        5:22) 
 
 # write this to .csv
-write.csv(all_dat_us_fin,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_UNSCALED_8-30.csv", row.names = FALSE)
+#write.csv(all_dat_us_fin,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_UNSCALED_9-4.csv", row.names = FALSE)
 
 
 # Make this into a version for Thomas' class
@@ -81,4 +81,4 @@ write.csv(all_dat_us_fin,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_W
 class_dat <- all_dat_us_fin %>% select(-c(x, y, veg_sd_resid,ctree))
 class_dat$site_id <- c(1:110)
 # check csv for this
-write.csv(class_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_ClassData.csv", row.names = FALSE)
+#write.csv(class_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_ClassData.csv", row.names = FALSE)

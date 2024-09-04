@@ -11,7 +11,7 @@ This is the third iteration of the poisson model I will be using to test strengt
 ### Model structure
 
 $$
-\theta \sim NegBinomial(\gamma_0 + \gamma_{1} + \gamma_{2} + \gamma_{3}  + \gamma_{4}  + \gamma_{5})
+\theta \sim Beta(\gamma_0 + \gamma_{1} + \gamma_{2} + \gamma_{3}  + \gamma_{4}  + \gamma_{5})
 $$
 
 $$ \gamma_{1}: \text{conifer spp richness} $$

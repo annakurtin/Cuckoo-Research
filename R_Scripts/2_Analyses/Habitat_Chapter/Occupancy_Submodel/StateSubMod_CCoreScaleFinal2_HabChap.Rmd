@@ -1,0 +1,492 @@
+---
+title: 'Occupancy Sub Model C Final1: Core Scale Covariates'
+author: "Anna Kurtin"
+date: "9/4/2024"
+output: html_document
+---
+
+### Explanation of Model
+
+This model is me redoing the core scale submodel to streamline and clarify my covariate selection process for the final global model. Here is a list of  the previous iterations of this model (also on OneNote):
+
+* Core Submodel 1: Based on covariates of interest (on Google Sheets) state model with percent canopy, percent subcanopy, canopy height, subcanopy height, standard deviation of subcanopy, residuals of veg standard deviation from regression with canopy height, naive detection model
+
+* Core Submodel 2: iteration of the model where I was trying to break apart colinearities: state model with percent canopy residuals from total veg sd, subcanopy percent canopy (unchanged), height of canopy residuals from total veg sd, height of subcanopy residuals from subcanopy sd, standard deviation of subcanopy (unchanged), total veg standard deviation (unchanged), naive detection model.
+
+* Core Submodel 3: state model with percent canopy (cov1) and subcanopy (cov2), height of canopy (cov3) and subcanopy (cov4), residuals of veg standard deviation from regression with canopy height (cov6), naive detection model
+
+* Core Submodel 4a: Model after I met with Lisa and she recommended using either sd or height metrics but not both, she also recommended to build state submodels with parameterized detection model. This is the model with height covariates only. State model with percent canopy (cova1) and subcanopy (cova2), height of canopy (cova3) and subcanopy (cova4), detection model with date, quadratic effect of date, average decibels, and effort.
+
+* Core submodel 4b: Model after I met with Lisa and she recommended using either sd or height metrics but not both, she also recommended to build state submodels with parameterized detection model. This is the model with sd covaraites only. State model with percent canopy (cova1) and subcanopy (cova2), sd of all veg (cova5) and sd of subcanopy (cova6), detection model with date, quadratic effect of date, average decibels, and effort
+
+* Core submodel 5: After talking with Andy and Erim, decided to not go with either height or sd becasue of the covariates that we want inference on and those that we believe are related biologically. We decided to include canopy height and veg sd residual, remove percent canopy cover b/c it's colinear with other covariates of interest (no way to separate out this one and it is accounted for by percent canopy landscape), remove subcan sd (it's nested within total veg sd and colinear with subcanopy veg height). State model with percent subcanopy, height of subcanopy, height of canopy, standard deviation of all veg residuals from regression with canopy height, detection model with date, quadratic effect of date, average decibels, and effort
+
+I'll be using the same structure in this model, adding in the new data where I calculated subcanopy more as open shrubby area (subcanopy pixels/total pixels) and the new detection model with veg density as a covariate. 
+
+
+### Model structure:
+
+
+**State Model:** with four covariates
+
+$$
+Z_i \sim Bernoulli(\psi_i | \alpha_1, \alpha_2, \alpha_3, \alpha_4)
+$$
+
+$$ \alpha_1: \text{% open shrubby cover core area}$$
+
+$$ \alpha_2: \text{canopy height core area}$$
+
+$$ \alpha_3: \text{subcanopy height core area}$$
+
+$$ \alpha_4: \text{veg st dev residual from reg w/ canopy height core}$$
+
+**Detection Model**: with 5 covariates (from detection submodel final 2)
+
+$$
+y_{ij} \sim Bernoulli(p_{ij}| \beta_1, \beta_2, \beta_3, \beta_4, \beta_{4Q})
+$$
+
+$$\beta_1: \text{vegetation density}$$ 
+
+$$\beta_2: \text{background decibels}$$ 
+
+$$\beta_3: \text{survey effort}$$ 
+
+$$\beta_4: \text{survey start date}$$  
+
+$$\beta_4Q: \text{quadratic effect of start date}$$ 
+
+
+**Handling of NAs:** imputation for missing habitat parameters, skipping missing detection data
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(patchwork)
+library(ggdist)
+library(beepr)
+library(corrgram)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+```{R}
+# Load in most recent version of data
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_9-4.csv")
+# Make a detection column
+full_dat$bbcu <- apply(full_dat[2:7], 1, max, na.rm = TRUE)
+```
+
+### Visualize Distribution of Scaled Covariates
+
+```{R}
+cancov <- full_dat %>% select(bbcu, pct_can_core)
+
+cancov_p1 <- cancov %>% ggplot() + geom_histogram(aes(x = pct_can_core),fill = palette_8[1]) + theme_minimal()
+cancov_p2 <- ggplot(cancov) + 
+  geom_jitter(aes(x = pct_can_core, y = bbcu), color = palette_8[1], width = .05, height = .05) +
+  geom_smooth(aes(x = pct_can_core, y = bbcu), color = palette_8[1], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
+  labs(x = "% Canopy Cover", y = "Detection") + 
+  scale_y_continuous(breaks = seq(0, 1, by = 1)) +
+  theme_minimal()
+```
+
+```{R}
+oshrubcov <- full_dat %>% select(bbcu, pct_openshrub_core)
+
+oshrubcov_p1 <- oshrubcov %>% ggplot() + geom_histogram(aes(x = pct_openshrub_core),fill = palette_8[2]) + theme_minimal()
+oshrubcov_p2 <- ggplot(oshrubcov) + 
+  geom_jitter(aes(x = pct_openshrub_core, y = bbcu), color = palette_8[2], width = .05, height = .05) +
+  geom_smooth(aes(x = pct_openshrub_core, y = bbcu), color = palette_8[2], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
+  scale_y_continuous(breaks = seq(0, 1, by = 1)) +
+  labs(x = "% Open Shrub Cover", y = "Detection") + theme_minimal()
+```
+
+```{R}
+ht_can <- full_dat %>% select(bbcu, ht_can_core)
+
+htcan_p1 <- ht_can %>% ggplot() + geom_histogram(aes(x = ht_can_core),fill = palette_8[3]) + theme_minimal()
+htcan_p2 <- ggplot(ht_can) + 
+  geom_jitter(aes(x = ht_can_core, y = bbcu), color = palette_8[3], width = .05, height = .05) +
+  geom_smooth(aes(x = ht_can_core, y = bbcu), color = palette_8[3], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
+  labs(x = "Canopy Height", y = "Detection") + 
+  scale_y_continuous(breaks = seq(0, 1, by = 1)) +
+  theme_minimal()
+```
+
+```{R}
+ht_subcan <- full_dat %>% select(bbcu, ht_subcan_core)
+
+htsubcan_p1 <- ht_subcan %>% ggplot() + geom_histogram(aes(x = ht_subcan_core),fill = palette_8[4]) + theme_minimal()
+htsubcan_p2 <- ggplot(ht_subcan) + 
+  geom_jitter(aes(x = ht_subcan_core, y = bbcu), color = palette_8[4], width = .05, height = .05) +
+  geom_smooth(aes(x = ht_subcan_core, y = bbcu), color = palette_8[4], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
+  labs(x = "Subcanopy Height", y = "Detection") + 
+  scale_y_continuous(breaks = seq(0, 1, by = 1)) +
+  theme_minimal()
+```
+
+```{R}
+sd_subcan <- full_dat %>% select(bbcu, sd_subcan_core)
+
+sdsubcan_p1 <- sd_subcan %>% ggplot() + geom_histogram(aes(x = sd_subcan_core),fill = palette_8[5]) + theme_minimal()
+sdsubcan_p2 <- ggplot(sd_subcan) + 
+  geom_jitter(aes(x = sd_subcan_core, y = bbcu), color = palette_8[5], width = .05, height = .05) +
+  geom_smooth(aes(x = sd_subcan_core, y = bbcu), color = palette_8[5], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
+  labs(x = "Subcanopy St Dev", y = "Detection") + 
+  scale_y_continuous(breaks = seq(0, 1, by = 1)) +
+  theme_minimal()
+```
+
+```{R}
+sd_veg <- full_dat %>% select(bbcu, sd_allveg_core)
+
+sdveg_p1 <- sd_veg %>% ggplot() + geom_histogram(aes(x = sd_allveg_core),fill = palette_8[6]) + theme_minimal()
+sdveg_p2 <- ggplot(sd_veg) + 
+  geom_jitter(aes(x = sd_allveg_core, y = bbcu), color = palette_8[6], width = .05, height = .05) +
+  geom_smooth(aes(x = sd_allveg_core, y = bbcu), color = palette_8[6], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
+  labs(x = "All Veg St Dev", y = "Detection") + 
+  scale_y_continuous(breaks = seq(0, 1, by = 1)) +
+  theme_minimal()
+```
+
+
+```{R}
+sd_vegr <- full_dat %>% select(bbcu, veg_sd_resid)
+
+sdvegr_p1 <- sd_vegr %>% ggplot() + geom_histogram(aes(x = veg_sd_resid),fill = palette_8[7]) + theme_minimal()
+sdvegr_p2 <- ggplot(sd_vegr) + 
+  geom_jitter(aes(x = veg_sd_resid, y = bbcu), color = palette_8[7], width = .05, height = .05) +
+  geom_smooth(aes(x = veg_sd_resid, y = bbcu), color = palette_8[7], se = FALSE, method = "glm", method.args = list(family = "binomial")) +
+  labs(x = "All Veg St Dev Resid on Canopy Height", y = "Detection") + 
+  scale_y_continuous(breaks = seq(0, 1, by = 1)) +
+  theme_minimal()
+```
+
+```{R Visualize Plots, message = FALSE}
+cancov_p2 + oshrubcov_p2
+
+htcan_p2 + htsubcan_p2
+
+sdveg_p2 + sdsubcan_p2
+```
+
+### Visualize correlation among covariates
+
+Let's look at the correlation between all the core scale covariates and walk through how to resolve them. 
+
+```{R Visualize Correlations 1, warnings = FALSE, message = FALSE}
+corrdat <- full_dat %>% select(pct_can_core, pct_openshrub_core, ht_can_core, ht_subcan_core, sd_subcan_core, sd_allveg_core)
+corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Core Scale Occupancy Metrics")
+```
+
+Standard deviation of veg is correlated very strongly with canopy height. Since we're interested in separating these effects, we'll instead take the residuals of veg sd regressed on canopy height.
+
+```{R Visualize Correlations 2, warnings = FALSE, message = FALSE}
+corrdat2 <- full_dat %>% select(pct_can_core, pct_openshrub_core, ht_can_core, ht_subcan_core, sd_subcan_core, veg_sd_resid)
+corrgram(corrdat2, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Core Scale Occupancy Metrics")
+```
+
+There are still several colinear relationships here to resolve.
+
+We decided to not include percent canopy core because it correlates to percent canopy landscape and is colinear with two other covaraites. 
+
+```{R Visualize Correlations 3}
+corrdat3 <- full_dat %>% select(pct_can_core,pct_can_landsc)
+corrgram(corrdat3, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Metrics For Percent Canopy")
+```
+
+We also decided to not include not including subcanopy sd since it's colinear with subcanopy height, also the vertical complexity of the subcanopy is encapsulated within total veg sd.
+
+Now, let's take a look at the remaining covariates.
+
+```{R Visualize Correlations 4, warnings = FALSE, message = FALSE}
+corrdat4 <- full_dat %>% select(pct_openshrub_core, ht_can_core, ht_subcan_core, veg_sd_resid)
+corrgram(corrdat4, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Core Scale Occupancy Metrics")
+```
+
+With these covariates, we now have no colinear relationships and are good to include them in the model. 
+
+### Set up Model
+
+```{R Set up Data}
+detections <- full_dat[,2:7]
+
+# Have to specify the z data for a true presence if there was a 1 at any time 
+z_dat <- rowSums(detections, na.rm = T)
+z_dat[z_dat > 1] <- 1
+z_dat[z_dat == 0] <- NA
+
+# get the length of non-nas in the detection data
+get_na <- function(x){(max(which(!is.na(x))))}
+# Apply this to our data
+miss <- apply(detections, 1, get_na)
+
+# Detection covariates
+veg <- full_dat$veg_density_avg_scaled
+dates <- full_dat[,37:42]
+effort <- full_dat[,31:36]
+backdb <- full_dat[,24:29]
+```
+
+```{R}
+# Create a list of data for JAGS
+jags_data <- list(
+  # True presence at sites with confirmed presences
+  Z = z_dat,
+  # Detection/nondetection data
+  det_data = detections,
+  # Veg density
+  covb1 = veg,
+  # Background noise
+  covb2 = backdb,
+  # Effort 
+  covb3 = effort,
+  # Date
+  covb4 = dates,
+  # % Subcanopy cover
+  cova1 = oshrubcov[,2],
+  # Canopy height
+  cova2 = ht_can[,2],
+  # Subcanopy height
+  cova3 = ht_subcan[,2],
+  # Veg sd resid on canoyp height
+  cova4 = sd_vegr[,2],
+  n_unit = nrow(detections),
+  miss = miss
+)
+
+
+# Set initial values \
+init_func <- function(){
+  list(
+    a0 = rnorm(1, 0, 1),
+    a1 = rnorm(1, 0, 1),
+    a2 = rnorm(1, 0 ,1),
+    a3 = rnorm(1, 0, 1),
+    a4 = rnorm(1, 0 ,1),
+    b0 = rnorm(1, 0, 1),
+    b1 = rnorm(1, 0, 1),
+    b2 = rnorm(1, 0 ,1),
+    b3 = rnorm(1, 0, 1),
+    b4 = rnorm(1, 0, 1),
+    b4Q = rnorm(1, 0, 1)
+  )
+}
+```
+
+```{R, echo = TRUE, eval = FALSE}
+cat("
+  model{
+        # Priors
+    a0 ~ dlogis(0, 1)
+    a1 ~ dlogis(0, 1)
+    a2 ~ dlogis(0, 1)
+    a3 ~ dlogis(0, 1)
+    a4 ~ dlogis(0, 1)
+    b0 ~ dlogis(0, 1)
+    b1 ~ dlogis(0, 1)
+    b2 ~ dlogis(0, 1)
+    b3 ~ dlogis(0, 1)
+    b4 ~ dlogis(0, 1)
+    b4Q ~ dlogis(0, 1)
+  
+    # Likelihood
+    # Loop through each sampling unit
+    for(i in 1:n_unit){
+      # Impute missing habitat data
+      covb1[i] ~ dnorm(0, 1)    
+      cova1[i] ~ dnorm(0, 1)
+      cova2[i] ~ dnorm(0, 1)
+      cova3[i] ~ dnorm(0, 1)
+      cova4[i] ~ dnorm(0, 1)
+  
+      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      logit(psi[i]) <- a0 + a1*cova1[i] + a2*cova2[i] + a3*cova3[i] + a4*cova4[i] 
+      
+      for(j in 1:miss[i]){
+        # Impute missing detection data
+        covb2[i,j] ~ dnorm(0, 1)
+        covb3[i,j] ~ dnorm(0, 1)
+        covb4[i,j] ~ dnorm(0, 1)
+        
+        det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
+        mu_p[i,j] <- Z[i]*theta[i,j]
+        logit(theta[i,j]) <- p[i,j]
+        p[i,j] <- b0 + b1*covb1[i] + b2*covb2[i,j] + b3*covb3[i,j] + b4*covb4[i,j] + b4Q*(covb4[i,j]^2)
+  
+        # Create detection data without NAs
+        det_na[i,j] <- det_data[i,j]
+         
+        #Calculate Bayes p-value - plug the parameters into the equation for each sample of the posterior and use this to create new observations
+        Presi[i,j] <- (det_na[i,j] - theta[i,j])^2 # Calculate squared residual of observed data
+        y_new[i,j] ~ dbern(mu_p[i,j])             # Simulate observed data
+        Presi_new[i,j] <- (y_new[i,j] - theta[i,j])^2 # Calculate squared residual error of simulated data
+        
+      }
+    }
+    
+    # Derived parameters
+    ## Calculate sum of squared residual errors for observed 
+    for(i in 1:n_unit){
+       sobs[i] <- sum(Presi[i,1:miss[i]])
+       ssim[i] <- sum(Presi_new[i,1:miss[i]])
+    }
+    
+    # Use SSEs to calculate Bayesian P values
+    SSEobs <- sum(sobs[])
+    SSEsim <- sum(ssim[])
+    p_val <- step(SSEsim - SSEobs)
+    
+  }
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccMod_CFin2.txt")
+
+```
+
+
+```{R Run Model, eval = FALSE, results = FALSE}
+fit_CF2 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccMod_CFin2.txt",
+                 parameters.to.save = c("a0", "a1", "a2", "a3", "a4", "b0", "b1", "b2", "b3", "b4", "b4Q", "p_val", "SSEobs", "SSEsim"),
+                 n.iter = 10000, 
+                 n.burnin = 4000, 
+                 n.chains = 3,
+                 n.thin = 2,
+                 inits = init_func)
+beep()
+saveRDS(fit_CF2,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Models_Ran_Outputs/StateSubModel_CFinal2.Rdata")
+```
+
+```{R read in model}
+fit_CF2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Models_Ran_Outputs/StateSubModel_CFinal2.Rdata")
+```
+
+#### Evaluate model outputs
+
+$$ \alpha_1: \text{% subcanopy core area}$$
+
+$$ \alpha_2: \text{canopy height core area}$$
+
+$$ \alpha_3: \text{subcanopy height core area}$$
+
+$$ \alpha_4: \text{veg st dev residual from reg w/ canopy height core}$$
+
+
+```{R Evaluate Model}
+summary(fit_CF2)
+tracedens_jags(fit_CF2, parmfrow = c(2,3))
+```
+
+#### Examine model fit:
+
+```{R Make Inference on P Value}
+plot(fit_CF2$sims.list$SSEobs,fit_CF2$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
+abline(0,1,lwd = 2, col = "red")
+print(paste0("P value is: ",round(fit_CF2$mean$p_val, 2)))
+```
+
+### Posterior distributions and F statistics:
+
+```{R Create Plots of Posterior Distribution}
+# Plot posterior distribution
+chains_cf2 <- jags_df(fit_CF2)
+# Select the chains for our covariates of interest
+chains_viol <- chains_cf2 %>% select(a1,a2, a3, a4)
+# Rename them to be more interpretable
+colnames(chains_viol) <- c("% Open Shrub Cover","Canopy Height", "Subcanopy Height", "Veg SD Resid")
+# Pivot this longer so that we can visualize it
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("% Open Shrub Cover","Canopy Height", "Subcanopy Height", "Veg SD Resid"),names_to = "parameter", values_to = "values")
+
+f_stat <- data.frame(
+  parameter = c("% Open Shrub Cover",
+                "Canopy Height", 
+                "Subcanopy Height", 
+                "Veg SD Resid"),
+  median_value = c(paste0("F: ",round(fit_CF2$f$a1,2)),
+                   paste0("F: ",round(fit_CF2$f$a2,2)),
+                   paste0("F: ",round(fit_CF2$f$a3,2)), 
+                   paste0("F: ",round(fit_CF2$f$a4,2)))
+)
+
+# Create the slab interval plot
+ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)) + 
+  # Plot posterior distributions
+  stat_slabinterval() +
+  # Establish colors
+  scale_fill_manual(values = c("% Open Shrub Cover"=palette_8[2], "Canopy Height" = palette_8[3], "Subcanopy Height" = palette_8[4], "Veg SD Resid" = palette_8[7])) +
+  # Add a line for 0 to show overlap of posterior
+  geom_vline(xintercept = 0) +
+  # Remove background color from plots
+  theme_minimal() +
+  # Turn off the legend
+  guides(fill = "none") +
+  # Add median values as text labels
+  geom_text(data = f_stat, aes(x = 3.5, y = parameter, label = median_value), color = "black", hjust = .6)  
+```
+
+#### Median effect sizes: 
+
+```{R Transform Parameter Estimates}
+# Transform median values from posterior distribution into probability 
+psi <- round(plogis(fit_CF2$q50$a0), 3)
+print(paste0("psi: ", psi))
+
+a1 <- round(plogis(fit_CF2$q50$a0 + fit_CF2$q50$a1), 3)
+print(paste0("% Open Shrub Cover Core: ", a1))
+
+a2 <- round(plogis(fit_CF2$q50$a0 + fit_CF2$q50$a2), 3)
+print(paste0("Canopy Height: ", a2))
+
+a3 <- round(plogis(fit_CF2$q50$a0 + fit_CF2$q50$a3), 3)
+print(paste0("Subcanopy Height: ", a3))
+
+a4 <- round(plogis(fit_CF2$q50$a0 + fit_CF2$q50$a4), 3)
+print(paste0("Veg SD Resid: ", a4))
+```
+
+
+#### Check for correlated parameters
+
+```{R Check Parameter Correlations}
+# Create a matrix of the mcmc chains for each parameter
+mat <- cbind(fit_CF2$sims.list$a0,fit_CF2$sims.list$a1,fit_CF2$sims.list$a2,fit_CF2$sims.list$a3,fit_CF2$sims.list$a4)
+# run a correlation test on the chains - here, I'm looking for values that are larger than other values
+r <- cor(mat)
+r
+```
+
+Subcanopy height is more correlated with the other two parameters (percent subcanopy core and canopy height) - remove it for the global model 
+
+#### Check the last eigenvalue for evidence of correlated parameters
+
+```{R Check Eigenvalues}
+# look at the information contained within the MCMC chains, if the last eigenvector is close to zero, you don't have a lot of information here, probably as a result of colinearity 
+eigen(r)
+```
+
+### Interpreting output:
+
+**Strongly significant covariates (CI doesn't overlap 0):** 
+
+* Residuals of all vegetation standard deviation regressed against canopy height: there is a 98% chance that the true effect of vegetation sd residuals on probability of use by BBCU is positive. The median estimate for vegetation sd residuals effect transformed into probability space is 0.30, which means that at the average values of every other covariate, for every 1 sd increase in veg sd residuals above the mean (.9 increase above mean value of 0 *not sure if it's helpful to include the values here???*), the probability of occupancy by BBCU increases by 30.0%.
+
+**Weakly significant covariates (F > .70):**
+
+* Subcanopy height: There is an 86% chance that the true effect of subcanopy height on probability of use by BBCU is positive. The median estimate for the effect of subcanopy height transformed into probability space is 0.241, meaning that at the average values of the other covariates, for every 1 sd increase in subcanopy height above the mean (.4 increase above mean of 1.3 m), the probability of use by BBCU increases by 24.1%. However, this parameter is colinear with percent canopy core and canopy height, which means that the effect in subcanopy height doesn't vary without changing the effect of one of the other covariates. 
+
+* Open shrub cover: There is a 96% chance that the true effect of subcanopy cover on probability of use by BBCU is negative. The median estimate for the effect of subcanopy percent cover transformed into probability space is 0.104, meaning that at the mean values of the other covariates, for every 1 sd increase in subcanopyo height above the mean (15 percentage points increase above the average of 22), the probability of use by BBCU decreases by 10.4%.
+
+*Subcanopy height parameter is colinear wth percent subcanopy core and canopy height - probably need to take subcanopy height out in order to interpret these other covariates*
+
