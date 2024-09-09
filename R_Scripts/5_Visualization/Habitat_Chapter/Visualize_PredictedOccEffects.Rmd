@@ -9,9 +9,6 @@ This is a document to visualize the predicted effects of canopy cover, open shru
 
 Going off of the code from [Kevin Shoemaker's Github](https://kevintshoemaker.github.io/NRES-746/Occupancy.html)
 
-Things I'm thinking about:
-
-* Can you predict the effects on scaled covariates to unscaled data that's in the original scale?
 
 ```{R, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE)
@@ -34,9 +31,119 @@ mcmc_samples_CF2 <- fit_CF2$mcmc.info$n.samples
 us_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2023Veg_Covariates_9-4.csv")
 ```
 
+```{R Create a Function}
+# Function that takes as input 
+## the covariate of interest as a string corresponding to the column of the dataframe you're interested in
+## the unscaled dataframe
+## the model, an output from a JAGS model run saved as an .Rdata file
+## the covariate from the model that reflects the covariate of interest (ex a1)
+## xlabel, the title you want the x axis to have 
+## Color_pal, the color you want the main effect to be (ex palette_8[2])
+## Output is a map showing the predicted effects on unscaled data for model interpretation
+
+vis_effect <- function(covariate, dataframe, model, model_cov, xlabel, color_pal){
+  # Pull out the number of samples from the model
+  num_samples <- model$mcmc.info$n.samples
+  # Pull out standardization values
+  mean_cov <- mean(dataframe[[covariate]], na.rm = TRUE)
+  #return(mean_cov)
+  sd_cov <- sd(dataframe[[covariate]], na.rm = TRUE)
+  max_cov <- max(dataframe[[covariate]], na.rm = TRUE)
+  
+  # Generate data within the range of the covariate
+  predict_dat <- seq(0, max_cov, length.out = 30)
+  # Scale generated data
+  pd_scale <- (predict_dat - mean_cov)/sd_cov
+  # Pull the covariate effect from the model 
+  cov_effect <- plogis(model$q50$a0 + model$q50[[model_cov]] * pd_scale)
+  
+  # Initialize an empty array for the predicted effects of the generated data
+  pred_array <- array(NA, dim = c(length(pd_scale), num_samples))
+  # Iterate through each mcmc sample and take the predicted effects
+  for(i in 1:num_samples){
+    pred_array[,i] = plogis(model$sims.list$a0[i] + model$sims.list[[model_cov]][i]*pd_scale)
+  }
+  
+  # Sample a subset of these observations for plotting 
+  subset <- sort(sample(1:num_samples, size = 200))
+
+  # Plot original unscaled values against their predicted effects on probability of use
+  plot(predict_dat, 
+       cov_effect, 
+       ylab = "Probability of Use", 
+       xlab = xlabel, 
+       ylim = c(0,1),
+       type = "l",
+       lwd = 3,
+       frame.plot = FALSE)
+  # Plot other draws from a distribution to get a sense of what the distribution looks like
+  for(i in subset){
+    lines(predict_dat, pred_array[,i], type = "l", lwd = 1, col = "gray")
+  }
+  lines(predict_dat, cov_effect, type = "l", lwd = 3, col = color_pal)
+}
+
+```
+
+## Covariates with A Strong Case for an Effect (F > .9)
+
 ### Percent Canopy Cover Landscape
 
-```{R Visualize Canopy Cover}
+```{R Visualize Canopy Cover Landscape}
+vis_effect(covariate = "pct_can_landsc",
+           dataframe = us_dat,
+           model = fit_BF2,
+           model_cov = "a1",
+           xlabel = "% Canopy at Landscape Scale",
+           color_pal = palette_8[8])
+```
+
+### Percent Open Shrubby Landscape 
+
+```{R Visualize Open Shrubby Landscape}
+vis_effect(covariate = "pct_openshrub_landsc",
+           dataframe = us_dat,
+           model = fit_BF2,
+           model_cov = "a2",
+           xlabel = "% Open Shrub at Landscape Scale",
+           color_pal = palette_8[6])
+```
+
+### Percent Open Shrubby Core
+
+```{R Visualize Open Shrubby Core}
+vis_effect(covariate = "pct_openshrub_core",
+           dataframe = us_dat,
+           model = fit_CF2,
+           model_cov = "a1",
+           xlabel = "% Open Shrub at Core Scale",
+           color_pal = palette_8[4])
+```
+
+### All Vegetation SD Residuals Core
+
+```{R Visualize Veg SD Residuals Core}
+vis_effect(covariate = "veg_sd_resid",
+           dataframe = us_dat,
+           model = fit_CF2,
+           model_cov = "a4",
+           xlabel = "Veg SD Residuals on Canopy Height Core Scale",
+           color_pal = palette_8[7])
+```
+
+### Conifer Tree Species Richness Core
+
+```{R Visualize Conifer Spp Richness Core}
+vis_effect(covariate = "ctree_spp_rich",
+           dataframe = us_dat,
+           model = fit_AF1,
+           model_cov = "a2",
+           xlabel = "Conifer Spp Richness Point Scale",
+           color_pal = palette_8[2])
+```
+
+
+```{R Old Vis Canopy Cover, inclue = FALSE, eval = FALSE}
 # pull out standardization values of interest
 mean_cancov <- mean(us_dat$pct_can_landsc, na.rm = TRUE)
 sd_cancov <- sd(us_dat$pct_can_landsc, na.rm = TRUE)
@@ -75,11 +182,7 @@ lines(orig_cancov_pred, pred_a_cancov, type = "l", lwd = 3, col = palette_8[8])
 # Where are rows and where are columns for arrays?
 #test1 <- array(NA, dim = c(5, 10))
 ```
-
-
-### Percent Open Shrubby Landscape
-
-```{R Visualize Open Shrub Cover Landsc}
+```{R Old Vis Open Shrub Cover Landsc, inclue = FALSE, eval = FALSE}
 # pull out standardization values of interest
 mean_oshrub <- mean(us_dat$pct_openshrub_landsc, na.rm = TRUE)
 sd_oshrub <- sd(us_dat$pct_openshrub_landsc, na.rm = TRUE)
@@ -114,11 +217,7 @@ for (i in subset){
 }
 lines(orig_oshrub_pred, preda_oshrub, type = "l", lwd = 3, col = palette_8[6])
 ```
-
-
-### Percent Open Shrubby Core
-
-```{R Visualize Open Shrub Cover Core}
+```{R Old Vis Open Shrub Cover Core, inclue = FALSE, eval = FALSE}
 # pull out standardization values of interest
 mean_oshrubc <- mean(us_dat$pct_openshrub_core, na.rm = TRUE)
 sd_oshrubc <- sd(us_dat$pct_openshrub_core, na.rm = TRUE)
@@ -153,14 +252,7 @@ for (i in subset){
 }
 lines(orig_oshrubc_pred, preda_oshrubc, type = "l", lwd = 3, col = palette_8[2])
 ```
-
-
-### Veg SD Residuals from Canopy Height
-
-*Should I use the original unresidual data for this?*
-
-
-```{R Visualize Veg SD Residuals Core}
+```{R Old Vis Veg SD Residuals Core, inclue = FALSE, eval = FALSE}
 # pull out standardization values of interest
 mean_vegsdr <- mean(us_dat$veg_sd_resid, na.rm = TRUE)
 sd_vegsdr <- sd(us_dat$veg_sd_resid, na.rm = TRUE)
@@ -195,11 +287,7 @@ for (i in subset){
 }
 lines(orig_vegsdr_pred, preda_vegsdr, type = "l", lwd = 3, col = palette_8[7])
 ```
-
-
-### Conifer Spp Richness
-
-```{R Visualize Conifer Spp Richness Core}
+```{R Old Vis Conifer Spp Richness Core, inclue = FALSE, eval = FALSE}
 # pull out standardization values of interest
 mean_ctreer <- mean(us_dat$ctree_spp_rich, na.rm = TRUE)
 sd_ctreer <- sd(us_dat$ctree_spp_rich, na.rm = TRUE)
@@ -235,5 +323,50 @@ for (i in subset){
 lines(orig_ctreer_pred, preda_ctreer, type = "l", lwd = 3, col = palette_8[2])
 ```
 
+## Covariates Less of A Case for Strong Effect (.7 < F < .9)
 
+### Floodplain Shrub
 
+```{R Visualize Floodplain Shrub Point}
+vis_effect(covariate = "floodplain_shrub",
+           dataframe = us_dat,
+           model = fit_AF1,
+           model_cov = "a3",
+           xlabel = "Floodplain Shrub Dominate Point Scale",
+           color_pal = palette_8[3])
+```
+
+### Deciduous Tree Species Richness
+
+```{R Visualize Deciduous Tree Spp Richness Point}
+vis_effect(covariate = "dtree_spp_rich",
+           dataframe = us_dat,
+           model = fit_AF1,
+           model_cov = "a3",
+           xlabel = "Deciduous Tree Species Richness Point Scale",
+           color_pal = palette_8[1])
+```
+
+### Broadleaf Shrub
+
+```{R Visualize Broadleaf Shrub Point}
+vis_effect(covariate = "broadleaf_shrub",
+           dataframe = us_dat,
+           model = fit_AF1,
+           model_cov = "a4",
+           xlabel = "Broadleaf Shrub Dominate Point Scale",
+           color_pal = palette_5[4])
+```
+
+### Subcanopy Height
+
+*Interpret this as colinear with the other covariate*
+
+```{R Subcanopy Height Core}
+vis_effect(covariate = "ht_subcan_core",
+           dataframe = us_dat,
+           model = fit_CF2,
+           model_cov = "a3",
+           xlabel = "Subcanopy Height Core Scale",
+           color_pal = palette_5[3])
+```
