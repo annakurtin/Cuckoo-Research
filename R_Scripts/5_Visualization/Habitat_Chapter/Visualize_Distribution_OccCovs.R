@@ -3,7 +3,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # read in data
-us_dat <- read.csv("./Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2023Veg_Covariates_8-12.csv")
+us_dat <- read.csv("./Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2023Veg_Covariates_9-4.csv")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #### Point Scale Covariates ####
@@ -30,6 +30,9 @@ hist(us_dat$pct_subcan_landsc, main = "Percent Subcanopy Landscape", xlab = "Sub
 mean(us_dat$pct_subcan_landsc, na.rm = TRUE)
 sd(us_dat$pct_subcan_landsc, na.rm = TRUE)
 
+hist(us_dat$pct_openshrub_landsc, main = "Percent Open Shrub Landscape", xlab = "Open Shrub Density (%)")
+mean(us_dat$pct_openshrub_landsc, na.rm = TRUE)
+sd(us_dat$pct_openshrub_landsc, na.rm = TRUE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #### Core Scale Covariates ####

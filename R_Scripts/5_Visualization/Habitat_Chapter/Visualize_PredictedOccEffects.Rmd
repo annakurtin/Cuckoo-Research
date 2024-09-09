@@ -1,0 +1,239 @@
+---
+title: "Visualize Occupancy Effects Hab Chap"
+author: "Anna Kurtin"
+date: "9/6/2024"
+output: html_document
+---
+
+This is a document to visualize the predicted effects of canopy cover, open shrubby cover, etc. on probability of use by BBCU.
+
+Going off of the code from [Kevin Shoemaker's Github](https://kevintshoemaker.github.io/NRES-746/Occupancy.html)
+
+Things I'm thinking about:
+
+* Can you predict the effects on scaled covariates to unscaled data that's in the original scale?
+
+```{R, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(ggplot2)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+```{R}
+# Read in data and models 
+fit_AF1 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Models_Ran_Outputs/StateSubModel_AFinal1.Rdata")
+fit_BF2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Models_Ran_Outputs/StateSubModel_BFinal2.Rdata")
+fit_CF2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Models_Ran_Outputs/StateSubModel_CFinal2.Rdata")
+
+# Pull out the number of samples
+mcmc_samples_AF1 <- fit_AF1$mcmc.info$n.samples
+mcmc_samples_BF2 <- fit_BF2$mcmc.info$n.samples
+mcmc_samples_CF2 <- fit_CF2$mcmc.info$n.samples
+
+# Read in unscaled data
+us_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2023Veg_Covariates_9-4.csv")
+```
+
+### Percent Canopy Cover Landscape
+
+```{R Visualize Canopy Cover}
+# pull out standardization values of interest
+mean_cancov <- mean(us_dat$pct_can_landsc, na.rm = TRUE)
+sd_cancov <- sd(us_dat$pct_can_landsc, na.rm = TRUE)
+max_cc_land <- max(us_dat$pct_can_landsc, na.rm = TRUE)
+
+hist(us_dat$pct_can_landsc)
+# Generate data from 0 - 35% canopy cover
+orig_cancov_pred <- seq(0, max_cc_land, length.out = 30)
+hist(orig_cancov_pred)
+# Scale this data
+cancov_pred <- (orig_cancov_pred - mean_cancov)/sd_cancov
+# Extract the predicted effect of this covariate (using the median instead of the mean like the example does)
+pred_a_cancov = plogis(fit_BF2$q50$a0 + fit_BF2$q50$a1 * cancov_pred)
+
+# Initialize an empty array for the predictions on cancov
+# Each row is for each of the predicted points, each column is an iteration of the mcmc sample
+array_pred_cancov <- array(NA, dim = c(length(cancov_pred), mcmc_samples_BF2))
+# Iterate through each of the mcmc samples
+for (i in 1:mcmc_samples_BF2){
+  array_pred_cancov[,i] = plogis(fit_BF2$sims.list$a0[i] + fit_BF2$sims.list$a1[i]*cancov_pred)
+}
+
+# Sample 200 of the MCMC draws for plotting (this is just which iteration to pull not the actual values)
+subset <- sort(sample(1:mcmc_samples_BF2, size = 200))
+
+# Plot the original unscaled values against their predicted effects on probability of use
+plot(orig_cancov_pred,pred_a_cancov, ylab = "Probability of Use", xlab = "% Canopy Cover Landscape", ylim = c(0,1), type = "l", lwd = 3, frame.plot = FALSE)
+# Plot the other random draws from the MCMC distribution to get a sense of the distribution
+## How do you add on the credible intervals for this instead?
+for (i in subset){
+  lines(orig_cancov_pred, array_pred_cancov[,i], type = "l", lwd = 1, col = "gray")
+}
+lines(orig_cancov_pred, pred_a_cancov, type = "l", lwd = 3, col = palette_8[8])
+
+
+# Where are rows and where are columns for arrays?
+#test1 <- array(NA, dim = c(5, 10))
+```
+
+
+### Percent Open Shrubby Landscape
+
+```{R Visualize Open Shrub Cover Landsc}
+# pull out standardization values of interest
+mean_oshrub <- mean(us_dat$pct_openshrub_landsc, na.rm = TRUE)
+sd_oshrub <- sd(us_dat$pct_openshrub_landsc, na.rm = TRUE)
+max_os_land <- max(us_dat$pct_openshrub_landsc, na.rm = TRUE)
+
+hist(us_dat$pct_openshrub_landsc)
+# Generate data from 0 - 35% canopy cover
+orig_oshrub_pred <- seq(0, max_os_land, length.out = 30)
+hist(orig_oshrub_pred)
+# Scale this data
+oshrub_scaled <- (orig_oshrub_pred - mean_oshrub)/sd_oshrub
+# Extract the predicted effect of this covariate (using the median instead of the mean like the example does)
+preda_oshrub = plogis(fit_BF2$q50$a0 + fit_BF2$q50$a2 * oshrub_scaled)
+
+# Initialize an empty array for the predictions on cancov
+# Each row is for each of the predicted points, each column is an iteration of the mcmc sample
+array_pred_oshrub <- array(NA, dim = c(length(oshrub_scaled), mcmc_samples_BF2))
+# Iterate through each of the mcmc samples
+for (i in 1:mcmc_samples_BF2){
+  array_pred_oshrub[,i] = plogis(fit_BF2$sims.list$a0[i] + fit_BF2$sims.list$a2[i]*oshrub_scaled)
+}
+
+# Sample 200 of the MCMC draws for plotting (this is just which iteration to pull not the actual values)
+subset <- sort(sample(1:mcmc_samples_BF2, size = 200))
+
+# Plot the original unscaled values against their predicted effects on probability of use
+plot(orig_oshrub_pred,preda_oshrub, ylab = "Probability of Use", xlab = "% Open Shrub Landscape", ylim = c(0,1), type = "l", lwd = 3, frame.plot = FALSE)
+# Plot the other random draws from the MCMC distribution to get a sense of the distribution
+## How do you add on the credible intervals for this instead?
+for (i in subset){
+  lines(orig_oshrub_pred, array_pred_oshrub[,i], type = "l", lwd = 1, col = "gray")
+}
+lines(orig_oshrub_pred, preda_oshrub, type = "l", lwd = 3, col = palette_8[6])
+```
+
+
+### Percent Open Shrubby Core
+
+```{R Visualize Open Shrub Cover Core}
+# pull out standardization values of interest
+mean_oshrubc <- mean(us_dat$pct_openshrub_core, na.rm = TRUE)
+sd_oshrubc <- sd(us_dat$pct_openshrub_core, na.rm = TRUE)
+max_os_core <- max(us_dat$pct_openshrub_core, na.rm = TRUE)
+
+hist(us_dat$pct_openshrub_core)
+# Generate data from 0 - 35% canopy cover
+orig_oshrubc_pred <- seq(0, max_os_core, length.out = 30)
+hist(orig_oshrubc_pred)
+# Scale this data
+oshrubc_scaled <- (orig_oshrubc_pred - mean_oshrubc)/sd_oshrubc
+# Extract the predicted effect of this covariate (using the median instead of the mean like the example does)
+preda_oshrubc = plogis(fit_CF2$q50$a0 + fit_CF2$q50$a1 * oshrubc_scaled)
+
+# Initialize an empty array for the predictions on cancov
+# Each row is for each of the predicted points, each column is an iteration of the mcmc sample
+array_pred_oshrubc <- array(NA, dim = c(length(oshrubc_scaled), mcmc_samples_CF2))
+# Iterate through each of the mcmc samples
+for (i in 1:mcmc_samples_BF2){
+  array_pred_oshrubc[,i] = plogis(fit_CF2$sims.list$a0[i] + fit_CF2$sims.list$a1[i]*oshrubc_scaled)
+}
+
+# Sample 200 of the MCMC draws for plotting (this is just which iteration to pull not the actual values)
+subset <- sort(sample(1:mcmc_samples_CF2, size = 200))
+
+# Plot the original unscaled values against their predicted effects on probability of use
+plot(orig_oshrubc_pred,preda_oshrubc, ylab = "Probability of Use", xlab = "% Open Shrub Core", ylim = c(0,1), type = "l", lwd = 3, frame.plot = FALSE)
+# Plot the other random draws from the MCMC distribution to get a sense of the distribution
+## How do you add on the credible intervals for this instead?
+for (i in subset){
+  lines(orig_oshrubc_pred, array_pred_oshrubc[,i], type = "l", lwd = 1, col = "gray")
+}
+lines(orig_oshrubc_pred, preda_oshrubc, type = "l", lwd = 3, col = palette_8[2])
+```
+
+
+### Veg SD Residuals from Canopy Height
+
+*Should I use the original unresidual data for this?*
+
+
+```{R Visualize Veg SD Residuals Core}
+# pull out standardization values of interest
+mean_vegsdr <- mean(us_dat$veg_sd_resid, na.rm = TRUE)
+sd_vegsdr <- sd(us_dat$veg_sd_resid, na.rm = TRUE)
+max_vegsdr <- max(us_dat$veg_sd_resid, na.rm = TRUE)
+
+hist(us_dat$veg_sd_resid)
+# Generate data from 0 - 35% canopy cover
+orig_vegsdr_pred <- seq(0, max_vegsdr, length.out = 30)
+hist(orig_vegsdr_pred)
+# Scale this data
+vegsdr_scaled <- (orig_vegsdr_pred - mean_vegsdr)/sd_vegsdr
+# Extract the predicted effect of this covariate (using the median instead of the mean like the example does)
+preda_vegsdr = plogis(fit_CF2$q50$a0 + fit_CF2$q50$a4 * vegsdr_scaled)
+
+# Initialize an empty array for the predictions on cancov
+# Each row is for each of the predicted points, each column is an iteration of the mcmc sample
+array_pred_vegsdr <- array(NA, dim = c(length(vegsdr_scaled), mcmc_samples_CF2))
+# Iterate through each of the mcmc samples
+for (i in 1:mcmc_samples_CF2){
+  array_pred_vegsdr[,i] = plogis(fit_CF2$sims.list$a0[i] + fit_CF2$sims.list$a4[i]*vegsdr_scaled)
+}
+
+# Sample 200 of the MCMC draws for plotting (this is just which iteration to pull not the actual values)
+subset <- sort(sample(1:mcmc_samples_CF2, size = 200))
+
+# Plot the original unscaled values against their predicted effects on probability of use
+plot(orig_vegsdr_pred,preda_vegsdr, ylab = "Probability of Use", xlab = "Veg St Dev Residuals", ylim = c(0,1), type = "l", lwd = 3, frame.plot = FALSE)
+# Plot the other random draws from the MCMC distribution to get a sense of the distribution
+## How do you add on the credible intervals for this instead?
+for (i in subset){
+  lines(orig_vegsdr_pred, array_pred_vegsdr[,i], type = "l", lwd = 1, col = "gray")
+}
+lines(orig_vegsdr_pred, preda_vegsdr, type = "l", lwd = 3, col = palette_8[7])
+```
+
+
+### Conifer Spp Richness
+
+```{R Visualize Conifer Spp Richness Core}
+# pull out standardization values of interest
+mean_ctreer <- mean(us_dat$ctree_spp_rich, na.rm = TRUE)
+sd_ctreer <- sd(us_dat$ctree_spp_rich, na.rm = TRUE)
+max_ctreer <- max(us_dat$ctree_spp_rich, na.rm = TRUE)
+
+hist(us_dat$ctree_spp_rich)
+# Generate data from 0 - 35% canopy cover
+orig_ctreer_pred <- seq(0, max_ctreer, length.out = 30)
+hist(orig_ctreer_pred)
+# Scale this data
+ctreer_scaled <- (orig_ctreer_pred - mean_ctreer)/sd_ctreer
+# Extract the predicted effect of this covariate (using the median instead of the mean like the example does)
+preda_ctreer = plogis(fit_AF1$q50$a0 + fit_AF1$q50$a2 * ctreer_scaled)
+
+# Initialize an empty array for the predictions on cancov
+# Each row is for each of the predicted points, each column is an iteration of the mcmc sample
+array_pred_ctreer <- array(NA, dim = c(length(ctreer_scaled), mcmc_samples_AF1))
+# Iterate through each of the mcmc samples
+for (i in 1:mcmc_samples_AF1){
+  array_pred_ctreer[,i] = plogis(fit_AF1$sims.list$a0[i] + fit_AF1$sims.list$a2[i]*ctreer_scaled)
+}
+
+# Sample 200 of the MCMC draws for plotting (this is just which iteration to pull not the actual values)
+subset <- sort(sample(1:mcmc_samples_AF1, size = 200))
+
+# Plot the original unscaled values against their predicted effects on probability of use
+plot(orig_ctreer_pred,preda_ctreer, ylab = "Probability of Use", xlab = "Conifer Spp Richness", ylim = c(0,1), type = "l", lwd = 3, frame.plot = FALSE)
+# Plot the other random draws from the MCMC distribution to get a sense of the distribution
+## How do you add on the credible intervals for this instead?
+for (i in subset){
+  lines(orig_ctreer_pred, array_pred_ctreer[,i], type = "l", lwd = 1, col = "gray")
+}
+lines(orig_ctreer_pred, preda_ctreer, type = "l", lwd = 3, col = palette_8[2])
+```
+
+
+
