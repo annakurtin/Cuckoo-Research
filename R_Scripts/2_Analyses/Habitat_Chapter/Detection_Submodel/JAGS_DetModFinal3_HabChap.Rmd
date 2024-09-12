@@ -71,7 +71,8 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 
 ```{R}
 # Load in most recent version of data
-full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_8-12.csv")
+#full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_8-12.csv")
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_9-11.csv")
 ```
 
 ### Visualize distribution of scaled covariates
@@ -87,11 +88,11 @@ vegplot <- ggplot(veg) +
 ```
 
 ```{R Pivot Survey Level Data}
-survey_dat <- full_dat %>% select(2:7, 24:29,31:42)
+#survey_dat <- full_dat %>% select(2:7, 24:29,31:42)
 # first select the data columns of interest
-dates <- full_dat %>% select(site_id, 37:42)
-effort <- full_dat %>% select(site_id, 31:36)
-backdb <- full_dat %>% select(site_id, 24:29)
+dates <- full_dat %>% select(site_id, 39:44)
+effort <- full_dat %>% select(site_id, 33:38)
+backdb <- full_dat %>% select(site_id, 26:31)
 
 # Then for each sub dataset, pivot longer, rename to s1,s2, etc and unite with site_id for site_survey
 dates_long <- dates %>% pivot_longer(cols = c(start_date_s1,

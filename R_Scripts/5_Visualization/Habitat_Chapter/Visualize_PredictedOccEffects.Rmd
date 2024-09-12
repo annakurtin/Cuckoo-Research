@@ -98,6 +98,15 @@ vis_effect(covariate = "pct_can_landsc",
            color_pal = palette_8[8])
 ```
 
+```{R Visualize Canopy Cover Landscape General Public, eval = F}
+vis_effect(covariate = "pct_can_landsc",
+           dataframe = us_dat,
+           model = fit_BF2,
+           model_cov = "a1",
+           xlabel = "% Canopy within 1 km",
+           color_pal = palette_8[8])
+```
+
 ### Percent Open Shrubby Landscape 
 
 ```{R Visualize Open Shrubby Landscape}
@@ -109,6 +118,17 @@ vis_effect(covariate = "pct_openshrub_landsc",
            color_pal = palette_8[6])
 ```
 
+
+```{R Visualize Open Shrubby Landscape General Public, eval = F}
+vis_effect(covariate = "pct_openshrub_landsc",
+           dataframe = us_dat,
+           model = fit_BF2,
+           model_cov = "a2",
+           xlabel = "% Open Shrub within 1 km",
+           color_pal = palette_8[6])
+```
+
+
 ### Percent Open Shrubby Core
 
 ```{R Visualize Open Shrubby Core}
@@ -117,6 +137,15 @@ vis_effect(covariate = "pct_openshrub_core",
            model = fit_CF2,
            model_cov = "a1",
            xlabel = "% Open Shrub at Core Scale",
+           color_pal = palette_8[4])
+```
+
+```{R Visualize Open Shrubby Core General Public, eval = FALSE}
+vis_effect(covariate = "pct_openshrub_core",
+           dataframe = us_dat,
+           model = fit_CF2,
+           model_cov = "a1",
+           xlabel = "% Open Shrub withinn 130 m",
            color_pal = palette_8[4])
 ```
 
@@ -131,6 +160,15 @@ vis_effect(covariate = "veg_sd_resid",
            color_pal = palette_8[7])
 ```
 
+```{R Visualize Veg SD Residuals Core General Public, eval = FALSE}
+vis_effect(covariate = "veg_sd_resid",
+           dataframe = us_dat,
+           model = fit_CF2,
+           model_cov = "a4",
+           xlabel = "Vegetation Vertical Complexity",
+           color_pal = palette_8[7])
+```
+
 ### Conifer Tree Species Richness Core
 
 ```{R Visualize Conifer Spp Richness Core}
@@ -139,6 +177,15 @@ vis_effect(covariate = "ctree_spp_rich",
            model = fit_AF1,
            model_cov = "a2",
            xlabel = "Conifer Spp Richness Point Scale",
+           color_pal = palette_8[2])
+```
+
+```{R Visualize Conifer Spp Richness Core General Public, eval = F}
+vis_effect(covariate = "ctree_spp_rich",
+           dataframe = us_dat,
+           model = fit_AF1,
+           model_cov = "a2",
+           xlabel = "Conifer Tree Species Richness",
            color_pal = palette_8[2])
 ```
 
@@ -342,11 +389,18 @@ vis_effect(covariate = "floodplain_shrub",
 vis_effect(covariate = "dtree_spp_rich",
            dataframe = us_dat,
            model = fit_AF1,
-           model_cov = "a3",
+           model_cov = "a1",
            xlabel = "Deciduous Tree Species Richness Point Scale",
            color_pal = palette_8[1])
 ```
-
+```{R Visualize Deciduous Tree Spp Richness Point General Public, eval = FALSE}
+vis_effect(covariate = "dtree_spp_rich",
+           dataframe = us_dat,
+           model = fit_AF1,
+           model_cov = "a1",
+           xlabel = "Deciduous Tree Species Richness",
+           color_pal = palette_8[1])
+```
 ### Broadleaf Shrub
 
 ```{R Visualize Broadleaf Shrub Point}

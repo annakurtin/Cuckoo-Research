@@ -29,8 +29,11 @@ all_dat <- all_dat %>% rename(det_s1 = det_survey1.x,
                    det_s5 = det_survey5.x,
                    det_s6 = det_survey6.x)
 
+# Remove data that has an NA in the first detection column
+all_dat <- all_dat %>% filter(!is.na(det_s1))
+
 # write this to .csv
-#write.csv(all_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_9-4.csv", row.names = FALSE)
+#write.csv(all_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_9-11.csv", row.names = FALSE)
 
 
 
@@ -71,14 +74,17 @@ all_dat_us_fin <- all_dat_us %>% select(site_id,
                                         23:47,
                                         5:22) 
 
+# Remove data that has an NA in the first detection column
+all_dat_us_fin <- all_dat_us_fin %>% filter(!is.na(det_s1))
+
 # write this to .csv
-#write.csv(all_dat_us_fin,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_UNSCALED_9-4.csv", row.names = FALSE)
+#write.csv(all_dat_us_fin,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_UNSCALED_9-11.csv", row.names = FALSE)
 
 
 # Make this into a version for Thomas' class
 # remove the x and y coordinates, remove ctree and veg sd resid
 # change the site IDs into 1-107
 class_dat <- all_dat_us_fin %>% select(-c(x, y, veg_sd_resid,ctree))
-class_dat$site_id <- c(1:110)
+class_dat$site_id <- c(1:107)
 # check csv for this
 #write.csv(class_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_ClassData.csv", row.names = FALSE)

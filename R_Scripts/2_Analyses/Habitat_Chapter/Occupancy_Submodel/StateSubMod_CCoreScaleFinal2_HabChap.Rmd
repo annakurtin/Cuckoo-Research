@@ -76,7 +76,8 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 
 ```{R}
 # Load in most recent version of data
-full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_9-4.csv")
+#full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_9-4.csv")
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_9-11.csv")
 # Make a detection column
 full_dat$bbcu <- apply(full_dat[2:7], 1, max, na.rm = TRUE)
 ```
@@ -241,7 +242,7 @@ effort <- full_dat[,31:36]
 backdb <- full_dat[,24:29]
 ```
 
-```{R}
+```{R, echo = TRUE}
 # Create a list of data for JAGS
 jags_data <- list(
   # True presence at sites with confirmed presences

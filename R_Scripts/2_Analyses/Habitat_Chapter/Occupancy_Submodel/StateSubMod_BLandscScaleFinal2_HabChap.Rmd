@@ -64,8 +64,9 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 
 
 ```{R}
-# Load in most recent version of data
-full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_9-4.csv")
+# Load in most recent version of data - changing this to the most recently cleaned one to keep everything on the same page
+# full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_9-4.csv")
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_9-11.csv")
 # Make a detection column
 full_dat$bbcu <- apply(full_dat[2:7], 1, max, na.rm = TRUE)
 ```
@@ -136,7 +137,7 @@ $$ \alpha_1: \text{Landscape percent canopy cover}$$
 
 $$ \alpha_2: \text{Landscape percent subcanopy cover}$$
 
-```{R}
+```{R, echo = TRUE}
 # Create a list of data for JAGS
 jags_data <- list(
   # True presence at sites with confirmed presences
