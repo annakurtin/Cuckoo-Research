@@ -94,12 +94,20 @@ corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
 
 ```{R Format Data for JAGS}
 days <-  full_dat$pct_days_wcall
+# create a new vector for these values so I can compare
+days_orig <- days
 n_unit <- nrow(full_dat)
-# Transform days 
+# Transform days so that zeros are slightly above zero
 days <- (days * (n_unit - 1) + 0.5) / n_unit
+days[days>.05]
+days_orig[days_orig>.5]
 # Transform to be between 0 and 1
 pct_days <- days/100
+hist(pct_days, breaks = 16, main = "All Sites", xlab = "% Days with Calls")
+hist(pct_days[pct_days>.005], breaks = 16,main = "Only Sites With Calls", xlab = "% Days with Calls")
+```
 
+```{R Set up JAGS Data, echo = TRUE}
 # Create a list of data for JAGS
 jags_data <- list(
   # Percentage of days with bbcu 
@@ -207,7 +215,10 @@ fit_beta <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Worksp
 
 ```{R Evaluate Model}
 summary(fit_beta)
-tracedens_jags(fit_beta, parmfrow = c(2,2))
+tracedens_jags(fit_beta, parmfrow = c(2,2)) # a0 looks weird here
+# But if we plot it on the probability scale the value that it's jumping around is much more normal
+plot(plogis(fit_beta$sims.list$a0))
+# this model just looks like it needed more time to run
 ```
 
 

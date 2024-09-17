@@ -300,6 +300,11 @@ habdet_f3 <- jags(data = jags_data,
 beep()
 ```
 
+```{R Save and Read in Model, eval = FALSE, include = FALSE}
+saveRDS(habdet_f3, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_DetModF3.Rdata")
+habdet_f3 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/JAGS_DetModF3.Rdata")
+```
+
 ```{R}
 summary(habdet_f3)
 tracedens_jags(habdet_f3, parmfrow = c(3,3))

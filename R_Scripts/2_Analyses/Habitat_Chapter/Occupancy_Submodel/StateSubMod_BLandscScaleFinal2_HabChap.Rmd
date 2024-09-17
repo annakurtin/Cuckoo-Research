@@ -319,9 +319,14 @@ ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)
 # Transform median values from posterior distribution into probability 
 psi <- round(plogis(fit_BF2$q50$a0), 3)
 print(paste0("psi:", psi))
+# Plot the estimate
+hist(plogis(fit_BF2$sims.list$a0), col = "green", main = "Occ Prob at Mean Values of Covariates", xlab = "Occupancy probability", xlim = c(0, 1))
+abline(v = psi)
 
 a1 <- round(plogis(fit_BF2$q50$a0 + fit_BF2$q50$a1), 3)
 print(paste0("% Canopy landscape:", a1))
+hist(plogis(fit_BF2$sims.list$a0 + fit_BF2$sims.list$a1), col = palette_8[8], main = "Posterior Dist for Canopy Cover", xlab = "Occupancy probability", xlim = c(0, 1))
+abline(v = a1)
 
 a2 <- round(plogis(fit_BF2$q50$a0 + fit_BF2$q50$a2), 3)
 print(paste0("% Open Shrub landscape:", a2))

@@ -366,6 +366,16 @@ print(paste0("quadratic effect of date:", b4Q))
 ```
 
 
+```{R Cumulative Detection Probability}
+p <- round(plogis(habdet_f2$q50$b0),4)
+print(paste0("Estimate for detection probability of a single ARU survey:",p))
+
+n <- 6
+p_star <- round(1 - (1 - p)^n, 4)
+print(paste0("Estimate for cumulative ARU detection probability:",p_star))
+```
+
+
 ### Plot Results and Interpret Output
 
 ```{R Create Plots of Posterior Distribution}
