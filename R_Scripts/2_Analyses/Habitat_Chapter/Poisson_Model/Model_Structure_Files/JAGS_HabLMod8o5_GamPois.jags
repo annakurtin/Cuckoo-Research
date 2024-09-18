@@ -1,0 +1,20 @@
+
+    model {
+    for (i in 1:n){
+    
+    # Impute missing habitat data
+    
+      # Method 1: binomial approach
+      # In this approach, you are essentially just taking the detection submodel of an occupancy model but probability of detection (parameter you're interested in) is instad interpreted as proportion of days with calls
+      # Can use both just sites with BBCU and sites with zeros but you might have some issues with model fit
+      logit(mu[i]) = beta0 + beta6 * cov6[i]
+      y[i] ~ dbin(mu[i], s[i])
+      
+    }
+    
+    # Priors
+    beta0 ~ dnorm(0, 0.1)
+    beta6 ~ dnorm(0, 0.1)
+
+    }
+    

@@ -1,0 +1,30 @@
+
+    model {
+    for (i in 1:n){
+    
+    # Impute missing habitat data
+      cov1[i] ~ dnorm(0, 1)
+      cov2[i] ~ dnorm(0, 1)
+      cov3[i] ~ dnorm(0, 1)
+      cov4[i] ~ dnorm(0, 1)
+      cov5[i] ~ dnorm(0, 1)
+    
+      # Method 1: binomial approach
+      # In this approach, you are essentially just taking the detection submodel of an occupancy model but probability of detection (parameter you're interested in) is instad interpreted as proportion of days with calls
+      # Can use both just sites with BBCU and sites with zeros but you might have some issues with model fit
+      logit(mu[i]) = beta0 + beta1 * cov1[i] + beta2 * cov2[i] + beta3 * cov3[i] + beta4 * cov4[i] + beta5 * cov5[i] + beta6 * cov6[i]
+      y[i] ~ dbin(mu[i], s[i])
+      
+    }
+    
+    # Priors
+    beta0 ~ dnorm(0, 0.01)
+    beta1 ~ dnorm(0, 0.01)
+    beta2 ~ dnorm(0, 0.01)
+    beta3 ~ dnorm(0, 0.01)
+    beta4 ~ dnorm(0, 0.01)
+    beta5 ~ dnorm(0, 0.01)
+    beta6 ~ dnorm(0, 0.01)
+
+    }
+    

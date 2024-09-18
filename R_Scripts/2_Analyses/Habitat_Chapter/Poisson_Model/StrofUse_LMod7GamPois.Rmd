@@ -1,5 +1,5 @@
 ---
-title: "Hab Chap Linear Model Version 6: Gamma-Poisson Paramterization"
+title: "Hab Chap Linear Model Version 7: Gamma-Poisson Paramterization"
 author: "Anna Kurtin"
 date: "9/13/2024"
 output: html_document
@@ -32,47 +32,8 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 
 ```{R Read in Data}
 full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Linear_Model/HabChap_22-23_DaysCalls_HabCovs_9-12.csv")
-# Round the percentage of days with calls
-full_dat$pct_days_wcall <- round(full_dat$pct_days_wcall,0)
 # Create a year covariate
 full_dat <- full_dat %>% mutate(yr_val = ifelse(year == 2023, 1, 0))
-```
-
-```{R Conifer Spp Richness}
-ggplot(full_dat) + geom_point(aes(x = ctree_spp_rich, y = pct_days_wcall), size = 3, col = palette_5[1]) + 
-  labs(x = "Conifer Tree Species Richness", y = "% of Days With Calls") +
-  theme_minimal()
-```
-
-```{R Pct Canopy Landsape}
-ggplot(full_dat) + geom_point(aes(x = pct_can_landsc, y = pct_days_wcall), size = 3, color = palette_5[2]) + 
-  labs(x = "% Canopy 1 km Radius", y = "% of Days With Calls") +
-  theme_minimal()
-```
-
-```{R Pct Open Shrub Landsape}
-ggplot(full_dat) + geom_point(aes(x = pct_openshrub_landsc, y = pct_days_wcall), size = 3, color = palette_5[3]) + 
-  labs(x = "% Open Shrub 1 km Radius", y = "% of Days With Calls") +
-  theme_minimal()
-```
-
-```{R Veg SD Residuals}
-ggplot(full_dat) + geom_point(aes(x = veg_sd_resid, y = pct_days_wcall), size = 3, color = palette_5[4]) + 
-  labs(x = "All Vegetation St Dev Residuals on Canopy Height", y = "% of Days With Calls") +
-  theme_minimal()
-```
-
-```{R Percent Subcanopy Core}
-ggplot(full_dat) + geom_point(aes(x = pct_openshrub_core, y = pct_days_wcall), size = 3, color = palette_5[5]) + 
-  labs(x = "% Subcanopy 130 m Radius", y = "% of Days With Calls") +
-  theme_minimal()
-```
-
-```{R Look at Correlations, warnings = FALSE, message = FALSE}
-corrdat <- full_dat %>% select(ctree_spp_rich, pct_can_landsc, pct_openshrub_landsc, veg_sd_resid, pct_openshrub_core)
-corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
-         upper.panel=panel.pts, text.panel=panel.txt,
-         main="Correlations in Habitat Metrics")
 ```
 
 ### Set up model 
@@ -80,27 +41,21 @@ corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
 ```{R Format Data for JAGS}
 # Filter out just days that had calls
 full_dat <- full_dat %>% filter(pct_days_wcall > 0)
-# Pull out response covariate
-days <-  full_dat$pct_days_wcall
-# Pull out number of sites
-n_unit <- nrow(full_dat)
-# Transform to be between 0 and 1
-# pct_days <- days/100
-# hist(pct_days, breaks = 16, main = "All Sites", xlab = "% Days with Calls")
-# hist(pct_days[pct_days>.005], breaks = 16,main = "Only Sites With Calls", xlab = "% Days with Calls")
 ```
 
 ```{R Set up JAGS Data, echo = TRUE}
 # Create a list of data for JAGS
 jags_data <- list(
   # Percentage of days with bbcu 
-  y = days,
+  y = full_dat$days_wcall,
   # Covariates with a positive effect
   # % canopy landscape
   cov1 = full_dat$pct_can_landsc,
   # residual veg sd
   cov2 = full_dat$veg_sd_resid,
-  n = n_unit
+  # year
+  cov3 = full_dat$yr_val,
+  n = nrow(full_dat)
 )
 
 # Set initial values 
@@ -108,7 +63,8 @@ init_func <- function(){
   list(
     beta0 = rnorm(1, 0, 1), 
     beta1 = rnorm(1, 0, 1),
-    beta2 = rnorm(1, 0, 1)
+    beta2 = rnorm(1, 0, 1),
+    beta3 = rnorm(1, 0, 1)
   )
 }
 ```
@@ -132,9 +88,9 @@ cat("
     }
 
     theta ~ dgamma(1,1)
-    beta0 ~ dnorm(0, 0.1)
-    beta1 ~ dnorm(0, 0.1)
-    beta2 ~ dnorm(0, 0.1)
+    beta0 ~ dnorm(0, 0.01)
+    beta1 ~ dnorm(0, 0.01)
+    beta2 ~ dnorm(0, 0.01)
 
     }
     ",fill = TRUE)
@@ -153,81 +109,19 @@ fit_gpois <- jags(data = jags_data,
                  n.thin = 10,
                  inits = init_func)
 beep()
-# No warnings with this model
 saveRDS(fit_gpois,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Models_Ran_Outputs/LMod7_GamPois.Rdata")
 ```
 ```{R Read in Model}
-fit_gpois <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Models_Ran_Outputs/LMod6_GamPois.Rdata")
+fit_gpois <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Models_Ran_Outputs/LMod7_GamPois.Rdata")
 ```
 
 ```{R Evaluate Model}
 summary(fit_gpois)
 tracedens_jags(fit_gpois, parmfrow = c(2,2)) 
-
-
-# Still not looking good, even after taking the year cvariate out. What to do next? Try to figure out if we can use all of the data in the model like Thomas was talking about
 ```
 
+*Thoughts and questions*
 
-$$ \gamma_{1}: \text{percetn canopy} $$
+* Originally when I ran them, they were still not looking good, even after taking the year cvariate out. 
 
-$$ \gamma_{2}: \text{veg sd resid} $$
-
-$$ \gamma_{3}: \text{year} $$
-
-### Examine model fit:
-
-```{R Make Inference on P Value}
-plot(fit_gpois$sims.list$SSEobs,fit_gpois$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
-abline(0,1,lwd = 2, col = "red")
-print(paste0("P value is: ",round(fit_gpois$mean$p_val, 2)))
-```
-
-Based off of the p value, this model is ok. However, I think I should go through and do a bit more checking of this model, make sure it's actually converging properly and is an adequate fit for the data. 
-
-
-```{R Create Plots of Posterior Distribution}
-# Plot posterior distribution
-chains_beta <- jags_df(fit_gpois)
-# Select the chains for our covariates of interest
-chains_viol <- fit_gpois %>% select(a1, a2, a3)
-# Rename them to be more interpretable
-colnames(chains_viol) <- c("% Canopy Cover Landscape", "Veg SD Resid Core", "year")
-# Pivot this longer so that we can visualize it
-chains_viol_long <- chains_viol %>% pivot_longer(cols = c("% Canopy Cover Landscape", "Veg SD Resid Core", "year"),names_to = "parameter", values_to = "values")
-
-f_stat <- data.frame(
-  parameter = c("% Canopy Cover Landscape", "Veg SD Resid Core", "year"),
-  median_value = c(paste0("F: ",round(fit_gpois$f$a1,2)), 
-                   paste0("F: ",round(fit_gpois$f$a2,2)),
-                   paste0("F: ",round(fit_gpois$f$a3,2)))
-  )
-
-# Create the slab interval plot
-ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)) + 
-  # Plot posterior distributions
-  stat_slabinterval() +
-  # Establish colors
-  scale_fill_manual(values = c("Conifer Spp Richness" = palette_5[1], 
-                               "% Canopy Cover Landscape" = palette_5[2],
-                               "% SUBCAN cover landscape" = palette_5[3],
-                               "Veg SD Resid Core" = palette_5[4], 
-                               "% SUBCAN cover core" = palette_5[5])) +
-  # Add a line for 0 to show overlap of posterior
-  geom_vline(xintercept = 0) +
-  # Remove background color from plots
-  theme_minimal() +
-  # Turn off the legend
-  guides(fill = "none") +
-  # Add median values as text labels
-  geom_text(data = f_stat, aes(x = .5, y = parameter, label = median_value), color = "black", hjust = .5)  
-```
-
-```{R Gravy Yard}
-# # Beta regression
-#       mu[i] <- a0 + a1*cov1[i] + a2*cov2[i] + a3*cov3[i] + a4*cov4[i] + a5*cov5[i]
-#       logit_mu[i] <- logit(mu[i])  # Logit link function
-#       alpha[i] <- mu[i] * phi       # Shape parameter alpha
-#       beta[i] <- (1 - mu[i]) * phi  # Shape parameter beta
-
-```
+* I changed the precision on the priors from 0.1 to 0.01tried to decrease the precision on the priors, the effective sample size is just within the good range now but traceplots still don't look good. 

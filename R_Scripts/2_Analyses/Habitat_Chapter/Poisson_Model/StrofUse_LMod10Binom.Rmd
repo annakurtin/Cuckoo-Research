@@ -1,0 +1,140 @@
+---
+title: "Hab Chap Linear Model Version 10: Binomial Paramterization"
+author: "Anna Kurtin"
+date: "9/18/2024"
+output: html_document
+---
+
+This is the ninth iteration of the linear model I will be using to test strength of habitat use across sites. Created after my conversation with Thomas R where he explained that I need to be accounting for not only proportion of days with calling but also how many days there are for each site. Last model didn't converge even after removing the covariate for year so I'm going to try parameterizing the model as just the structure of the detection submodel so that I can include all of the data in it. 
+
+After talking with Andy and Erim 9/18, I'm going to remove year and remove conifer as covariates.
+
+### Model structure
+
+
+**Handling of NAs (only occur in habitat covs):** Imputation 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(beepr)
+library(corrgram)
+library(ggdist)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+
+### Visualize Data and Colinearity 
+
+```{R Read in Data}
+# Read in scaled data
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Linear_Model/HabChap_22-23_DaysCalls_HabCovs_9-12.csv")
+# Round the percentage of days with calls
+full_dat$pct_days_wcall <- round(full_dat$pct_days_wcall,0)
+# Create a year covariate
+full_dat <- full_dat %>% mutate(yr_val = ifelse(year == 2023, 1, 0))
+```
+
+```{R Look at Correlations, warnings = FALSE, message = FALSE}
+corrdat <- full_dat %>% select(pct_can_landsc, pct_openshrub_landsc, veg_sd_resid, pct_openshrub_core)
+corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Habitat Metrics")
+```
+
+
+### Set up model 
+
+```{R Set up JAGS Data, echo = TRUE}
+# Create a list of data for JAGS
+jags_data <- list(
+  # Percentage of days with bbcu 
+  y = full_dat$days_wcall,
+  # % canopy landscape
+  cov1 = full_dat$pct_can_landsc,
+  # % open shrub landscape
+  cov2 = full_dat$pct_openshrub_landsc,
+  # residual veg sd
+  cov3 = full_dat$veg_sd_resid,
+  # % open shrub core
+  cov4 = full_dat$pct_openshrub_core,
+  # number of days recorded at each site
+  s = full_dat$days_rec,
+  n = nrow(full_dat)
+)
+  
+# Set initial values 
+init_func <- function(){
+  list(
+    beta0 = rnorm(1, 0, 1), 
+    beta1 = rnorm(1, 0, 1),
+    beta2 = rnorm(1, 0, 1),
+    beta3 = rnorm(1, 0, 1),
+    beta4 = rnorm(1, 0, 1)
+  )
+}
+```
+
+```{R Create Model Structure, eval = FALSE}
+sink("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLMod10_Binom.jags")
+cat("
+    model {
+    for (i in 1:n){
+    
+    # Impute missing habitat data
+      cov1[i] ~ dnorm(0, 1)
+      cov2[i] ~ dnorm(0, 1)
+      cov3[i] ~ dnorm(0, 1)
+      cov4[i] ~ dnorm(0, 1)
+    
+      # Method 1: binomial approach
+      # In this approach, you are essentially just taking the detection submodel of an occupancy model but probability of detection (parameter you're interested in) is instad interpreted as proportion of days with calls
+      # Can use both just sites with BBCU and sites with zeros but you might have some issues with model fit
+      mu[i] <- beta0 + beta1 * cov1[i] + beta2 * cov2[i] + beta3 * cov3[i] + beta4 * cov4[i]
+      prob[i] <- ilogit(mu[i])
+      y[i] ~ dbin(prob[i], s[i])
+      
+    }
+    
+    # Priors
+    beta0 ~ dnorm(0, 0.1)
+    beta1 ~ dnorm(0, 0.1)
+    beta2 ~ dnorm(0, 0.1)
+    beta3 ~ dnorm(0, 0.1)
+    beta4 ~ dnorm(0, 0.1)
+
+    }
+    ",fill = TRUE)
+sink()
+
+```
+
+
+```{R, results = FALSE, eval = FALSE}
+fit_binom <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLMod10_Binom.jags",
+                 parameters.to.save = c("beta0","beta1","beta2","beta3","beta4"),
+                 n.iter = 20000, 
+                 n.burnin = 10000, 
+                 n.chains = 3,
+                 n.thin = 10,
+                 inits = init_func)
+beep()
+
+saveRDS(fit_binom,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Models_Ran_Outputs/LMod10_Binom.Rdata")
+```
+```{R Read in Model}
+fit_binom <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Models_Ran_Outputs/LMod10_Binom.Rdata")
+```
+
+```{R Evaluate Model}
+summary(fit_binom)
+tracedens_jags(fit_binom, parmfrow = c(2,2)) 
+```
+
+This model still isn't converging. 
+

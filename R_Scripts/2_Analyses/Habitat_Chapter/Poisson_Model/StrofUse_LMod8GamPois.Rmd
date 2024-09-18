@@ -1,0 +1,126 @@
+---
+title: "Hab Chap Linear Model Version 8: Gamma-Poisson Paramterization"
+author: "Anna Kurtin"
+date: "9/18/2024"
+output: html_document
+---
+
+This is the eighth iteration of the linear model I will be using to test strength of habitat use across sites. Using the gamma-poisson distribution to parameterize the response variable to account for not only how many days with calling but also how many days there are for each site. Only including the sites that had cuckoos present and only looking at the covariates that had a positive effect on probability of use. Changes from previous iterations are to remove the covariate for year (had too many parameters in the model and it wasn't telling us anything of biological importance or accounting for any additional variation we're interested in) and adjust the priors for the distribution to be more informative based on what my estimates from the occupancy model were. 
+
+
+**Handling of NAs (only occur in habitat covs):** Imputation 
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jagsUI)
+library(rjags)
+library(tidyverse)
+library(jagshelper)
+library(ggplot2)
+library(beepr)
+library(corrgram)
+library(ggdist)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+
+
+### Visualize Data and Colinearity 
+
+```{R Read in Data}
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Linear_Model/HabChap_22-23_DaysCalls_HabCovs_9-12.csv")
+```
+
+### Set up model 
+
+```{R Format Data for JAGS}
+# Filter out just days that had calls
+full_dat <- full_dat %>% filter(pct_days_wcall > 0)
+hist(full_dat$pct_can_landsc)
+```
+
+```{R Set up JAGS Data, echo = TRUE}
+# Create a list of data for JAGS
+jags_data <- list(
+  # Percentage of days with bbcu 
+  y = full_dat$days_wcall,
+  # Covariates with a positive effect on use
+  # % canopy landscape
+  cov1 = full_dat$pct_can_landsc,
+  # residual veg sd
+  cov2 = full_dat$veg_sd_resid,
+  n = nrow(full_dat)
+)
+
+# Set initial values 
+init_func <- function(){
+  list(
+    beta0 = rnorm(1, 0, 1), 
+    beta1 = rnorm(1, 0, 1),
+    beta2 = rnorm(1, 0, 1)
+  )
+}
+```
+
+```{R Create Model Structure, eval = FALSE}
+sink("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLMod8_GamPois.jags")
+cat("
+    model {
+    for (i in 1:n){
+    
+    # Impute missing habitat data
+      cov1[i] ~ dnorm(0, 1)
+      cov2[i] ~ dnorm(0, 1)
+    
+      # Method 2: gamma-poisson (this is equivalent to a negative binomial)
+      # In this approach, the parameter of interest is the count of days with calls but we're also feeding it the number of days that we recorded 
+      log(gamma[i]) = beta0 + beta1 * cov1[i] + beta2 * cov2[i] 
+      h[i] ~ dgamma(theta, theta)
+      y[i] ~ dpois(gamma[i] * h[i])
+      
+    }
+    # Priors
+    theta ~ dgamma(1,1)
+    beta0 ~ dnorm(0, 0.01)
+    beta1 ~ dnorm(0.4, 0.01) # setting the mean equal to the mean estimate from the occupancy model
+    beta2 ~ dnorm(0.7, 0.01) # setting the mean equal to the mean estimate from the occupancy model
+
+    }
+    ",fill = TRUE)
+sink()
+
+```
+
+
+```{R, results = FALSE, eval = FALSE}
+fit_gpois <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLMod8_GamPois.jags",
+                 parameters.to.save = c("beta0","beta1","beta2"),
+                 n.iter = 20000, 
+                 n.burnin = 10000, 
+                 n.chains = 3,
+                 n.thin = 10,
+                 inits = init_func)
+beep()
+saveRDS(fit_gpois,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Models_Ran_Outputs/LMod8_GamPois.Rdata")
+```
+```{R Read in Model}
+fit_gpois <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Models_Ran_Outputs/LMod8_GamPois.Rdata")
+```
+
+```{R Evaluate Model}
+summary(fit_gpois)
+tracedens_jags(fit_gpois, parmfrow = c(2,2)) 
+
+# dig a bit more into gelman rubin diagnostic
+fit_mcmc <- fit_gpois$samples
+gelman.diag(fit_mcmc) # these look fine 
+```
+
+*Thoughts and questions*
+
+* Technically the effective sample size and gelman rubin diagnostics are fine, are the trace plots ok?
+
+* Is using the posterior means from the occupancy models in the priors for this model the correct use of prior knowledge?
+
+* Where in the model are we providing the number of days recorded? I don't see where this fits in 

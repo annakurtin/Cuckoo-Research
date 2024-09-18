@@ -5,8 +5,9 @@ date: "2024-08-18"
 output: html_document
 ---
 
-This is the second version of the detection submodel for the playback data. RIGHT NOW SAME AS MODEL 1 - NOTE USED YET
-**Model structure:**
+This is the second version of the detection submodel for the playback data. I'm removing all covariates except for date so that I minimize the number of covariates in the model. 
+
+*Effective sample size for this data* 33 * 3 = 66. So we can have a maximum of about 5-6 parameters to fit the model. 
 
 Naive state model:
 
