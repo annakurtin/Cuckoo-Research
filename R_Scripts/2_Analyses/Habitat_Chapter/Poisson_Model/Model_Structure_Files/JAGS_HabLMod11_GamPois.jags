@@ -1,0 +1,40 @@
+
+    model {
+    for (i in 1:n){
+    
+    # Impute missing habitat data
+      cov1[i] ~ dnorm(0, 1)
+      cov2[i] ~ dnorm(0, 1)
+      cov3[i] ~ dnorm(0, 1)
+      cov4[i] ~ dnorm(0, 1)
+    
+      # Method 2: gamma-poisson (this is equivalent to a negative binomial)
+      # In this approach, the parameter of interest is the count of days with calls but we're also feeding it the number of days that we recorded 
+      log(gamma[i]) = beta0 + beta1 * cov1[i] + beta2 * cov2[i] + beta3 * cov3[i] + beta4 * cov4[i]  
+      h[i] ~ dgamma(theta, theta) # Variance in rate parameter
+      y[i] ~ dpois(gamma[i] * h[i]) # count drawn from poisson distribution with adjusted rate parameter
+    
+      # Squared residuals for observed data
+      presi[i] <- pow((y[i] - gamma[i]*h[i]),2)
+      # Simulate new data
+      y_new[i] ~ dpois(gamma[i]*h[i])
+      # Squared residuals for simulated data
+      presi_new[i] <- pow((y_new[i] - gamma[i]*h[i]),2)
+      
+    }
+    # Priors
+    theta ~ dgamma(1,1)
+    beta0 ~ dnorm(0, 0.01)
+    beta1 ~ dnorm(0, 0.01)
+    beta2 ~ dnorm(0, 0.01) 
+    beta3 ~ dnorm(0, 0.01)
+    beta4 ~ dnorm(0, 0.01) 
+    
+    # Derived values
+    SSEobs <- sum(presi[])
+    SSEsim <- sum(presi_new[])
+    # Bayesian p-value: proportion of times SSEsim > SSEobserved
+    p_val <- step(SSEsim - SSEobs)
+
+    }
+    

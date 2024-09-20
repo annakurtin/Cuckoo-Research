@@ -401,11 +401,15 @@ mat <- cbind(fit_AF1$sims.list$a0,fit_AF1$sims.list$a1,fit_AF1$sims.list$a2,
              fit_AF1$sims.list$a3,fit_AF1$sims.list$a4)
 # run a correlation test on the chains - here, I'm looking for values that are larger than other values
 r <- cor(mat)
-r
+#r
 # Only one that is larger is the correlation between a0 and a4 - what is the logic of these parameters being correlated? Is this really something we need to worry about?
+
+colnames(mat) <- c("psi","decid tree spp rich", "conif tree spp rich","floodplain shrub", "broadleaf shrub")
+corrgram(mat, order=TRUE, lower.panel=panel.cor,
+         upper.panel=panel.pts, text.panel=panel.txt,
+         main="Correlations in Point Scale Occupancy Parameters")
 ```
 
-Need to potential check the correlation between parameters for a4 (broadleaf shrub) and a1 (decid tree spp rich)
 
 #### Check the last eigenvalue for evidence of correlated parameters
 

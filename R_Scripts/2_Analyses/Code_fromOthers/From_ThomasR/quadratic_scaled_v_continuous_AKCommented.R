@@ -46,7 +46,7 @@ plot(y ~ x, ylab = 'p', xlab = 'Date', col = "blue")
 
 # Main takeaway: When you have z-standardized data, it changes what coefficients affect which parts of the distribution. 
 ## Without z-standardized: B0 is intercept on left hand side of graph, B1 is effect on left hand side of graph before inflection, B2 is effect on right hand side of the graph before inflection 
-## With z-standardized: B0 is the intercept in the middle of the graph (on the inflection point), B1 is moving that point left and right and affecting the shape of the inflection point, and B2 controls the slop on the left and right hand sides/curves of the graph. 
+## With z-standardized: B0 is the intercept in the middle of the graph (on the inflection point), B1 is moving that point left and right and affecting the shape of the inflection point, and B2 controls the slope on the left and right hand sides/curves of the graph. 
 
 ## When you parameterize a model with just B*x2, you just get the regular quadratic shape. When you do Bx + Bx^2, you get a rise/plateau with a drop off after that.
 

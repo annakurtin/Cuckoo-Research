@@ -312,6 +312,37 @@ print(paste0("Naive detection estimate:", naivedet_aru))
 # what would the value for occupancy with playbacks be if we corrected it by the detection?
 ```
 
+
+```{R}
+# empty array for storing detection probability
+#array: same number of rows as MCMC samples, same columns as number of surveys you want to investigate
+nrow <- fit_2$mcmc.info$n.samples
+max_surveys <- 10
+pstar <- array(NA, dim = c(nrow, max_surveys))
+
+# Set up x values with the same number of rows as your array
+# x values will allow plotting of box values
+x <-  cbind(rep(1, nrow), rep(2, nrow), rep(3, nrow), 
+          rep(4, nrow), rep(5, nrow), rep(6, nrow), 
+          rep(7, nrow), rep(8, nrow), rep(9, nrow), 
+          rep(10, nrow))
+
+#Set up a for-loop that will run the same amount of iterations as the samples produced in the MCMC
+for (i in 1:nrow) { 
+  # fills in data for each row 
+  for (j in 1:max_surveys){ 
+    # Fills in data for each column (i.e. number of columns)
+    pstar[i,j] <- 1 - (1 - plogis(fit_2$sims.list$b0[i]))^j #Calculate estimated maximum detection probability for each survey using mean probability calculated in the MCMC 
+  } 
+}
+
+#Plot the probability of detection for each survey, along with associated confidence intervals 
+boxplot(pstar ~ x, col = cuckoo_palette[1], las = 1, ylab = "Cumulative Detection Probability", 
+        xlab = "Number of surveys", outline = FALSE)
+#Add an abline that represents the 95% CI cutoff 
+abline(h = 0.95, lty = 2, lwd = 2)
+```
+
 *Thoughts and lingering questions:*
 
 * Including vegetation density in this model: the f statistic changed from the model that didn't have the quadratic effect of date. 

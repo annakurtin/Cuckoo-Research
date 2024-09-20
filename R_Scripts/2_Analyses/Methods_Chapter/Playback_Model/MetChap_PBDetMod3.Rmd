@@ -1,18 +1,18 @@
 ---
-title: "Playback Detection Model 2"
+title: "Playback Detection Model 3"
 author: "Anna Kurtin"
-date: "2024-09-19"
+date: "2024-09-20"
 output: html_document
 ---
 
-This is the second version of the detection submodel for the playback data. I'm going through other studies and looking at what affected detection of BBCU or YBCU. 
+This is the third version of the detection submodel for the playback data. I'm going through other studies and looking at what affected detection of BBCU or YBCU. 
 Covariattes to include: 
 
 * date, temperature (Based on Johnson and Benson 2022)
 * noise (Johnson and Benson 2023)
 
+I'm going to try to remove the state submodel and only focus on the detection process. 
 
-* Potential things to try next: limit the number of covariates further, keep down to date, temp, wind? 
 
 *Effective sample size for this data* 33 * 3 = 66. So we can have a maximum of about 5-6 parameters to fit the model. 
 
@@ -78,23 +78,6 @@ miss <- apply(detections, 1, get_na)
 ```{R Look at Colinearity}
 dates <- pb_dat %>% select(site_id, date_s1, date_s2, date_s3)
 
-# reference code for making the columns long and then combining them
-# dates_long <- dates %>% pivot_longer(cols = c(start_date_s1,
-#                                               start_date_s2,
-#                                               start_date_s3,
-#                                               start_date_s4,
-#                                               start_date_s5,
-#                                               start_date_s6), names_to = "survey_period",values_to = "date" )
-# # rename to s1, s2, etc
-# dates_long <- dates_long %>% mutate(survey_period = case_when(survey_period == "start_date_s1" ~ "s1",
-#                                                 survey_period == "start_date_s2" ~ "s2",
-#                                                 survey_period == "start_date_s3" ~ "s3",
-#                                                 survey_period == "start_date_s4" ~ "s4",
-#                                                 survey_period == "start_date_s5" ~ "s5",
-#                                                 survey_period == "start_date_s6" ~ "s6"))
-# # combine
-# dates_long <- unite(dates_long,site_survey,c(site_id, survey_period),sep="_",remove=TRUE)
-
 obs <- pb_dat %>% select(site_id, num_obs_s1, num_obs_s2, num_obs_s3)
 time <- pb_dat %>% select(site_id, time_s1, time_s2, time_s3)
 wind <- pb_dat %>% select(site_id, wind_s1, wind_s2, wind_s3)
@@ -146,19 +129,25 @@ cat("
     # Loop through each sampling unit
     for(i in 1:n_unit){
   
-      Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
-      logit(psi[i]) <- a0 
+      #Z[i] ~ dbern(psi[i])  # Presence or absence drawn from a bernoulli distribution with occupancy probability psi  
+      #logit(psi[i]) <- a0 
   
       for(j in 1:miss[i]){
+  
+      # Just detection model from StrofUseLM10
+      #mu[i] <- beta0 + beta1 * cov1[i] + beta2 * cov2[i] + beta3 * cov3[i] + beta4 * cov4[i]
+      #prob[i] <- ilogit(mu[i])
+      #y[i] ~ dbin(prob[i], s[i])
+  
        # Impute missing detection data
         covb1[i,j] ~ dnorm(0, 1)
         covb3[i,j] ~ dnorm(0, 1)
         covb4[i,j] ~ dnorm(0, 1)
   
-        det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
-        mu_p[i,j] <- Z[i]*theta[i,j]
+        det_data[i,j] ~  dbin(mu_p[i,j],miss[i])  # Create probability density drawn for each site
+        mu_p[i,j] <- theta[i,j]
         logit(theta[i,j]) <- p[i,j]
-        p[i,j] <- b0 + b1*covb1[i,j] + b1Q*(covb1[i,j]^2) + b3*covb3[i,j] + b4*covb4[i,j] 
+        p[i,j] <- b0 + b1*covb1[i,j] + b3*covb3[i,j] + b4*covb4[i,j] 
         # Det NA
         det_na[i,j] <- det_data[i,j]
   
@@ -181,25 +170,25 @@ cat("
     p_val <- step(SSEsim - SSEobs)  
     
   }
-  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Model_Structure_Files/JAGS_PBMod2.txt")
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Model_Structure_Files/JAGS_PBMod3.txt")
 
 ```
 
 ```{R Run Model, eval = FALSE, results = FALSE}
 fit_2 <- jags(data = jags_data, 
-                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Model_Structure_Files/JAGS_PBMod2.txt",
-                 parameters.to.save = c("a0", "b0", "b1", "b1Q", "b3", "b4", "p_val"),
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Model_Structure_Files/JAGS_PBMod3.txt",
+                 parameters.to.save = c("b0", "b1","b3", "b4", "p_val"),
                  n.iter = 10000, 
                  n.burnin = 5000, 
                  n.chains = 3,
                  n.thin = 2,
                  inits = init_func)
 beep(sound = 3)
-saveRDS(fit_2,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Models_Ran_Outputs/JAGS_PBMod2.txt")
+saveRDS(fit_2,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Models_Ran_Outputs/JAGS_PBMod3.txt")
 ```
 
 ```{R}
-fit_2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Models_Ran_Outputs/JAGS_PBMod2.txt")
+fit_2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Models_Ran_Outputs/JAGS_PBMod3.txt")
 
 ```
 

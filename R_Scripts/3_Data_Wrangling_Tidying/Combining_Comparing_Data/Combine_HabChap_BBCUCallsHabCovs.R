@@ -26,6 +26,16 @@ dat_23 <- left_join(calls_23, habcovs_23, by = "site_id")
 # Rbind them into one dataframe
 lm_dat <- rbind(dat_22,dat_23)
 
+# pull out the mean and sd values for use in linear model (LMMod11_GamPois)
+mean(lm_dat$veg_sd_resid, na.rm = TRUE)
+sd(lm_dat$veg_sd_resid, na.rm = TRUE)
+mean(lm_dat$pct_openshrub_landsc, na.rm = TRUE)
+sd(lm_dat$pct_openshrub_landsc, na.rm = TRUE)
+mean(lm_dat$pct_can_landsc, na.rm = TRUE)
+sd(lm_dat$pct_can_landsc, na.rm = TRUE)
+mean(lm_dat$pct_openshrub_core, na.rm = TRUE)
+sd(lm_dat$pct_openshrub_core, na.rm = TRUE)
+
 # Scale relevant covariates
 dat1 <- lm_dat[,1:12]
 dat2 <- round(scale(lm_dat[,13:25]),2)

@@ -5,7 +5,7 @@ date: "9/18/2024"
 output: html_document
 ---
 
-This is the ninth iteration of the linear model I will be using to test strength of habitat use across sites. Created after my conversation with Thomas R where he explained that I need to be accounting for not only proportion of days with calling but also how many days there are for each site. Last model didn't converge even after removing the covariate for year so I'm going to try parameterizing the model as just the structure of the detection submodel so that I can include all of the data in it. 
+This is the tenth iteration of the linear model I will be using to test strength of habitat use across sites. Created to account for not only proportion of days with calling but also how many days there are for each site. After advisor meeting on 9/18 decided to use the parameterization of the model that allows me to include all the covaraiates in it. 
 
 After talking with Andy and Erim 9/18, I'm going to remove year and remove conifer as covariates.
 
@@ -44,6 +44,7 @@ corrdat <- full_dat %>% select(pct_can_landsc, pct_openshrub_landsc, veg_sd_resi
 corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
          upper.panel=panel.pts, text.panel=panel.txt,
          main="Correlations in Habitat Metrics")
+#test <-test[is.na(full_dat$pct_can_core)]
 ```
 
 
@@ -97,7 +98,6 @@ cat("
       mu[i] <- beta0 + beta1 * cov1[i] + beta2 * cov2[i] + beta3 * cov3[i] + beta4 * cov4[i]
       prob[i] <- ilogit(mu[i])
       y[i] ~ dbin(prob[i], s[i])
-      
     }
     
     # Priors
@@ -134,6 +134,11 @@ fit_binom <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Works
 ```{R Evaluate Model}
 summary(fit_binom)
 tracedens_jags(fit_binom, parmfrow = c(2,2)) 
+```
+
+```{R}
+
+
 ```
 
 This model still isn't converging. 

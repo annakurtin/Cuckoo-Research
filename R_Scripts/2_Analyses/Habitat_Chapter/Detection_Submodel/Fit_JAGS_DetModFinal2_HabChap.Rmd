@@ -473,7 +473,7 @@ f2_waic_se
 
 * Vegetation density (relative number of trees combined with relative density of shrubs > 1m tall - unitless composite metric): There is a 70% change that the true effect of vegetation density at a site on probability of detecting a BBCU given that it is present at a site is positive. The median estimate for the effect of vegetation density on detection probability is 0.532, which means that for every 1 sd increase in vegetation density above the mean (.23 increase above mean of .27), the probability of detecting a cuckoo increases by 53.2%
 
-* Effort: •	Effect size of effort: The median estimate for the effect of survey effort on detection probability is 0.533, which means that at the average value of the other covariates, for every 1 sd increase in survey effort above the mean (10 increase above 17) the probability of detecting C. erythropthalmus given they are present increases by 53.3%.
+* Effort:	Effect size of effort: The median estimate for the effect of survey effort on detection probability is 0.533, which means that at the average value of the other covariates, for every 1 sd increase in survey effort above the mean (10 increase above 17) the probability of detecting C. erythropthalmus given they are present increases by 53.3%.
 
 * Background noise: There is an 80% chance that the true effect of the average decibels in the band of cuckoo calling (I think it's 200  -3500?) is negative. The median estimate for the effect of background noise on detection probability is 0.451, which means for every 1 sd increase in background noise above the mean (4 dB increase above mean of -61 dB), the probability of detecting a BBCU given they are present decreases by 45.1%. 
 
