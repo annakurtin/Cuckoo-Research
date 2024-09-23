@@ -5,17 +5,17 @@ date: "2024-08-12"
 output: html_document
 ---
 
-This is the model I will use for the ARU detection probability. This is the same model structure as HabChap DetMod6 with vegetation density added. 
+This is the second version of the model I will use for the ARU detection probability. This is the same model structure as HabChap Detection Submodel Final 2.
 
 
-**Model structure:**
+### Model structure:
 
 Naive state model:
 $$
 z_i \sim Bernoulli(\psi_i)
 $$ 
 $$
-logit(\psi_i) = \alpha_0
+\psi_i = \alpha_0
 $$
 
 Process model with four covariates:  
@@ -25,7 +25,7 @@ y_{ij} \sim Bernoulli(p_{ij} * z_i)
 $$
 
 $$
-logit(p_{ij}) = \beta_0 + \beta_{1}*date + \beta_{2}^2 * date + \beta_{3} * avg db + \beta_{4}*effort + \beta_{5}*veg_dense
+p_{ij} = \beta_0 + \beta_{1}*date + \beta_{2}^2 * date + \beta_{3} * avg db + \beta_{4}*effort + \beta_{5}*veg_dense
 $$
 
 **Handling of NAs:** Skip for missing detections, imputate missing covariates.
@@ -39,6 +39,7 @@ library(jagshelper)
 library(ggplot2)
 library(corrgram)
 library(beepr)
+library(ggdist)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 ```
 
@@ -63,7 +64,9 @@ get_na <- function(x){(max(which(!is.na(x))))}
 miss <- apply(detections, 1, get_na)
 ```
 
-```{R Look at Covariance, warnings = FALSE}
+*Ignore the following warnings produced by corrgram, I can't get markdown to not show them*
+
+```{R Look at Covariance, echo = FALSE, warnings = FALSE, message = FALSE}
 # Pivot this data long to be able to compare 
 dates <- select(det_dat, site_id, 21:26)
 dates_long <- dates %>% pivot_longer(cols = c(start_date_s1,
@@ -114,9 +117,9 @@ effort_long <- unite(effort_long,site_survey,c(site_id, survey_period),sep="_",r
 
 covs_long <- left_join(dates_long, db_long, by = "site_survey") %>% left_join(., effort_long, by = "site_survey")
 
-corrgram(covs_long, order=TRUE, lower.panel=panel.cor,
-         upper.panel=panel.pts, text.panel=panel.txt,
-         main="Correlations in ARU Detection Metrics")
+# corrgram(covs_long, order=TRUE, lower.panel=panel.cor,
+#          upper.panel=panel.pts, text.panel=panel.txt,
+#          main="Correlations in ARU Detection Metrics")
 
 # Include veg density in this comparison 
 # Reformat your long data
@@ -147,6 +150,7 @@ jags_data <- list(
   covb3 = db[,2:7],
   # Effort 
   covb4 = effort[,2:7],
+  # Veg density
   covb5 = veg[,2],
   n_unit = nrow(detections),
   miss = miss
@@ -222,7 +226,7 @@ cat("
 ```{R Run Model, eval= FALSE, results = FALSE}
 fit_2 <- jags(data = jags_data, 
                  model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Model_Structure_Files/JAGS_ARUMod2.txt",
-                 parameters.to.save = c("a0", "b0", "b1", "b1Q", "b3", "b4", "b5", "p_val"),
+                 parameters.to.save = c("a0", "b0", "b1", "b1Q", "b3", "b4", "b5", "SSEsim","SSEobs","p_val"),
                  n.iter = 10000, 
                  n.burnin = 5000, 
                  n.chains = 3,
@@ -236,26 +240,28 @@ saveRDS(fit_2, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/C
 ```
 
 ### Model outputs: 
-```{R}
+```{R, echo = FALSE}
 fit_2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Models_Ran_Outputs/MetChap_ARUMod2.Rdata")
+```
+```{R}
 summary(fit_2)
+```
+
+### Evaluate Convergence and Model Fit
+
+```{R, echo = FALSE}
 tracedens_jags(fit_2, parmfrow = c(3,4))
 ```
 
-**Reminder of covariates:**
+```{R Make Inference on P Value, echo = FALSE}
+plot(fit_2$sims.list$SSEobs,fit_2$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
+abline(0,1,lwd = 2, col = "red")
+print(paste0("P value is:",round(fit_2$mean$p_val, 2)))
+```
 
-* covb1 = date
+### Evaluate Posterior Distribution
 
-* covb1Q: quadratic effect of date
-
-* covb3: background noise
-
-* covb4: effort
-
-* covb5: veg density 
-
-
-```{R Create Violin Plots}
+```{R Create Violin Plots, echo = FALSE}
 # Plot posterior distribution
 chains_m <- jags_df(fit_2)
 # Select the chains for our covariates of interest
@@ -263,24 +269,59 @@ chains_viol <- chains_m %>% select(b1,b1Q,b3,b4, b5)
 # Rename them to be more interpretable
 colnames(chains_viol) <- c("date","quadratic date","background_noise","effort", "veg_density")
 # Pivot this longer so that we can visualize it
-chains_viol_long <- chains_viol %>% pivot_longer(cols = c("date","quadratic date","background_noise","effort", "veg_density"),names_to = "Parameter", values_to = "Values")
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("date","quadratic date","background_noise","effort", "veg_density"),names_to = "parameter", values_to = "values")
 # Select the median values and associate them with their names
-med_vals <- data.frame(vals = c(fit_2$q50$b1,fit_2$q50$b1Q, fit_2$q50$b3, fit_2$q50$b4, fit_2$q50$b5), name = c("date","quadratic date","background_noise","effort", "veg_density"))
+#med_vals <- data.frame(vals = c(fit_2$q50$b1,fit_2$q50$b1Q, fit_2$q50$b3, fit_2$q50$b4, fit_2$q50$b5), name = c("date","quadratic date","background_noise","effort", "veg_density"))
 
-# Create the violin plot
-ggplot() +
-  geom_violin(data=chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
-  geom_point(data = med_vals, aes(x = name, y = vals)) +
-  labs(title = "Posterior Distribution of Detection Covariates") +
-  scale_fill_manual(values = c("date"=palette_5[1], "quadratic date" = palette_5[5],"background_noise"=palette_5[2], "effort" = palette_5[3], "veg_density" = palette_5[4])) + 
-  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
-  theme_minimal()
+
+f_stat <- data.frame(
+  parameter = c("date",
+                "quadratic date",
+                "background_noise",
+                "effort", 
+                "veg_density"),
+  median_value = c(paste0("F: ", round(fit_2$f$b1,2)), 
+                   paste0("F: ",round(fit_2$f$b1Q,2)), 
+                   paste0("F: ",round(fit_2$f$b3,2)), 
+                   paste0("F: ",round(fit_2$f$b4,2)),
+                   paste0("F: ",round(fit_2$f$b5,2)))
+)
+# Create the density plots
+
+# Create the slab interval plot
+ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)) + 
+  # Plot posterior distributions
+  stat_slabinterval() +
+  # Establish colors
+  scale_fill_manual(values = c("veg_density"=palette_5[1], 
+                               "background_noise" = palette_5[2],
+                               "effort"=palette_5[3], 
+                               "date" = palette_5[4], 
+                               "quadratic date" = palette_5[5])) +
+  # Add a line for 0 to show overlap of posterior
+  geom_vline(xintercept = 0) +
+  # Remove background color from plots
+  theme_minimal() +
+  # Turn off the legend
+  guides(fill = "none")+
+  # Add median values as text labels
+  geom_text(data = f_stat, aes(x = 3.5, y = parameter, label = median_value), color = "black", hjust = 2) 
+
+
+# # Create the violin plot
+# ggplot() +
+#   geom_violin(data=chains_viol_long, aes(x = Parameter, y = Values,fill = Parameter),trim = FALSE) +
+#   geom_point(data = med_vals, aes(x = name, y = vals)) +
+#   labs(title = "Posterior Distribution of Detection Covariates") +
+#   scale_fill_manual(values = c("date"=palette_5[1], "quadratic date" = palette_5[5],"background_noise"=palette_5[2], "effort" = palette_5[3], "veg_density" = palette_5[4])) + 
+#   geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+#   theme_minimal()
 ```
 
 
 Detection probability estimates:
 
-```{R}
+```{R, echo =FALSE}
 p <- round(plogis(fit_2$q50$b0),4)
 print(paste0("Estimate for detection probability of a single ARU survey:",p))
 
@@ -312,6 +353,7 @@ print(paste0("Naive detection estimate:", naivedet_aru))
 # what would the value for occupancy with playbacks be if we corrected it by the detection?
 ```
 
+### How Many Surveys Do We Need?
 
 ```{R}
 # empty array for storing detection probability
@@ -342,11 +384,12 @@ boxplot(pstar ~ x, col = cuckoo_palette[1], las = 1, ylab = "Cumulative Detectio
 #Add an abline that represents the 95% CI cutoff 
 abline(h = 0.95, lty = 2, lwd = 2)
 ```
-
-*Thoughts and lingering questions:*
-
-* Including vegetation density in this model: the f statistic changed from the model that didn't have the quadratic effect of date. 
-
-* F statistics changed for veg density and effort. Veg density f statistic increased relative to the model without a quadratic effect on date, and survey effort f statistic decreased relative to model without quadratic effect on date. 
-
-* When we compare aru vs playback detections, are we comparing the same thing??
+```{R Old Thoughts Documented, echo = FALSE}
+# *Thoughts and lingering questions:*
+# 
+# * Including vegetation density in this model: the f statistic changed from the model that didn't have the quadratic effect of date. 
+# 
+# * F statistics changed for veg density and effort. Veg density f statistic increased relative to the model without a quadratic effect on date, and survey effort f statistic decreased relative to model without quadratic effect on date. 
+# 
+# * When we compare aru vs playback detections, are we comparing the same thing??
+```

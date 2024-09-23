@@ -465,9 +465,9 @@ f2_waic_se
 
 **Strongly significant covariates (CI doesn't overlap 0):**
 
-* Date: *How to interpret this?*
+* Date: 0.136 – shifts the “peak” of the detections across dates more positive/later in the season/slightly after the average recording date and affects the curve of the graph 
 
-* Quadratic effect of date: *How to interpret this?*
+* Quadratic effect of date: 0.162 – makes a steeper slope on either end of the graph – detection probability drops off sooner
 
 **Weakly significant covariates (F > .70):**
 

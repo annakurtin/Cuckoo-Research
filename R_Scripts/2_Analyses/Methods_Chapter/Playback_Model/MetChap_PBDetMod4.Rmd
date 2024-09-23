@@ -11,9 +11,9 @@ Covariattes to include:
 * date, temperature (Based on Johnson and Benson 2022)
 * noise (Johnson and Benson 2023)
 
-I'm going to try to remove the state submodel and only focus on the detection process. 
+I'm going to try to remove the state submodel and only focus on the detection process. Last model had a very poor p value so I'm going to try to remove the quadratic effect of date and see if this performs better.
 
-Should I add the quadratic effect of date?
+
 
 *Effective sample size for this data* 33 * 3 = 66. So we can have a maximum of about 5-6 parameters to fit the model. 
 
@@ -110,9 +110,6 @@ corrgram(covs_long, order=TRUE, lower.panel=panel.cor,
 # No colinearities to be worried about
 # Unused covariates
 obs <- pb_dat %>% select(site_id, num_obs_s1, num_obs_s2, num_obs_s3)
-#obs_long <- obs %>% pivot_longer(cols = c(num_obs_s1, 
-#                                          num_obs_s2,
-#                                          num_obs_s3), names_to = "survey period", values_to = "observers")
 time <- pb_dat %>% select(site_id, time_s1, time_s2, time_s3)
 ```
 
@@ -139,7 +136,6 @@ init_func <- function(){
     a0 = rnorm(1, 0, 1),
     b0 = rnorm(1, 0, 1),
     b1 = rnorm(1, 0, 1),
-    b1Q = rnorm(1, 0 ,1),
     b3 = rnorm(1, 0, 1),
     b4 = rnorm(1, 0, 1)
   )
@@ -153,7 +149,6 @@ cat("
     a0 ~ dlogis(0, 1)
     b0 ~ dlogis(0, 1)
     b1 ~ dlogis(0, 1)
-    b1Q ~ dlogis(0, 1)
     b3 ~ dlogis(0, 1)
     b4 ~ dlogis(0, 1)
   
@@ -167,7 +162,7 @@ cat("
       for(j in 1:miss[i]){
   
       # Just detection model from StrofUseLM10
-      #mu[i] <- beta0 + beta1 * cov1[i] + beta1Q * (cov1[i]*cov1[i]) + beta2 * cov2[i] + beta3 * cov3[i] + beta4 * cov4[i]
+      #mu[i] <- beta0 + beta1 * cov1[i] + beta2 * cov2[i] + beta3 * cov3[i] + beta4 * cov4[i]
       #prob[i] <- ilogit(mu[i])
       #y[i] ~ dbin(prob[i], s[i])
   
@@ -202,44 +197,42 @@ cat("
     p_val <- step(SSEsim - SSEobs)  
     
   }
-  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Model_Structure_Files/JAGS_PBMod3.txt")
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Model_Structure_Files/JAGS_PBMod4.txt")
 
 ```
 
 ```{R Run Model, eval = FALSE, results = FALSE}
-fit_3 <- jags(data = jags_data, 
-                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Model_Structure_Files/JAGS_PBMod3.txt",
-                 parameters.to.save = c("b0", "b1","b1Q","b3", "b4", "SSEsim","SSEobs","p_val"),
+fit_4 <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Model_Structure_Files/JAGS_PBMod4.txt",
+                 parameters.to.save = c("b0", "b1","b3", "b4", "SSEsim","SSEobs","p_val"),
                  n.iter = 10000, 
                  n.burnin = 5000, 
                  n.chains = 3,
                  n.thin = 2,
                  inits = init_func)
 beep(sound = 3)
-saveRDS(fit_3,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Models_Ran_Outputs/JAGS_PBMod3.txt")
+saveRDS(fit_4,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Models_Ran_Outputs/JAGS_PBMod4.txt")
 ```
 
 ```{R}
-fit_3 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Models_Ran_Outputs/JAGS_PBMod3.txt")
+fit_4 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Models_Ran_Outputs/JAGS_PBMod4.txt")
 
 ```
 
 ```{R}
-summary(fit_3)
-tracedens_jags(fit_3, parmfrow = c(3,3))
+summary(fit_4)
+tracedens_jags(fit_4, parmfrow = c(3,3))
 ```
 
 
 ```{R Make Inference on P Value}
-plot(fit_3$sims.list$SSEobs,fit_3$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
+plot(fit_4$sims.list$SSEobs,fit_4$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
 abline(0,1,lwd = 2, col = "red")
-print(paste0("P value is:",round(fit_3$mean$p_val, 2)))
+print(paste0("P value is:",round(fit_4$mean$p_val, 2)))
 ```
-Ok so this looks really bad
-
 
 ```{R Create Violin Plots}
-chains_2 <- jags_df(fit_3)
+chains_2 <- jags_df(fit_4)
 
 chains_beta <- chains_2 %>% select(b1, b1Q, b3, b4)
 colnames(chains_beta) <- c("date", 
@@ -259,12 +252,7 @@ ggplot() +
   theme_minimal()
 ```
 
-Signal of variance inflation in the posterior for quadratic date
 
-```{R}
-plot(fit_3$sims.list$b0,)
-
-```
 
 ```{R Look at Detection Prob Estimates}
 p <- round(plogis(fit_2$q50$b0),4)
