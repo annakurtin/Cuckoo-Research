@@ -1,9 +1,10 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #### Look at distribution of unscaled habitat chapter covariates ####
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Used in the modeling methods section of the habitat chapter.
 
 # read in data
-us_dat <- read.csv("./Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2023Veg_Covariates_9-4.csv")
+us_dat <- read.csv("./Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2023Veg_Covariates_9-24.csv")
 # REMOVE THE SITES THAT WE DIDNT ACTUALLY LOOK AT
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -23,6 +24,9 @@ max(us_dat$ctree_spp_rich, na.rm = TRUE)
 
 floodplain_sites <- nrow(us_dat[us_dat$floodplain_shrub == 1,])
 (floodplain_sites/nrow(us_dat)) * 100
+
+broadleaf_sites <- nrow(us_dat[us_dat$broadleaf_shrub == 1,])
+(broadleaf_sites/nrow(us_dat)) * 100
 
 # Broadleaf and floodplain shrub are binary covariates
 
@@ -61,7 +65,6 @@ mean(us_dat$ht_can_core, na.rm = TRUE)
 sd(us_dat$ht_can_core, na.rm = TRUE)
 min(us_dat$ht_can_core, na.rm = TRUE)
 max(us_dat$ht_can_core, na.rm = TRUE)
-
 
 hist(us_dat$ht_subcan_core, main = "Subcanopy Height Core")
 mean(us_dat$ht_subcan_core, na.rm = TRUE)

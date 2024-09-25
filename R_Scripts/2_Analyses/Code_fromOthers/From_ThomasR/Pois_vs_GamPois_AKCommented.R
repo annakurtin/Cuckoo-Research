@@ -19,23 +19,20 @@ var(y)
 summary(glm(y ~ x, family = 'poisson'))
 
 
-
+# Draw 10000 points from a poisson distribution with an intensity (mean and variance) around 1
 n <- 100000
-
 a <- rpois(n, 1)
-
 table(a)
+hist(a)
 
-
-
-theta <- 5
-
+# Draw 10000 points from a poisson distribution with an intensity (mean and variance) drawn from a gamma distribution centered around 5)
+theta <- 1
 h <- rgamma(n, theta, theta)
-
+hist(h)
 b <- rpois(n, 0.5 * h)
 
 table(b)
-
+hist(b)
 
 
 

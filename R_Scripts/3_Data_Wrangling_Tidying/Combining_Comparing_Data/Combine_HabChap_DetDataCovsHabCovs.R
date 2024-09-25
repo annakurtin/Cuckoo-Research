@@ -29,9 +29,13 @@ all_dat <- all_dat %>% rename(det_s1 = det_survey1.x,
                    det_s5 = det_survey5.x,
                    det_s6 = det_survey6.x)
 
+# Which sites have NA in the first detection column?
+all_dat %>% filter(is.na(det_s1))
 # Remove data that has an NA in the first detection column
 all_dat <- all_dat %>% filter(!is.na(det_s1))
 
+# 9/24 checking which sites appear in the cleaned data that actually have no detections setdiff(all_dat_fin$site_id,all_dat$site_id), all_dat_fin from Combine_2023All_HabChap_VegCovs
+# Sites that need to be removed: "MISO-091", "MUSH-131", "MUSH-184"
 # write this to .csv
 #write.csv(all_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_9-11.csv", row.names = FALSE)
 

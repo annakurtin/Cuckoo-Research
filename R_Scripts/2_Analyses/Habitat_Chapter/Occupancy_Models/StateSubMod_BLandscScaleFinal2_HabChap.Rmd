@@ -105,7 +105,7 @@ cancov_p2 + oshrubcov_p2
 
 ```{R Visualize Correalations, warnings = FALSE, message = FALSE}
 corrdat <- full_dat %>% select(pct_can_landsc, pct_openshrub_landsc)
-corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
+corrgram(corrdat, order=FALSE, lower.panel=panel.cor,
          upper.panel=panel.pts, text.panel=panel.txt,
          main="Correlations in Landscape Scale Occupancy Metrics")
 ```
@@ -237,7 +237,7 @@ cat("
     p_val <- step(SSEsim - SSEobs)
     
   }
-  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccMod_BFin2.txt")
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Models/Model_Structure_Files/JAGS_HabOccMod_BFin2.txt")
 ```
 
 ```{R Run Model, eval = FALSE}
@@ -250,11 +250,11 @@ fit_BF2 <- jags(data = jags_data,
                  n.thin = 2,
                  inits = init_func)
 beep()
-saveRDS(fit_BF2,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Models_Ran_Outputs/StateSubModel_BFinal2.Rdata")
+saveRDS(fit_BF2,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Models/Models_Ran_Outputs/StateSubModel_BFinal2.Rdata")
 ```
 
 ```{R read in model}
-fit_BF2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Models_Ran_Outputs/StateSubModel_BFinal2.Rdata")
+fit_BF2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Models/Models_Ran_Outputs/StateSubModel_BFinal2.Rdata")
 ```
 
 ### Evaluate Model Outputs and Convergence
@@ -344,7 +344,7 @@ r <- cor(mat)
 # Only one that is larger is the correlation between a0 and a3 - what is the logic of these parameters being correlated? Is this really something we need to worry about?
 
 colnames(mat) <- c("psi","percent canopy landscape", "shrub/early successional landscape")
-corrgram(mat, order=TRUE, lower.panel=panel.cor,
+corrgram(mat, order=FALSE, lower.panel=panel.cor,
          upper.panel=panel.pts, text.panel=panel.txt,
          main="Correlations in Landscape Scale Occupancy Parameters")
 ```

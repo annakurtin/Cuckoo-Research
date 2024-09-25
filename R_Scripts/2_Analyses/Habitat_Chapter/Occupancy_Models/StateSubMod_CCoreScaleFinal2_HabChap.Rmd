@@ -213,7 +213,7 @@ Now, let's take a look at the remaining covariates.
 
 ```{R Visualize Correlations 4, warnings = FALSE, message = FALSE}
 corrdat4 <- full_dat %>% select(pct_openshrub_core, ht_can_core, ht_subcan_core, veg_sd_resid)
-corrgram(corrdat4, order=TRUE, lower.panel=panel.cor,
+corrgram(corrdat4, order=FALSE, lower.panel=panel.cor,
          upper.panel=panel.pts, text.panel=panel.txt,
          main="Correlations in Core Scale Occupancy Metrics")
 ```
@@ -352,7 +352,7 @@ cat("
     p_val <- step(SSEsim - SSEobs)
     
   }
-  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccMod_CFin2.txt")
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Models/Model_Structure_Files/JAGS_HabOccMod_CFin2.txt")
 
 ```
 
@@ -367,11 +367,11 @@ fit_CF2 <- jags(data = jags_data,
                  n.thin = 2,
                  inits = init_func)
 beep()
-saveRDS(fit_CF2,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Models_Ran_Outputs/StateSubModel_CFinal2.Rdata")
+saveRDS(fit_CF2,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Models/Models_Ran_Outputs/StateSubModel_CFinal2.Rdata")
 ```
 
 ```{R read in model}
-fit_CF2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Models_Ran_Outputs/StateSubModel_CFinal2.Rdata")
+fit_CF2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Models/Models_Ran_Outputs/StateSubModel_CFinal2.Rdata")
 ```
 
 #### Evaluate model outputs
@@ -465,9 +465,9 @@ print(paste0("Veg SD Resid: ", a4))
 mat <- cbind(fit_CF2$sims.list$a0,fit_CF2$sims.list$a1,fit_CF2$sims.list$a2,fit_CF2$sims.list$a3,fit_CF2$sims.list$a4)
 # run a correlation test on the chains - here, I'm looking for values that are larger than other values
 r <- cor(mat)
-r
+#r
 colnames(mat) <- c("psi","% shrub/early successional cover", "canopy height", "shrub/early successional height", "veg sd residual")
-corrgram(mat, order=TRUE, lower.panel=panel.cor,
+corrgram(mat, order=FALSE, lower.panel=panel.cor,
          upper.panel=panel.pts, text.panel=panel.txt,
          main="Correlations in Core Area Scale Occupancy Parameters")
 ```

@@ -9,8 +9,13 @@ This is the eleventh iteration of the linear model I will be using to test stren
 
 ### Model structure:
 
+$$ c_i \sim Poisson(\gamma_i * h_i) $$
 
-$$ c_i \sim Poisson(\gamma_i | \beta_1, \beta_2, \beta_3, \beta_4) $$
+$$ h_i \sim Gamma(\theta,\theta) $$
+
+$$ \theta \sim Gamma(1, 1) $$
+
+$$ log(\gamma_i) = \beta_0 + \beta_1 * cov1 + \beta_2 * cov2 + \beta_3 * cov3 + \beta_4 * cov4 $$
 
 $$ c_i: \text{Number of calls at a site}$$
 
@@ -45,7 +50,9 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Linear_Model/HabChap_22-23_DaysCalls_HabCovs_9-12.csv")
 ```
 
-```{R}
+*Ignore the warnings below*
+
+```{R, warnings = FALSE, message = FALSE}
 corrdat <- full_dat %>% select(pct_can_landsc, pct_openshrub_landsc, veg_sd_resid, pct_openshrub_core)
 corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
          upper.panel=panel.pts, text.panel=panel.txt,
@@ -134,8 +141,8 @@ sink()
 fit_gpois <- jags(data = jags_data, 
                  model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLMod11_GamPois.jags",
                  parameters.to.save = c("beta0","beta1","beta2","beta3","beta4", "SSEobs","SSEsim", "p_val"),
-                 n.iter = 30000, 
-                 n.burnin = 15000, 
+                 n.iter = 40000, 
+                 n.burnin = 20000, 
                  n.chains = 3,
                  n.thin = 10,
                  inits = init_func)
@@ -163,7 +170,6 @@ tracedens_jags(fit_gpois, parmfrow = c(3,3))
 ```
 
 ```{R Visualize Model Fit}
-dev.off()
 plot(fit_gpois$sims.list$SSEobs,fit_gpois$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
 abline(0,1,lwd = 2, col = "red")
 print(paste0("P value is: ",round(fit_gpois$mean$p_val, 2)))
@@ -255,15 +261,15 @@ corrgram(mat, order=TRUE, lower.panel=panel.cor,
 
 **Strongly significant covariates (CI doesn't overlap 0):** 
 
-* Residuals of all vegetation standard deviation regressed against canopy height: we have no evidence that the true effect of vegetation sd residuals on the strength of use by BBCU is negative. The median estimate for vegetation sd residuals effect transformed into probability space is 0.604, which means that at the average values of every other covariate, for every 1 sd increase in veg sd residuals above the mean (.8 increase above mean value of 0 *not sure if it's helpful to include the values here???*), the count of BBCU calls during the breeding season increases by 60.4%.
+* Residuals of all vegetation standard deviation regressed against canopy height: we have no evidence that the true effect of vegetation sd residuals on the strength of use by BBCU is negative. The median estimate for vegetation sd residuals effect transformed into probability space is 0.607, which means that at the average values of every other covariate, for every 1 sd increase in veg sd residuals above the mean (.8 increase above mean value of 0 *not sure if it's helpful to include the values here???*), the count of BBCU calls during the breeding season increases by 60.7%.
 
-* Percent shrub/early successional cover at landscape scale: we have no evidence that the true effect of percent shrub/early successional at landscpae sclae is positive. The median estimate for the effect of this covariate transformated into probability space is 0.111, which means that for every 1 sd increase in percent shrub/early successional cover across the landscape (increase of 7.64 percentage points above the mean value of 14.4% cover), the count of BBCU calls during the breeding season decreases by 11.1%. 
+* Percent shrub/early successional cover at landscape scale: we have no evidence that the true effect of percent shrub/early successional at landscpae scale is positive. The median estimate for the effect of this covariate transformed into probability space is 0.111, which means that for every 1 sd increase in percent shrub/early successional cover across the landscape (increase of 7.64 percentage points above the mean value of 14.4% cover), the count of BBCU calls during the breeding season decreases by 11.1%. 
 
-* Percent canopy cover at landscape scale: there is a 99% chance that the true effect of percent canopy cover at landscape scale is positive. The median estimate for the effect of this covariate transformed into probability space is 0.438, which means that for every 1 sd increase in percent canopy cover at the landscape scale (increase of 6.8 percentage points above the mean value of 8.2% cover), the count of BBCU calls during the breeding season increases by 43.8%. 
+* Percent canopy cover at landscape scale: there is a 98% chance that the true effect of percent canopy cover at landscape scale is positive. The median estimate for the effect of this covariate transformed into probability space is 0.436, which means that for every 1 sd increase in percent canopy cover at the landscape scale (increase of 6.8 percentage points above the mean value of 8.2% cover), the count of BBCU calls during the breeding season increases by 43.6%. 
 
 **Weakly significant covariates (F > .70):**
 
-* Percent shrub/early successional cover at core scale: There is a 93% chance that the true effect of percent shrub/early successional cover at the core scale is negative. The median estimate for the effect of this covariate transformed into probability space is 0.165, which means that for every 1 sd increase in percent canopy cover at the core scale (increase of 11 percentage points above the mean value of 18.5% cover), the count of BBCU calls during the breeding season decreases by 16.5%.
+* Percent shrub/early successional cover at core scale: There is a 93% chance that the true effect of percent shrub/early successional cover at the core scale is negative. The median estimate for the effect of this covariate transformed into probability space is 0.169, which means that for every 1 sd increase in percent canopy cover at the core scale (increase of 11 percentage points above the mean value of 18.5% cover), the count of BBCU calls during the breeding season decreases by 16.9%.
 
 ```{R, include = FALSE, eval = FALSE}
 # Old model for safekeeping

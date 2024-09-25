@@ -137,7 +137,7 @@ fshrub_p2 + bshrub_p2
 
 ```{R Visualize Correalations, warnings = FALSE, message = FALSE}
 corrdat <- full_dat %>% select(dtree_spp_rich, ctree_spp_rich, floodplain_shrub, broadleaf_shrub)
-corrgram(corrdat, order=TRUE, lower.panel=panel.cor,
+corrgram(corrdat, order=FALSE, lower.panel=panel.cor,
          upper.panel=panel.pts, text.panel=panel.txt,
          main="Correlations in Point Scale Occupancy Metrics")
 ```
@@ -285,12 +285,12 @@ cat("
     p_val <- step(SSEsim - SSEobs)
     
   }
-  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccMod_AFin1.txt")
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Models/Model_Structure_Files/JAGS_HabOccMod_AFin1.txt")
 ```
 
 ```{R Run Model, eval = FALSE}
 fit_AF1 <- jags(data = jags_data, 
-                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Model_Structure_Files/JAGS_HabOccMod_AFin1.txt",
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Models/Model_Structure_Files/JAGS_HabOccMod_AFin1.txt",
                  parameters.to.save = c("a0", "a1", "a2", "a3","a4", "b0", "b1", "b3", "b4", "b4Q","p_val", "SSEobs","SSEsim"),
                  n.iter = 10000, 
                  n.burnin = 4000, 
@@ -298,11 +298,11 @@ fit_AF1 <- jags(data = jags_data,
                  n.thin = 2,
                  inits = init_func)
 beep()
-saveRDS(fit_AF1,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Models_Ran_Outputs/StateSubModel_AFinal1.Rdata")
+saveRDS(fit_AF1,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Models/Models_Ran_Outputs/StateSubModel_AFinal1.Rdata")
 ```
 
 ```{R read in model}
-fit_AF1 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Models_Ran_Outputs/StateSubModel_AFinal1.Rdata")
+fit_AF1 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Models/Models_Ran_Outputs/StateSubModel_AFinal1.Rdata")
 ```
 
 ### Evaluate Model Outputs and Convergence
@@ -405,7 +405,7 @@ r <- cor(mat)
 # Only one that is larger is the correlation between a0 and a4 - what is the logic of these parameters being correlated? Is this really something we need to worry about?
 
 colnames(mat) <- c("psi","decid tree spp rich", "conif tree spp rich","floodplain shrub", "broadleaf shrub")
-corrgram(mat, order=TRUE, lower.panel=panel.cor,
+corrgram(mat, order=FALSE, lower.panel=panel.cor,
          upper.panel=panel.pts, text.panel=panel.txt,
          main="Correlations in Point Scale Occupancy Parameters")
 ```
