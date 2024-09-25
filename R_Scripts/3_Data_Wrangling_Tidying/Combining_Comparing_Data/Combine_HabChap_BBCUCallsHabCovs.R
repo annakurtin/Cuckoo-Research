@@ -3,14 +3,19 @@
 # the linear model 
 
 # date created 8/15/2023
-# last edited 8/15/2023
+# last edited 9/25/2023
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 library(tidyverse)
 
 
 # Read in percent days with calls
-calls_22 <- read.csv("./Data/Detection_History/2022_All_ARUs/Outputs/2022_Sites_DayswCalling_8-15.csv")
-calls_23 <- read.csv("./Data/Detection_History/2023_All_ARUs/Outputs/2023_Sites_DayswCalling_8-15.csv")
+# OLD: all days
+#calls_22 <- read.csv("./Data/Detection_History/2022_All_ARUs/Outputs/2022_Sites_DayswCalling_8-15.csv")
+#calls_23 <- read.csv("./Data/Detection_History/2023_All_ARUs/Outputs/2023_Sites_DayswCalling_8-15.csv")
+# NEW: july 1-15 period
+
+calls_23 <- read.csv("./Data/Detection_History/2023_All_ARUs/Outputs/2023_Sites_DayswCalling_July1-15_9-25.csv")
+
 
 # Read in unscaled habitat covariates
 habcovs_22 <- read.csv("./Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2022Veg_Covariates_9-4.csv")

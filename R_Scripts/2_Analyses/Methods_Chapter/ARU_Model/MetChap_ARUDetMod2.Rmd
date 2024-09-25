@@ -266,6 +266,24 @@ print(paste0("P value is:",round(fit_2$mean$p_val, 2)))
 chains_m <- jags_df(fit_2)
 # Select the chains for our covariates of interest
 chains_viol <- chains_m %>% select(b1,b1Q,b3,b4, b5)
+# select intercept estimate
+posterior_b0 <- chains_m %>% select(b0)
+#b0_prob <- plogis(posterior_b0)
+#boxplot(posterior_b0, col = cuckoo_palette[1],main = "Posterior Estimates for Detection Probability", horizontal = TRUE)
+# Create the slab interval plot
+ggplot(data = posterior_b0, aes(x = b0)) + 
+  # Plot posterior distributions
+  stat_slabinterval(fill = cuckoo_palette[1]) +
+  # Add a line for 0 to show overlap of posterior
+  geom_vline(xintercept = 0) +
+  # Remove background color from plots
+  theme_minimal() +
+  # Turn off the legend
+  guides(fill = "none") +
+  scale_x_continuous(limits = c(-6,8))
+
+
+
 # Rename them to be more interpretable
 colnames(chains_viol) <- c("date","quadratic date","background_noise","effort", "veg_density")
 # Pivot this longer so that we can visualize it
@@ -328,6 +346,10 @@ print(paste0("Estimate for detection probability of a single ARU survey:",p))
 n <- 6
 p_star <- round(1 - (1 - p)^n, 4)
 print(paste0("Estimate for cumulative ARU detection probability:",p_star))
+```
+
+How does this compare with the sites that also had playback surveys?
+```{R}
 # how does this line up with our naive estimates of how many sites had detections on ARU vs PB?
 pb_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Playback_Results/2023/Outputs/2023_PBData_FormatforOccModSCALED_8-6-24.csv")
 pb_dat$bbcu_pb <- apply(pb_dat[, 2:4], 1, max, na.rm = TRUE)
@@ -338,10 +360,12 @@ full_dat$bbcu_aru <- apply(full_dat[,2:7], 1, max, na.rm = TRUE)
 aru <- full_dat %>% select(site_id, bbcu_aru)
 #sum(aru$bbcu_aru)
 comp_dat <- inner_join(aru,pb, by = "site_id")
+# which playback data wasn't in the ARU data?
+pb_only <- pb %>% filter(!site_id %in% comp_dat$site_id)
 
 comp_dat$pres <- apply(comp_dat[, 2:3], 1, max, na.rm = TRUE)
 # how many sites truly had cuckoos?
-sum(comp_dat$pres)
+print(paste0("Sites with both PB and ARU with BBCU detected: ",sum(comp_dat$pres)))
 
 # What is the naive estimate for detection probability for each method?
 # Naive occupancy estimate
@@ -349,7 +373,8 @@ naiveocc_aru <- (sum(comp_dat$bbcu_aru)/nrow(comp_dat)) * 100
 naivedet_aru <- round((sum(comp_dat$bbcu_aru)/sum(comp_dat$pres)) * 100, 2)
 naiveocc_pb <- (sum(comp_dat$bbcu_pb)/nrow(comp_dat)) * 100
 naivedet_pb <- (sum(comp_dat$bbcu_pb)/sum(comp_dat$pres)) * 100
-print(paste0("Naive detection estimate:", naivedet_aru))
+print(paste0("Naive detection estimate (%) for ARU surveys:", naivedet_aru))
+print(paste0("Naive detection estimate (%) for playback surveys: ", naivedet_pb))
 # what would the value for occupancy with playbacks be if we corrected it by the detection?
 ```
 

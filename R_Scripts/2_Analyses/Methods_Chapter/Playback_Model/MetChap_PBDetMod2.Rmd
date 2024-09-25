@@ -276,6 +276,23 @@ Convergence and fit look good.
 chains_2 <- jags_df(fit_2)
 
 chains_beta <- chains_2 %>% select(b1, b1Q, b3, b4)
+
+# select intercept estimate
+posterior_b0 <- chains_2 %>% select(b0)
+#boxplot(posterior_b0, col = cuckoo_palette[1],main = "Posterior Estimates for Detection Probability", horizontal = TRUE)
+#boxplot(posterior_b0, col = cuckoo_palette[1],main = "Posterior Estimates for Detection Probability", horizontal = TRUE)
+# Create the slab interval plot
+ggplot(data = posterior_b0, aes(x = b0)) + 
+  # Plot posterior distributions
+  stat_slabinterval(fill = cuckoo_palette[1]) +
+  # Add a line for 0 to show overlap of posterior
+  geom_vline(xintercept = 0) +
+  # Remove background color from plots
+  theme_minimal() +
+  # Turn off the legend
+  guides(fill = "none") +
+  scale_x_continuous(limits = c(-6,8))
+
 colnames(chains_beta) <- c("date", 
                            "quadratic date",
                            "wind_strength",
@@ -346,7 +363,8 @@ for (i in 1:nrow) {
   # fills in data for each row 
   for (j in 1:max_surveys){ 
     # Fills in data for each column (i.e. number of columns)
-    pstar[i,j] <- 1 - (1 - plogis(fit_2$sims.list$b0[i]))^j #Calculate estimated maximum detection probability for each survey using mean probability calculated in the MCMC 
+    pstar[i,j] <- 1 - (1 - plogis(fit_2$sims.list$b0[i] + b1*0))^j #Calculate estimated maximum detection probability for each survey using mean probability calculated in the MCMC 
+    #### ADD IN REST OF OCOVARITES
   } 
 }
 

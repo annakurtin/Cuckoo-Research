@@ -318,7 +318,7 @@ myvector + 2
  
 # if/else statements 
 Dominance_data$RS<-ifelse(Dominance_data$Agressor.M.size == "L" & Dominance_data$Receiver.M.size == "L", "same", "diff") 
-
+# ifelse doesn't work well with dates, if you want to use this expression dates use if_else() the dplyr version
 if(test_expression){
   #Statement
 } else {
