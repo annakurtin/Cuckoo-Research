@@ -74,13 +74,21 @@ hist(pos_dat$pct_days_wcall)
 
 
 #### Only Dates During Peak Time  #####
-#### First trying July 1 - July 15th 
+## First trying one two week period July 1 - July 15th 
+#### This removes six sites in 2022
+## 10 positives out of 35 sites
+## Next trying two two week periods June 17th - July 14th
+#### This removes all sites in 2022
+## Next trying two ten-day periods??  June 25th - July 15th 
+## This removes 21 sites out of 41 sites 
+## 4 positives out of 20 sites in data
+# Should we prioritize 2023 data since we have more remote sensing data on this?
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Format days with calls 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Establish the cutoffs for the sub period you're looking at 
-start_period <- as.Date("2022-07-01")
-end_period <- as.Date("2022-07-14")
+start_period <- as.Date("2022-06-25")
+end_period <- as.Date("2022-07-15")
 
 #### Extract number of days with calls from cleaned annotation data 
 cnn_22 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2022_AllCollab_topclips_filteredPBYBCU_5-27.csv")
@@ -89,6 +97,8 @@ cnn_22$date_formatted <- as.Date(cnn_22$date_formatted)
 cnn_22 <- cnn_22[cnn_22$date_formatted <= end_period & cnn_22$date_formatted >= start_period,]
 # Get the number of days per site
 det1 <- cnn_22 %>% group_by(site_id,date) %>% summarize(bbcu = max(annotation))
+test <- det1 %>% group_by(site_id) %>% summarize(bbcu = max(bbcu))
+sum(test$bbcu)
 det2 <- det1 %>% group_by(site_id) %>% summarize(days_wcall = sum(bbcu))
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -103,10 +113,13 @@ aru_table <- create_site_col(aru_table)
 aru_table <- aru_table %>% filter(site_id %in% det2$site_id) 
 # were there any problem periods within these? yes. I'll be removing these, since they don't count towards the total days the aru was on/surveying since even if a cuckoo called, it wouldn't have been picked up.
 # change posix to dates
-aru_table <- aru_table %>% mutate(first_date = as.Date(first_rec),
-                                  last_date = as.Date(last_rec), 
+aru_table <- aru_table %>% mutate(first_date = as.Date(format(first_rec, "%Y-%m-%d")),
+                                  last_date = as.Date(format(last_rec, "%Y-%m-%d")), 
                                   prob_start = as.Date(Problem1_from), 
                                   prob_end = as.Date(Problem1_to))
+hist(aru_table$first_date, breaks =10) # most of them were put out around June 27th
+hist(aru_table$last_date, breaks =10)
+# Why is the adding one day?
 # Change the start date to be the same as the start period if the first date is before it
 aru_t2 <- aru_table %>% mutate(first_date = if_else(first_date <= start_period, start_period, first_date),
                                last_date = case_when(last_date >= end_period ~ end_period,
@@ -142,7 +155,9 @@ aru_t3 <- aru_t2 %>% group_by(site_id) %>% summarize(max_days_rec = max(total_da
 # Join this back to det2
 dat <- left_join(det2, aru_t3, by = "site_id")
 # Remove any sites that have less than a full recording period
-dat_fin <- dat %>% filter(max_days_rec == 13)
+full_days <- as.numeric(end_period - start_period)
+dat_fin <- dat %>% filter(max_days_rec == full_days)
+removed <- dat %>% filter(!max_days_rec == full_days) # Removed 6 points 2022
 # Convert to numeric
 dat_fin$max_days_rec <- as.numeric(dat_fin$max_days_rec)
 dat_fin$combined_days_rec <- as.numeric(dat_fin$combined_days_rec)
@@ -150,12 +165,15 @@ dat_fin$combined_days_rec <- as.numeric(dat_fin$combined_days_rec)
 # What is the distribution of the data?
 hist(dat_fin$days_wcall)
 # large right skew to this data - Vlad mentioned he had a similar thing. Is this ok for the assumptions of linear models?
-pos_dat <- dat_fin[dat_fin$days_wcall > 0,] #13 sites with BBCU our of 99
+pos_dat <- dat_fin[dat_fin$days_wcall > 0,] #10 sites with BBCU out of 35
 hist(pos_dat$days_wcall)
 
 
 # write this to csv
-#write.csv(dat_fin, "./Data/Detection_History/2023_All_ARUs/Outputs/2022_Sites_DayswCalling_July1-15_9-25.csv", row.names = FALSE)
+# two week period
+#write.csv(dat_fin, "./Data/Detection_History/2022_All_ARUs/Outputs/2022_Sites_DayswCalling_July1-15_9-26.csv", row.names = FALSE)
+# 20 day period
+# write.csv(dat_fin, "./Data/Detection_History/2022_All_ARUs/Outputs/2022_Sites_DayswCalling_Jun25-Jul15_9-26.csv", row.names = FALSE)
 
 
 

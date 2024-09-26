@@ -81,13 +81,21 @@ hist(pos_dat$pct_days_wcall)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #### Only Dates During Peak Time  #####
-#### First trying July 1 - July 15th 
+## First trying July 1 - July 15th 
+#### Removed 3 sites in 2023
+#### 13 sites with BBCU out of 98
+## Next trying June 17th - July 14th
+#### Removed 6 sites 
+#### 18 sites with BBCU out of 97
+## Next trying June 25 - July 15th 
+#### Removed 4 sites out of 102 sites
+#### 17 positives out of 98 sites
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Format days with calls 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Establish the cutoffs for the sub period you're looking at 
-start_period <- as.Date("2023-07-01")
-end_period <- as.Date("2023-07-14")
+start_period <- as.Date("2023-06-25")
+end_period <- as.Date("2023-07-15")
 
 # Extract number of days with calls from cleaned annotation data 
 cnn_23 <- read.csv("./Data/Classifier_Results/Model2.0/Outputs/2023_AllCollab_topclips_filteredPBYBCU_5-27.csv")
@@ -114,10 +122,10 @@ aru_table <- create_site_col(aru_table)
 aru_table <- aru_table %>% filter(site_id %in% det2$site_id) 
 # were there any problem periods within these? yes. I'll be removing these, since they don't count towards the total days the aru was on/surveying since even if a cuckoo called, it wouldn't have been picked up.
 # change posix to dates
-aru_table <- aru_table %>% mutate(first_date = as.Date(first_rec),
-                                  last_date = as.Date(last_rec), 
-                                  prob_start = as.Date(Problem1_from), 
-                                  prob_end = as.Date(Problem1_to))
+aru_table <- aru_table %>% mutate(first_date = as.Date(format(first_rec, "%Y-%m-%d")),
+                                  last_date = as.Date(format(last_rec, "%Y-%m-%d")), 
+                                  prob_start = as.Date(format(Problem1_from, "%Y-%m-%d")), 
+                                  prob_end = as.Date(format(Problem1_to, "%Y-%m-%d")))
 # Change the start date to be the same as the start period if the first date is before it
 aru_t2 <- aru_table %>% mutate(first_date = if_else(first_date <= start_period, start_period, first_date),
                              last_date = case_when(last_date >= end_period ~ end_period,
@@ -153,7 +161,9 @@ aru_t3 <- aru_t2 %>% group_by(site_id) %>% summarize(max_days_rec = max(total_da
 # join with pos_cuckoo
 dat <- left_join(det2, aru_t3, by = "site_id")
 # Remove any sites that have less than a full recording period
-dat_fin <- dat %>% filter(max_days_rec == 13)
+full_days <- as.numeric(end_period - start_period)
+dat_fin <- dat %>% filter(max_days_rec == full_days)
+removed <- dat %>% filter(!max_days_rec == full_days) # Removed 2 sites 2023
 # Convert to numeric
 dat_fin$max_days_rec <- as.numeric(dat_fin$max_days_rec)
 dat_fin$combined_days_rec <- as.numeric(dat_fin$combined_days_rec)
@@ -161,13 +171,15 @@ dat_fin$combined_days_rec <- as.numeric(dat_fin$combined_days_rec)
 # What is the distribution of the data?
 hist(dat_fin$days_wcall)
 # large right skew to this data - Vlad mentioned he had a similar thing. Is this ok for the assumptions of linear models?
-pos_dat <- dat_fin[dat_fin$days_wcall > 0,] #13 sites with BBCU our of 99
+pos_dat <- dat_fin[dat_fin$days_wcall > 0,] 
 hist(pos_dat$days_wcall)
 
 
 # write this to csv
-write.csv(dat_fin, "./Data/Detection_History/2023_All_ARUs/Outputs/2023_Sites_DayswCalling_July1-15_9-25.csv", row.names = FALSE)
-
+# Two-week period
+#write.csv(dat_fin, "./Data/Detection_History/2023_All_ARUs/Outputs/2023_Sites_DayswCalling_July1-15_9-26.csv", row.names = FALSE)
+# 20 day period
+# write.csv(dat_fin, "./Data/Detection_History/2023_All_ARUs/Outputs/2023_Sites_DayswCalling_Jun25-Jul15_9-26.csv", row.names = FALSE)
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
