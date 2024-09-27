@@ -5,7 +5,6 @@
 
 # read in data
 us_dat <- read.csv("./Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2023Veg_Covariates_9-24.csv")
-# REMOVE THE SITES THAT WE DIDNT ACTUALLY LOOK AT
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #### Point Scale Covariates ####

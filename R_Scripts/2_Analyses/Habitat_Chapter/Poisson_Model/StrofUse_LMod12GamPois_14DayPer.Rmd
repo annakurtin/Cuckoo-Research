@@ -48,6 +48,9 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 
 ```{R Read in Data}
 full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Linear_Model/DaysCalls_14DayPer_HabCovsSCALED_22-23_9-26.csv")
+#mean(full_dat$days_wcall)
+hist(full_dat$days_wcall, main = "Number of Days with Calling Across Sites", xlab = "Total Days with Calling", col = cuckoo_palette[1])
+#full_dat %>% filter(days_wcall >0) # 23 sites with a call, 110 without calling
 ```
 
 ```{R Visualize Calls Over Dates, message = FALSE, warning = FALSE}
@@ -94,7 +97,7 @@ all22 %>% ggplot() +
 
 ```
 
-```{R Visualize Habitat Covs}
+```{R Visualize Habitat Covs, message = FALSE, warning = FALSE}
 # Read in unscaled data and visualize the distribution
 dat_us <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Linear_Model/DaysCalls_14DayPer_HabCovsUNSCALED_22-23_9-26.csv")
 
@@ -283,7 +286,7 @@ f_stat <- data.frame(
     paste0("F:",round(fit_gpois$f$beta5,2)))
 )
 
-# Create the slab interval plot - FIND THE ACTUAL COLORS FOR THESE
+# Create the slab interval plot
 ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)) + 
   # Plot posterior distributions
   stat_slabinterval() +
@@ -350,28 +353,24 @@ corrgram(mat, order=FALSE, lower.panel=panel.cor,
 
 ### Interpreting output:
 
-**Strongly significant covariates (CI doesn't overlap 0):** 
+**Strongly significant covariates (F statistic > 0.90):** 
 
 * Vegetation complexity: We have no evidence that the effect of vegetation complexity on intensity of use is negative ( F = 1). The median estimate for the effect of vegetation complexity on intensity of use of the site is 0.35, which means that at the mean values of the other covariates, for every 1 sd increase in vegetation complexity above the mean (.83 increase over mean of 0), the number of calls at a site increases by .35. 
-*Is this the right way to interpret this?*
 
 * Recording days at site: We have no evidence that the effect of the cumulative number of days recorded by all ARUs at the site is negative (F = .99). The median estimate for the effect of recording days on intensity of the use of the site is 0.29, which means that for every 1 sd increase in the cumulative days recorded at the site (13 days increase over 24.6 days or the addition of approximately one more ARU), the number of calls at a site increases by .29.
 *How do we know when we have all of the potential calls?* 
 
-
-**Weakly significant covariates (F > .70):**
-
 * Percent Shrub/Early Successional Cover at Landscape Scale: We are 96% sure that the true effect of shrub/early successional cover on intensity of use is negative (F = .96). The median estimate for the effect of shrub/early succesional cover at the landscape scale on intensity of use is 0.081, which means that for every 1 sd increase in the percent cover (7.4% increase over mean of 14.5%), the number of calls at a site decreases by .081.
 
 * Percent Shrub/Early Successional Cover at Core Scale: We are 93% sure that the true effect of shrub/early successional cover at the core scale on intensity of use is negative (F = .93). The median estimate for the effect of shrub/early successional cover at the core scale on intensity of use is 0.081, which means that for every 1 sd increase in the percent cover over the mean (11.0% increase over mean of 18.4%), the number of calls at a site decreases by .081. 
+
+**Weakly significant covariates (0.70 < F < 0.90):**
 
 * Percent canopy cover at landscape scale: We are 76% sure that the true effect of percent canopy cover at the landscape scale on intensity of use is positive (F = .76). The median estimate for the effect of canopy cover at the landsdcape scale is 0.185, which means that for every 1 sd increase in canopy cover above the mean (6.8% increase over mean of 8.6%), the number of calls at a site increases by 0.185.
 
 
 **Lingering thoughts and questions:**
 
-* How do we interpret the posterior estimates? 
+* What does posterior intercept of -1.71 mean? plogis this gives us 0.15. This seems very low but is because we only had 23 days with calls and 110 sites without calls, so our "average" per site is going to be very small. 
 
-* What does posterior intercept of -1.71 mean? plogis this gives us 0.15. How can this be the number of calls?
-
-* Do I need to scale my response variable as well? 
+* Do I need to scale my response variable as well? I don't think so.

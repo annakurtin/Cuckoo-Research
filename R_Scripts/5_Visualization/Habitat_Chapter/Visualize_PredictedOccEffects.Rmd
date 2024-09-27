@@ -18,9 +18,9 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 ```
 ```{R}
 # Read in data and models 
-fit_AF1 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Models_Ran_Outputs/StateSubModel_AFinal1.Rdata")
-fit_BF2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Models_Ran_Outputs/StateSubModel_BFinal2.Rdata")
-fit_CF2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Submodel/Models_Ran_Outputs/StateSubModel_CFinal2.Rdata")
+fit_AF1 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Models/Models_Ran_Outputs/StateSubModel_AFinal1.Rdata")
+fit_BF2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Models/Models_Ran_Outputs/StateSubModel_BFinal2.Rdata")
+fit_CF2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Occupancy_Models/Models_Ran_Outputs/StateSubModel_CFinal2.Rdata")
 
 # Pull out the number of samples
 mcmc_samples_AF1 <- fit_AF1$mcmc.info$n.samples
@@ -85,6 +85,54 @@ vis_effect <- function(covariate, dataframe, model, model_cov, xlabel, color_pal
 
 ```
 
+```{R Create a Function2}
+# Function that takes as input 
+## the covariate of interest as a string corresponding to the column of the dataframe you're interested in
+## the unscaled dataframe
+## the model, an output from a JAGS model run saved as an .Rdata file
+## the covariate from the model that reflects the covariate of interest (ex a1)
+## xlabel, the title you want the x axis to have 
+## Color_pal, the color you want the main effect to be (ex palette_8[2])
+## Output is a map showing the predicted effects on unscaled data for model interpretation
+
+vis_effect_ci <- function(covariate, dataframe, model, model_cov, xlabel, color_pal){
+  # Pull out the number of samples from the model
+  num_samples <- model$mcmc.info$n.samples
+  # Pull out standardization values
+  mean_cov <- mean(dataframe[[covariate]], na.rm = TRUE)
+  #return(mean_cov)
+  sd_cov <- sd(dataframe[[covariate]], na.rm = TRUE)
+  max_cov <- max(dataframe[[covariate]], na.rm = TRUE)
+  
+  # Generate data within the range of the covariate
+  predict_dat <- seq(0, max_cov, length.out = 30)
+  # Scale generated data
+  pd_scale <- (predict_dat - mean_cov)/sd_cov
+  # Pull the covariate effect from the model 
+  cov_effect <- plogis(model$q50$a0 + model$q50[[model_cov]] * pd_scale)
+  
+  # Pull the credible interval
+  ci_lower <- plogis(model$q50$a0 + model$q2.5[[model_cov]] * pd_scale)
+  ci_upper <- plogis(model$q50$a0 + model$q97.5[[model_cov]] * pd_scale)
+
+  # Plot original unscaled values against their predicted effects on probability of use
+  plot(predict_dat, 
+       cov_effect, 
+       ylab = "Intensity of Use", 
+       xlab = xlabel, 
+       ylim = c(0,1.5),
+       type = "l",
+       lwd = 3,
+       frame.plot = FALSE)
+  # Add shaded credible interval
+  polygon(c(predict_dat, rev(predict_dat)),  # X-coordinates: original and reversed
+          c(ci_upper, rev(ci_lower)),        # Y-coordinates: upper and reversed lower CI
+          col = "gray", border = NA)         # Fill color is gray, no border
+  lines(predict_dat, cov_effect, type = "l", lwd = 3, col = color_pal)
+}
+
+```
+
 ## Covariates with A Strong Case for an Effect (F > .9)
 
 ### Percent Canopy Cover Landscape
@@ -96,10 +144,24 @@ vis_effect(covariate = "pct_can_landsc",
            model_cov = "a1",
            xlabel = "% Canopy at Landscape Scale",
            color_pal = palette_8[8])
+
+vis_effect_ci(covariate = "pct_can_landsc",
+           dataframe = us_dat,
+           model = fit_BF2,
+           model_cov = "a1",
+           xlabel = "% Canopy at Landscape Scale",
+           color_pal = palette_8[8])
 ```
 
 ```{R Visualize Canopy Cover Landscape General Public, eval = F}
 vis_effect(covariate = "pct_can_landsc",
+           dataframe = us_dat,
+           model = fit_BF2,
+           model_cov = "a1",
+           xlabel = "% Canopy within 1 km",
+           color_pal = palette_8[8])
+
+vis_effect_ci(covariate = "pct_can_landsc",
            dataframe = us_dat,
            model = fit_BF2,
            model_cov = "a1",
@@ -116,11 +178,25 @@ vis_effect(covariate = "pct_openshrub_landsc",
            model_cov = "a2",
            xlabel = "% Open Shrub at Landscape Scale",
            color_pal = palette_8[6])
+
+vis_effect_ci(covariate = "pct_openshrub_landsc",
+           dataframe = us_dat,
+           model = fit_BF2,
+           model_cov = "a2",
+           xlabel = "% Open Shrub at Landscape Scale",
+           color_pal = palette_8[6])
 ```
 
 
 ```{R Visualize Open Shrubby Landscape General Public, eval = F}
 vis_effect(covariate = "pct_openshrub_landsc",
+           dataframe = us_dat,
+           model = fit_BF2,
+           model_cov = "a2",
+           xlabel = "% Open Shrub within 1 km",
+           color_pal = palette_8[6])
+
+vis_effect_ci(covariate = "pct_openshrub_landsc",
            dataframe = us_dat,
            model = fit_BF2,
            model_cov = "a2",
@@ -133,6 +209,13 @@ vis_effect(covariate = "pct_openshrub_landsc",
 
 ```{R Visualize Open Shrubby Core}
 vis_effect(covariate = "pct_openshrub_core",
+           dataframe = us_dat,
+           model = fit_CF2,
+           model_cov = "a1",
+           xlabel = "% Open Shrub at Core Scale",
+           color_pal = palette_8[4])
+
+vis_effect_ci(covariate = "pct_openshrub_core",
            dataframe = us_dat,
            model = fit_CF2,
            model_cov = "a1",
@@ -158,6 +241,13 @@ vis_effect(covariate = "veg_sd_resid",
            model_cov = "a4",
            xlabel = "Veg SD Residuals on Canopy Height Core Scale",
            color_pal = palette_8[7])
+
+vis_effect_ci(covariate = "veg_sd_resid",
+           dataframe = us_dat,
+           model = fit_CF2,
+           model_cov = "a4",
+           xlabel = "Veg SD Residuals on Canopy Height Core Scale",
+           color_pal = palette_8[7])
 ```
 
 ```{R Visualize Veg SD Residuals Core General Public, eval = FALSE}
@@ -173,6 +263,13 @@ vis_effect(covariate = "veg_sd_resid",
 
 ```{R Visualize Conifer Spp Richness Core}
 vis_effect(covariate = "ctree_spp_rich",
+           dataframe = us_dat,
+           model = fit_AF1,
+           model_cov = "a2",
+           xlabel = "Conifer Spp Richness Point Scale",
+           color_pal = palette_8[2])
+
+vis_effect_ci(covariate = "ctree_spp_rich",
            dataframe = us_dat,
            model = fit_AF1,
            model_cov = "a2",
@@ -392,6 +489,13 @@ vis_effect(covariate = "dtree_spp_rich",
            model_cov = "a1",
            xlabel = "Deciduous Tree Species Richness Point Scale",
            color_pal = palette_8[1])
+
+vis_effect_ci(covariate = "dtree_spp_rich",
+           dataframe = us_dat,
+           model = fit_AF1,
+           model_cov = "a1",
+           xlabel = "Deciduous Tree Species Richness Point Scale",
+           color_pal = palette_8[1])
 ```
 ```{R Visualize Deciduous Tree Spp Richness Point General Public, eval = FALSE}
 vis_effect(covariate = "dtree_spp_rich",
@@ -410,14 +514,26 @@ vis_effect(covariate = "broadleaf_shrub",
            model_cov = "a4",
            xlabel = "Broadleaf Shrub Dominate Point Scale",
            color_pal = palette_5[4])
+
+vis_effect_ci(covariate = "broadleaf_shrub",
+           dataframe = us_dat,
+           model = fit_AF1,
+           model_cov = "a4",
+           xlabel = "Broadleaf Shrub Dominate Point Scale",
+           color_pal = palette_5[4])
 ```
 
 ### Subcanopy Height
 
-*Interpret this as colinear with the other covariate*
-
 ```{R Subcanopy Height Core}
 vis_effect(covariate = "ht_subcan_core",
+           dataframe = us_dat,
+           model = fit_CF2,
+           model_cov = "a3",
+           xlabel = "Subcanopy Height Core Scale",
+           color_pal = palette_5[3])
+
+vis_effect_ci(covariate = "ht_subcan_core",
            dataframe = us_dat,
            model = fit_CF2,
            model_cov = "a3",

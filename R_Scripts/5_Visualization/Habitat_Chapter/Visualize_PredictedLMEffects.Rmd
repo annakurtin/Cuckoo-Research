@@ -1,0 +1,233 @@
+---
+title: "Visualizing Predicted Effects from Linear Model"
+author: "Anna Kurtin"
+date: "9/27/2023"
+output: html_document
+---
+
+This is a document to visualize the predicted effects of canopy cover, open shrubby cover, etc. on intentisy of use by BBCU.
+
+Going off of the code from [Kevin Shoemaker's Github](https://kevintshoemaker.github.io/NRES-746/Occupancy.html)
+
+
+```{R, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(ggplot2)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+```
+```{R}
+# Read in data and models 
+fit_gpois <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Models_Ran_Outputs/LMod12_GamPois_14Day.Rdata")
+# pull out number of samples
+mcmc_samps <- fit_gpois$mcmc.info$n.samples
+# Read in unscaled data
+dat_us <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Linear_Model/DaysCalls_14DayPer_HabCovsUNSCALED_22-23_9-26.csv")
+```
+
+
+```{R Create a Function1}
+# Function that takes as input 
+## the covariate of interest as a string corresponding to the column of the dataframe you're interested in
+## the unscaled dataframe
+## the model, an output from a JAGS model run saved as an .Rdata file
+## the covariate from the model that reflects the covariate of interest (ex a1)
+## xlabel, the title you want the x axis to have 
+## Color_pal, the color you want the main effect to be (ex palette_8[2])
+## Output is a map showing the predicted effects on unscaled data for model interpretation
+
+vis_effect <- function(covariate, dataframe, model, model_cov, xlabel, color_pal){
+  # Pull out the number of samples from the model
+  num_samples <- model$mcmc.info$n.samples
+  # Pull out standardization values
+  mean_cov <- mean(dataframe[[covariate]], na.rm = TRUE)
+  #return(mean_cov)
+  sd_cov <- sd(dataframe[[covariate]], na.rm = TRUE)
+  max_cov <- max(dataframe[[covariate]], na.rm = TRUE)
+  
+  # Generate data within the range of the covariate
+  predict_dat <- seq(0, max_cov, length.out = 30)
+  # Scale generated data
+  pd_scale <- (predict_dat - mean_cov)/sd_cov
+  # Pull the covariate effect from the model 
+  cov_effect <- plogis(model$q50$beta0 + model$q50[[model_cov]] * pd_scale)
+  
+  # Initialize an empty array for the predicted effects of the generated data
+  pred_array <- array(NA, dim = c(length(pd_scale), num_samples))
+  # Iterate through each mcmc sample and take the predicted effects
+  for(i in 1:num_samples){
+    pred_array[,i] = plogis(model$sims.list$beta0[i] + model$sims.list[[model_cov]][i]*pd_scale)
+  }
+  
+  # Sample a subset of these observations for plotting 
+  subset <- sort(sample(1:num_samples, size = 200))
+
+  # Plot original unscaled values against their predicted effects on probability of use
+  plot(predict_dat, 
+       cov_effect, 
+       ylab = "Intensity of Use", 
+       xlab = xlabel, 
+       ylim = c(0,1.5),
+       type = "l",
+       lwd = 3,
+       frame.plot = FALSE)
+  # Plot other draws from a distribution to get a sense of what the distribution looks like
+  for(i in subset){
+    lines(predict_dat, pred_array[,i], type = "l", lwd = 1, col = "gray")
+  }
+  lines(predict_dat, cov_effect, type = "l", lwd = 3, col = color_pal)
+}
+
+```
+
+
+```{R Create a Function2}
+# Function that takes as input 
+## the covariate of interest as a string corresponding to the column of the dataframe you're interested in
+## the unscaled dataframe
+## the model, an output from a JAGS model run saved as an .Rdata file
+## the covariate from the model that reflects the covariate of interest (ex a1)
+## xlabel, the title you want the x axis to have 
+## Color_pal, the color you want the main effect to be (ex palette_8[2])
+## Output is a map showing the predicted effects on unscaled data for model interpretation
+
+vis_effect_ci <- function(covariate, dataframe, model, model_cov, xlabel, color_pal){
+  # Pull out the number of samples from the model
+  num_samples <- model$mcmc.info$n.samples
+  # Pull out standardization values
+  mean_cov <- mean(dataframe[[covariate]], na.rm = TRUE)
+  #return(mean_cov)
+  sd_cov <- sd(dataframe[[covariate]], na.rm = TRUE)
+  max_cov <- max(dataframe[[covariate]], na.rm = TRUE)
+  
+  # Generate data within the range of the covariate
+  predict_dat <- seq(0, max_cov, length.out = 30)
+  # Scale generated data
+  pd_scale <- (predict_dat - mean_cov)/sd_cov
+  # Pull the covariate effect from the model 
+  cov_effect <- plogis(model$q50$beta0 + model$q50[[model_cov]] * pd_scale)
+  
+  # Pull the credible interval
+  ci_lower <- plogis(model$q50$beta0 + model$q2.5[[model_cov]] * pd_scale)
+  ci_upper <- plogis(model$q50$beta0 + model$q97.5[[model_cov]] * pd_scale)
+
+  # Plot original unscaled values against their predicted effects on probability of use
+  plot(predict_dat, 
+       cov_effect, 
+       ylab = "Intensity of Use", 
+       xlab = xlabel, 
+       ylim = c(0,1.5),
+       type = "l",
+       lwd = 3,
+       frame.plot = FALSE)
+  # Add shaded credible interval
+  polygon(c(predict_dat, rev(predict_dat)),  # X-coordinates: original and reversed
+          c(ci_upper, rev(ci_lower)),        # Y-coordinates: upper and reversed lower CI
+          col = "gray", border = NA)         # Fill color is gray, no border
+  lines(predict_dat, cov_effect, type = "l", lwd = 3, col = color_pal)
+}
+
+```
+
+## Covariates with A Strong Case for an Effect (F > .9)
+
+### Vegetation Complexity Landscape
+
+```{R Visualize Veg Complexity Core}
+vis_effect(covariate = "veg_sd_resid",
+           dataframe = dat_us,
+           model = fit_gpois,
+           model_cov = "beta3",
+           xlabel = "Vegetation Complexity at Core Scale",
+           color_pal = palette_8[7])
+
+vis_effect_ci(covariate = "veg_sd_resid",
+           dataframe = dat_us,
+           model = fit_gpois,
+           model_cov = "beta3",
+           xlabel = "Vegetation Complexity at Core Scale",
+           color_pal = palette_8[7])
+```
+
+Not sure which one I like better/which is more informative 
+
+### Days Recorded
+
+```{R Visualize Days Recorded}
+vis_effect(covariate = "combined_days_rec",
+           dataframe = dat_us,
+           model = fit_gpois,
+           model_cov = "beta5",
+           xlabel = "Combined Days Recorded at Site",
+           color_pal = palette_5[1])
+
+
+vis_effect_ci(covariate = "combined_days_rec",
+           dataframe = dat_us,
+           model = fit_gpois,
+           model_cov = "beta5",
+           xlabel = "Combined Days Recorded at Site",
+           color_pal = palette_5[1])
+```
+
+
+### Percent Shrub Landscape
+
+```{R Visualize Percent Shrub Landscape}
+vis_effect(covariate = "pct_openshrub_landsc",
+           dataframe = dat_us,
+           model = fit_gpois,
+           model_cov = "beta2",
+           xlabel = "% Shrub/Early Successional Cover Landscape Scale",
+           color_pal = palette_8[6])
+
+vis_effect_ci(covariate = "pct_openshrub_landsc",
+           dataframe = dat_us,
+           model = fit_gpois,
+           model_cov = "beta2",
+           xlabel = "% Shrub/Early Successional Cover Landscape Scale",
+           color_pal = palette_8[6])
+
+```
+
+### Percent Shrub Core
+
+```{R Visualize Percent Shrub Core}
+vis_effect(covariate = "pct_openshrub_core",
+           dataframe = dat_us,
+           model = fit_gpois,
+           model_cov = "beta4",
+           xlabel = "% Shrub/Early Successional Cover Core Scale",
+           color_pal = palette_5[5])
+
+vis_effect_ci(covariate = "pct_openshrub_core",
+           dataframe = dat_us,
+           model = fit_gpois,
+           model_cov = "beta4",
+           xlabel = "% Shrub/Early Successional Cover Core Scale",
+           color_pal = palette_5[5])
+
+```
+
+## Covariates Less of A Case for Strong Effect (.7 < F < .9)
+
+### Percent Canopy Cover Landscape
+
+```{R Visualize Canopy Cover Landscape}
+vis_effect(covariate = "pct_can_landsc",
+           dataframe = dat_us,
+           model = fit_gpois,
+           model_cov = "beta1",
+           xlabel = "% Canopy at Landscape Scale",
+           color_pal = palette_8[8])
+
+vis_effect_ci(covariate = "pct_can_landsc",
+           dataframe = dat_us,
+           model = fit_gpois,
+           model_cov = "beta1",
+           xlabel = "% Canopy at Landscape Scale",
+           color_pal = palette_8[8])
+```
+
+
+
