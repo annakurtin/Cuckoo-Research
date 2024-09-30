@@ -2925,6 +2925,16 @@ ggplot(data = diamonds) +
 
 ```
 
+## Geom violin
+
+For showing density plots
+
+[resource on geom_violin](http://www.sthda.com/english/wiki/ggplot2-violin-plot-quick-start-guide-r-software-and-data-visualization)
+
+```{R}
+ggplot(data = pam_pstars_long, aes(x = num_surveys, y = cumulative_p)) + 
+  geom_violin(fill = cuckoo_palette[1])
+```
 ## Facet Wrapping
 
 *Detailed explanation can be found in [R for Data Science Ch 3.6](https://r4ds.had.co.nz/data-visualisation.html#geometric-objects)*

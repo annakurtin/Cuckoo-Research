@@ -363,8 +363,7 @@ for (i in 1:nrow) {
   # fills in data for each row 
   for (j in 1:max_surveys){ 
     # Fills in data for each column (i.e. number of columns)
-    pstar[i,j] <- 1 - (1 - plogis(fit_2$sims.list$b0[i] + b1*0))^j #Calculate estimated maximum detection probability for each survey using mean probability calculated in the MCMC 
-    #### ADD IN REST OF OCOVARITES
+    pstar[i,j] <- 1 - (1 - plogis(fit_2$sims.list$b0[i] + fit_2$sims.list$b1[i]*0 + fit_2$sims.list$b1Q[i]*0)+ fit_2$sims.list$b3[i]*0+ fit_2$sims.list$b4[i]*0)^j #Calculate estimated maximum detection probability for each survey using mean probability calculated in the MCMC 
   } 
 }
 

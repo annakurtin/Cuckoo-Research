@@ -1,0 +1,149 @@
+---
+title: 'PB and PAM: Number of Survey Periods and Cumulative Detection Probability'
+author: "Anna Kurtin"
+date: "9/30/2024"
+output: html_document
+---
+
+[Violin plot resource](http://www.sthda.com/english/wiki/ggplot2-violin-plot-quick-start-guide-r-software-and-data-visualization)
+
+```{R Setup}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(vioplot)
+library(ggplot2)
+library(ggdist)
+library(corrgram)
+library(reshape2)
+source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
+
+```
+
+
+```{R, echo = FALSE}
+fit_pb <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Models_Ran_Outputs/JAGS_PBMod2.txt")
+pb_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Playback_Results/2023/Outputs/2023_PBData_FormatforOccModSCALED_8-6-24.csv")
+
+fit_pam <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Models_Ran_Outputs/MetChap_ARUMod2.Rdata")
+pam_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_8-12.csv")
+```
+
+
+```{R Create plot for number of surveys}
+# empty array for storing detection probability
+#array: same number of rows as MCMC samples, same columns as number of surveys you want to investigate
+nrow_pb <- fit_pb$mcmc.info$n.samples
+max_surveys <- 10
+pb_pstars <- array(NA, dim = c(nrow_pb, max_surveys))
+
+# Set up x values with the same number of rows as your array
+# x values will allow plotting of box values
+x <-  cbind(rep(1, nrow_pb), rep(2, nrow_pb), rep(3, nrow_pb), 
+          rep(4, nrow_pb), rep(5, nrow_pb), rep(6, nrow_pb), 
+          rep(7, nrow_pb), rep(8, nrow_pb), rep(9, nrow_pb), 
+          rep(10, nrow_pb))
+
+#Set up a for-loop that will run the same amount of iterations as the samples produced in the MCMC
+for (i in 1:nrow_pb) { 
+  # fills in data for each row 
+  for (j in 1:max_surveys){ 
+    # Fills in data for each column (i.e. number of columns)
+    pb_pstars[i,j] <- 1 - (1 - plogis(fit_pb$sims.list$b0[i] + fit_pb$sims.list$b1[i]*0 + fit_pb$sims.list$b1Q[i]*0)+ fit_pb$sims.list$b3[i]*0+ fit_pb$sims.list$b4[i]*0)^j #Calculate estimated maximum detection probability for each survey using mean probability calculated in the MCMC 
+  } 
+}
+```
+```{R}
+# Get the value for the cumulative detection probability across the season for PAM
+# Pull out detection probability
+p <- round(plogis(fit_pam$q50$b0),4)# add in the rest of the covariates and see what this does?
+p_all <- plogis(fit_pam$q50$b0 + fit_pam$q50$b1*0 + fit_pam$q50$b1Q*0 + fit_pam$q50$b3*0 + fit_pam$q50$b4*0 + fit_pam$q50$b5*0)
+print(paste0("Estimate for detection probability of a single ARU survey:",p_all))
+# calculate cumulative detection probability
+n <- 6
+aru_p_star <- round(1 - (1 - p_all)^n, 4)
+print(paste0("Estimate for cumulative ARU detection probability:",p_star))
+```
+
+# Figure for chapter
+
+```{R}
+pb_pstars_long <- melt(pb_pstars)
+colnames(pb_pstars_long) <- c("mcmc_samp", "num_surveys", "cumulative_p")
+# Convert Surveys from numeric to factor for ggplot2
+pb_pstars_long$num_surveys <- as.factor(pb_pstars_long$num_surveys)
+
+# Create a custom function to add 95% confidence intervals
+create_ci <- function(x){
+  median <- median(x)
+  
+}
+
+# Create the violin plot using ggplot2
+ggplot(data = pb_pstars_long, aes(x = num_surveys, y = cumulative_p)) + 
+  geom_violin(fill = cuckoo_palette[1]) +  # Violin plot with your custom color
+  geom_hline(yintercept = aru_p_star, linetype = "dashed", size = 1.5, color = "gray") +  # Dashed line for pstar
+  labs(x = "Number of Surveys", y = "Cumulative Detection Probability") +  # Axis labels
+  theme_minimal() +  # Minimal theme for a clean look
+  theme(axis.text.x = element_text(angle = 0, hjust = 1)) + # Adjust text angle and position
+  stat_summary(fun.y="median", geom="point", color = "black", size = 2)
+```
+
+
+
+
+# See what this graph looks like for ARU as well 
+```{R}
+nrow_pam <- fit_pam$mcmc.info$n.samples
+max_surveys <- 10
+pam_pstars <- array(NA, dim = c(nrow_pam, max_surveys))
+
+# Set up x values with the same number of rows as your array
+# x values will allow plotting of box values
+x <-  cbind(rep(1, nrow_pam), rep(2, nrow_pam), rep(3, nrow_pam), 
+          rep(4, nrow_pam), rep(5, nrow_pam), rep(6, nrow_pam), 
+          rep(7, nrow_pam), rep(8, nrow_pam), rep(9, nrow_pam), 
+          rep(10, nrow_pam))
+
+#Set up a for-loop that will run the same amount of iterations as the samples produced in the MCMC
+for (i in 1:nrow_pam) { 
+  # fills in data for each row 
+  for (j in 1:max_surveys){ 
+    # Fills in data for each column (i.e. number of columns)
+    pam_pstars[i,j] <- 1 - (1 - plogis(fit_pam$sims.list$b0[i] + fit_pam$sims.list$b1[i]*0 + fit_pam$sims.list$b1Q[i]*0 + fit_pam$sims.list$b3[i]*0 + fit_pam$sims.list$b4[i]*0 + fit_pam$sims.list$b5[i]*0))^j #Calculate estimated maximum detection probability for each survey using mean probability calculated in the MCMC 
+  } 
+}
+```
+```{R}
+pam_pstars_long <- melt(pam_pstars)
+colnames(pam_pstars_long) <- c("mcmc_samp", "num_surveys", "cumulative_p")
+# Convert Surveys from numeric to factor for ggplot2
+pam_pstars_long$num_surveys <- as.factor(pam_pstars_long$num_surveys)
+
+# Create the violin plot using ggplot2
+ggplot(data = pam_pstars_long, aes(x = num_surveys, y = cumulative_p)) + 
+  geom_violin(fill = cuckoo_palette[1]) +  # Violin plot with your custom color
+  geom_hline(yintercept = aru_p_star, linetype = "dashed", size = 1.5, color = "gray") +  # Dashed line for pstar
+  labs(x = "Number of Surveys", y = "Cumulative Detection Probability") +  # Axis labels
+  theme_minimal() +  # Minimal theme for a clean look
+  theme(axis.text.x = element_text(angle = 0, hjust = 1)) + # Adjust text angle and position
+  stat_summary(fun.y="median", geom="point", color = "black", size = 2)
+```
+
+
+## Old Stuff
+
+```{R}
+# Do we want to be using a box plot here?
+vioplot(pb_pstars ~ x, col = cuckoo_palette[1], las = 1, ylab = "Cumulative Detection Probability", 
+        xlab = "Number of surveys")
+#Plot the probability of detection for each survey, along with associated confidence intervals 
+#Add an abline that represents the pstar for ARU across the breeding season
+abline(h = aru_p_star, lty = 2, lwd = 2)
+
+# Boxplot version
+boxplot(pb_pstars ~ x, col = cuckoo_palette[1], las = 1, ylab = "Cumulative Detection Probability", 
+       xlab = "Number of surveys", outline = TRUE)
+# Outline = TRUE will show that there are outliers in the higher detection surveys
+#Add an abline that represents the pstar for ARU across the breeding season
+abline(h = aru_p_star, lty = 2, lwd = 2)
+```
