@@ -61,7 +61,7 @@ print(paste0("Estimate for detection probability of a single ARU survey:",p_all)
 # calculate cumulative detection probability
 n <- 6
 aru_p_star <- round(1 - (1 - p_all)^n, 4)
-print(paste0("Estimate for cumulative ARU detection probability:",p_star))
+print(paste0("Estimate for cumulative ARU detection probability:",aru_p_star))
 ```
 
 # Figure for chapter
