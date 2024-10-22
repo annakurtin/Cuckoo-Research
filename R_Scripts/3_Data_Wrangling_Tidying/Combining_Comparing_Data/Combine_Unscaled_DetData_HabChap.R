@@ -3,6 +3,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # This is a script made from the code from Detection Model 1 to combine together the detection covariates
+# only combining detection data from 2023
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #### Setup ####
@@ -27,6 +28,7 @@ vegdense <- vegdense %>%
 # take the average of this across the site
 vegdense_avg <- vegdense %>% group_by(site_id,sampling_design) %>% summarize(veg_density_avg = round(mean(composite_dense,na.rm = TRUE),2))
 
+
 # background noise
 background_db <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Detection_Covariates/BackgroundNoiseBandpass_2023_ARUPoints.csv")
 colnames(background_db) <- c("site_id","backdb_survey1","backdb_survey2","backdb_survey3","backdb_survey4","backdb_survey5","backdb_survey6")
@@ -38,8 +40,18 @@ survey_periods <- colnames(effort)
 colnames(effort) <- c("site_session","effort_survey1","effort_survey2","effort_survey3","effort_survey4","effort_survey5","effort_survey6")
 effort <- effort %>% separate(site_session, into = c("site_id","session_name"), sep = "__") %>% select(-session_name)
 
+
+arutype <- read.csv("./Data/Habitat_Model_Covariates/Detection_Covariates/ARUtype_22-23.csv")
+# separate out 2023 data
+arutype <- arutype %>% filter(year == "2023")
+
+
 detections <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Detection_History/2023_All_ARUs/Outputs/DetectionHist_CamTrapR/bbcu__detection_history__with_effort__14_days_per_occasion__2024-04-29.csv") %>% clean_names
 colnames(detections) <- c("site_session","det_survey1","det_survey2","det_survey3","det_survey4","det_survey5","det_survey6")
+
+
+
+
 
 # Split apart the detections into site and point
 detections <- detections %>% separate(site_session, into = c("site_id","session_name"), sep = "__")
