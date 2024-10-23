@@ -82,3 +82,46 @@ spectro(bbcu,
         cexaxis = 1.25,
         palette=magma)
 dev.off()
+
+jpeg("./Deliverables/Spectrograms/MultiFig_RattleCoo_XC241134.jpg", width=700, height=400)
+# Make a multipanel figure
+par(mfrow = c(2,1))
+par(mar = c(2, 4.1, 3, 1))
+spectro(bbcu,
+        ovlp = 90,
+        flim = c(0.6,4),
+        tlim = c(5.5,7),
+        collevels = seq(-25, 0, 0.5),
+        scale = FALSE,
+        grid = TRUE,
+        #osc = TRUE,
+        colbg = "black",
+        colgrid = "gray40",
+        colaxis = "white",
+        collab = "white",
+        tlab = "",
+        cexlab = 1.25,
+        cexaxis = 1,
+        palette=magma) 
+# Add "A" label in the top right of the first plot
+text(x = par("usr")[2] - 0.1, y = par("usr")[4] - 0.4, "A", col = "white", cex = 1.5)
+# set margins
+par(mar = c(4, 4.1, 1, 1))
+spectro(bbcu,
+        ovlp = 90,
+        flim = c(0.6,4),
+        tlim = c(2.5,4),
+        collevels = seq(-25, 0, 0.5),
+        scale = FALSE,
+        grid = TRUE,
+        #osc = TRUE,
+        colbg = "black",
+        colgrid = "gray40",
+        colaxis = "white",
+        collab = "white",
+        cexlab = 1.25,
+        cexaxis = 1,
+        palette=magma)
+# Add "B" label in the top right of the second plot
+text(x = par("usr")[2] - 0.1, y = par("usr")[4] - 0.4, "B", col = "white", cex = 1.5)
+dev.off()
