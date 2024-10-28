@@ -27,7 +27,7 @@ y_{ij} \sim Bernoulli(p_{ij} * z_i)
 $$
 
 $$
-p_{ij} = \beta_0 + \beta_{1}*date + \beta_{2}^2 * date + \beta_{3} * avg db + \beta_{4}*effort + \beta_{5}*vegdense + \beta{6}*aru model
+p_{ij} = \beta_0 + \beta_{1}*date + \beta_{2}^2 * date + \beta_{3} * avg db + \beta_{4}*effort + \beta_{5}*vegdense + \beta_{6}*aru model
 $$
 
 **Handling of NAs:** Skip for missing detections, imputate missing covariates.
@@ -49,7 +49,7 @@ Load in formatted data
 
 ```{r Load in Data}
 # Read in newly formatted detection and detection covaraites data with ARU model type at site
-full_dat <- readRDS("./Data/Habitat_Model_Covariates/Full_DetectionDataSCALED_JAGSModels_HabChap.Rdata")
+full_dat <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Full_DetectionDataSCALED_JAGSModels_HabChap.Rdata")
 
 detections <- full_dat[,2:7]
 
@@ -65,8 +65,6 @@ miss <- apply(detections, 1, get_na)
 ```
 
 *Ignore the following warnings produced by corrgram, I can't get markdown to not show them*
-
-*** FIGURE THIS OUT LATER *****
 
 ```{R Look at Covariance, echo = FALSE, warnings = FALSE, message = FALSE}
 # Pivot this data long to be able to compare 
@@ -336,12 +334,11 @@ ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)
 ```
 
 
-**** Haven't changed this part ******
 
 Detection probability estimates:
 
 ```{R, echo =FALSE}
-p <- round(plogis(fit_2$q50$b0),4)
+p <- round(plogis(fit_4$q50$b0),4)
 print(paste0("Estimate for detection probability of a single ARU survey:",p))
 
 n <- 6
@@ -350,13 +347,15 @@ print(paste0("Estimate for cumulative ARU detection probability:",p_star))
 ```
 
 How does this compare with the sites that also had playback surveys?
-```{R}
+```{R Double Observer Method}
 # how does this line up with our naive estimates of how many sites had detections on ARU vs PB?
 pb_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Playback_Results/2023/Outputs/2023_PBData_FormatforOccModSCALED_8-6-24.csv")
+# Pull out playback detections
 pb_dat$bbcu_pb <- apply(pb_dat[, 2:4], 1, max, na.rm = TRUE)
 pb <- pb_dat %>% select(site_id, bbcu_pb)
 #sum(pb$bbcu_pb)
 
+# Pull out ARU detections
 full_dat$bbcu_aru <- apply(full_dat[,2:7], 1, max, na.rm = TRUE)
 aru <- full_dat %>% select(site_id, bbcu_aru)
 #sum(aru$bbcu_aru)
@@ -379,34 +378,3 @@ print(paste0("Naive detection estimate (%) for playback surveys: ", naivedet_pb)
 # what would the value for occupancy with playbacks be if we corrected it by the detection?
 ```
 
-### How Many Surveys Do We Need?
-
-```{R}
-# empty array for storing detection probability
-#array: same number of rows as MCMC samples, same columns as number of surveys you want to investigate
-nrow <- fit_2$mcmc.info$n.samples
-max_surveys <- 10
-pstar <- array(NA, dim = c(nrow, max_surveys))
-
-# Set up x values with the same number of rows as your array
-# x values will allow plotting of box values
-x <-  cbind(rep(1, nrow), rep(2, nrow), rep(3, nrow), 
-          rep(4, nrow), rep(5, nrow), rep(6, nrow), 
-          rep(7, nrow), rep(8, nrow), rep(9, nrow), 
-          rep(10, nrow))
-
-#Set up a for-loop that will run the same amount of iterations as the samples produced in the MCMC
-for (i in 1:nrow) { 
-  # fills in data for each row 
-  for (j in 1:max_surveys){ 
-    # Fills in data for each column (i.e. number of columns)
-    pstar[i,j] <- 1 - (1 - plogis(fit_2$sims.list$b0[i]))^j #Calculate estimated maximum detection probability for each survey using mean probability calculated in the MCMC 
-  } 
-}
-
-#Plot the probability of detection for each survey, along with associated confidence intervals 
-boxplot(pstar ~ x, col = cuckoo_palette[1], las = 1, ylab = "Cumulative Detection Probability", 
-        xlab = "Number of surveys", outline = FALSE)
-#Add an abline that represents the 95% CI cutoff 
-abline(h = 0.95, lty = 2, lwd = 2)
-```

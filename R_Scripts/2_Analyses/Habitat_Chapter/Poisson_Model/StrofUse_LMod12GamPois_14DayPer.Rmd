@@ -7,6 +7,8 @@ output: html_document
 
 This is the twelfth iteration of the linear model I will be using to test strength of habitat use across sites. Using the gamma-poisson distribution to parameterize the response variable to account for not only how many days with calling but also how many days there are for each site. Trying to include all of the data including the zeros and all of the covariates of interest. Only looking at data from the period between July 1st and July 15th so that standardizing effort, adding in covariate for the number of days recorded at a site.
 
+*Current version of the model*
+
 ### Model structure:
 
 $$ c_i \sim Poisson(\gamma_i * h_i) $$

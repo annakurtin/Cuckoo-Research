@@ -1,4 +1,6 @@
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ### Combine all habitat chapter data ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 packages <- c("tidyverse","janitor","ggplot2","corrgram")
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Install_Load_Packages.R")
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Create_Site_SamplingColumn_fromPointID.R")
@@ -7,10 +9,13 @@ load_packages(packages)
 
 # created 7/29/2024 to combine all of the data to run the occupancy submodels
 
-# last modified 7/30/2024 to keep veg sd residuals 
+# last modified 10/25/2024 to add in aru type
 
-#### read in data ####
 
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#### Create combined data scaled ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 hab_covs_det <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/DetHist_2023VegCovs_Scaled_9-4.csv")
 det_covs <- readRDS(file ="C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Full_DetectionDataSCALED_JAGSModels_HabChap.Rdata")
 # round this to make it more readable
@@ -29,20 +34,25 @@ all_dat <- all_dat %>% rename(det_s1 = det_survey1.x,
                    det_s5 = det_survey5.x,
                    det_s6 = det_survey6.x)
 
-# Which sites have NA in the first detection column?
-all_dat %>% filter(is.na(det_s1))
-# Remove data that has an NA in the first detection column
-all_dat <- all_dat %>% filter(!is.na(det_s1))
 
 # 9/24 checking which sites appear in the cleaned data that actually have no detections setdiff(all_dat_fin$site_id,all_dat$site_id), all_dat_fin from Combine_2023All_HabChap_VegCovs
 # Sites that need to be removed: "MISO-091", "MUSH-131", "MUSH-184"
+
+# Which sites have NA in the first detection column?
+#all_dat %>% filter(is.na(det_s1))
+# Remove data that has an NA in the first detection column
+all_dat <- all_dat %>% filter(!is.na(det_s1))
+
+
 # write this to .csv
-#write.csv(all_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_9-11.csv", row.names = FALSE)
+#write.csv(all_dat,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_10-25.csv", row.names = FALSE)
 
 
 
-### Create combined data unscaled
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Create combined data unscaled #####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # State covariates
 hab_covs_det_us <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2023Veg_Covariates_9-4.csv")
 # Detection covariates
@@ -75,14 +85,18 @@ all_dat_us <- all_dat_us %>% rename(det_s1 = det_survey1,
 # Select relevant columns
 all_dat_us_fin <- all_dat_us %>% select(site_id,
                                         x, y,
-                                        23:47,
+                                        23:49,
                                         5:22) 
 
 # Remove data that has an NA in the first detection column
 all_dat_us_fin <- all_dat_us_fin %>% filter(!is.na(det_s1))
 
 # write this to .csv
-#write.csv(all_dat_us_fin,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_UNSCALED_9-11.csv", row.names = FALSE)
+#write.csv(all_dat_us_fin,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_UNSCALED_10-25.csv", row.names = FALSE)
+
+
+
+
 
 
 # Make this into a version for Thomas' class

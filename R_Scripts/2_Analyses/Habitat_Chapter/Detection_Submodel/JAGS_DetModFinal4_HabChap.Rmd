@@ -1,7 +1,7 @@
 ---
-title: "Habitat Chapter Detection Sub Model Final 2"
+title: "Habitat Chapter Detection Sub Model Final 4"
 author: "Anna Kurtin"
-date: "8/26/2024"
+date: "10-25/2024"
 output: html_document
 ---
 
@@ -21,7 +21,11 @@ This model is me redoing the detection submodel to streamline and clarify my cov
 
 * Detection Submodel 6: Same model structure and priors as submodel 5 but with veg density (non significant effect) removed. 
 
-This model is all of the parameters plus a quadratic effect on date. This is the same model structure as submodel 5 but using the updated cleaned data to make sure there's not a difference when using it.
+* Detection Submodel Final 2: Same model as submodel 5 with updated cleaned data
+
+* Detection Submodel Final 3: model without quadratic effect on date and instead including quadratic effect on background db. Based on waic was not supported, not used
+
+* This model: same structure as submodel final 2, adding in a covariate for ARU type (0 for AM only, 1 for SongMeter present)
 
 
 
@@ -37,7 +41,7 @@ $$
 **Detection Model**: with 5 covariates
 
 $$
-y_{ij} \sim Bernoulli(p_{ij}| \beta_1, \beta_2, \beta_3, \beta_4, \beta_{4Q})
+y_{ij} \sim Bernoulli(p_{ij}| \beta_1, \beta_2, \beta_3, \beta_4, \beta_{4Q}, \beta_{5})
 $$
 
 $$\beta_1: \text{vegetation density}$$ 
@@ -49,6 +53,8 @@ $$\beta_3: \text{survey effort}$$
 $$\beta_4: \text{survey start date}$$  
 
 $$\beta_4Q: \text{quadratic effect of start date}$$ 
+
+$$\beta_5: \text{aru type present at site}$$
 
 
 
@@ -71,7 +77,7 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 
 ```{R}
 # Load in most recent version of data
-full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_8-12.csv")
+full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_10-25.csv")
 ```
 
 ### Visualize distribution of scaled covariates
@@ -86,12 +92,23 @@ vegplot <- ggplot(veg) +
   labs(x = "Vegetation Density", y = "Detection") + theme_minimal()
 ```
 
+
+```{R Visual Cov 6 ARU Type}
+aru <- full_dat %>% select(2:7, SM_present)
+aru$det <- apply(aru[,1:6], 1, max, na.rm = TRUE)
+
+aruplot <- ggplot(aru) +
+  geom_jitter(aes(x = SM_present, y = det), color = palette_8[1], width = 0.05, height = .05) +
+  geom_smooth(aes(x = SM_present, y = det), color = palette_8[1],se = FALSE, method = "glm", method.args = list(family = "binomial")) +
+  labs(x = "SongMeter Used at Site", y = "Detection") + theme_minimal()
+```
+
 ```{R Pivot Survey Level Data}
-survey_dat <- full_dat %>% select(2:7, 24:29,31:42)
+#survey_dat <- full_dat %>% select(2:7, 24:29,31:42)
 # first select the data columns of interest
-dates <- full_dat %>% select(site_id, 37:42)
-effort <- full_dat %>% select(site_id, 31:36)
-backdb <- full_dat %>% select(site_id, 24:29)
+dates <- full_dat %>% select(site_id, 39:44)
+effort <- full_dat %>% select(site_id, 33:38)
+backdb <- full_dat %>% select(site_id, 26:31)
 
 # Then for each sub dataset, pivot longer, rename to s1,s2, etc and unite with site_id for site_survey
 dates_long <- dates %>% pivot_longer(cols = c(start_date_s1,
@@ -180,9 +197,10 @@ dateplot <- ggplot(dat_long) +
 ```
 
 ```{R Arrange Figures, message = FALSE}
-vegplot + dbplot
+vegplot + aruplot
 
-effortplot + dateplot
+effortplot + dateplot + dbplot
+
 ```
 
 ### Set Up Detection Submodel:
@@ -218,12 +236,14 @@ jags_data <- list(
   cov3 = effort[,-1],
   # Date
   cov4 = dates[,-1],
+  # SongMeter used
+  cov5 = aru$SM_present,
   n_unit = nrow(detections),
   miss = miss
 )
 
 # Set initial values \
-init_func_fin2 <- function(){
+init_func <- function(){
   list(
     a0 = rnorm(1, 0, 1),
     b0 = rnorm(1, 0, 1),
@@ -231,10 +251,10 @@ init_func_fin2 <- function(){
     b2 = rnorm(1, 0 ,1),
     b3 = rnorm(1, 0, 1),
     b4 = rnorm(1, 0, 1),
-    b4Q = rnorm(1, 0, 1)
+    b4Q = rnorm(1, 0, 1),
+    b5 = rnorm(1, 0, 1)
   )
 }
-# do we have informative priors for any of these???
 
 ```
 
@@ -250,6 +270,7 @@ cat("
     b3 ~ dlogis(0, 1)
     b4 ~ dlogis(0, 1)
     b4Q ~ dlogis(0, 1)
+    b5 ~ dlogis(0, 1)
   
     # Likelihood
     # Loop through each sampling unit
@@ -269,7 +290,7 @@ cat("
         det_data[i,j] ~  dbern(mu_p[i,j])  # Create probability density drawn for each site
         mu_p[i,j] <- Z[i]*theta[i,j]
         logit(theta[i,j]) <- p[i,j]
-        p[i,j] <- b0 + b1*cov1[i] + b2*cov2[i,j] + b3*cov3[i,j] + b4*cov4[i,j] + b4Q*(cov4[i,j]^2)
+        p[i,j] <- b0 + b1*cov1[i] + b2*cov2[i,j] + b3*cov3[i,j] + b4*cov4[i,j] + b4Q*(cov4[i,j]^2) + b5*cov5[i]
   
         # Create detection data without NAs
         det_na[i,j] <- det_data[i,j]
@@ -295,24 +316,24 @@ cat("
     p_val <- step(SSEsim - SSEobs)
     
   }
-  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_DetMod_Fin2.txt")
+  ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_DetMod_Fin4.txt")
 ```
 
 ```{R Run Model, results = FALSE}
-habdet_f2 <- jags(data = jags_data, 
-                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_DetMod_Fin2.txt",
-                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4","b4Q", "p_val", "SSEobs","SSEsim"),
-                 n.iter = 10000, 
-                 n.burnin = 4000, 
+habdet <- jags(data = jags_data, 
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Model_Structure_Files/JAGS_DetMod_Fin4.txt",
+                 parameters.to.save = c("a0", "b0", "b1", "b2", "b3", "b4","b4Q", "b5", "p_val", "SSEobs","SSEsim"),
+                 n.iter = 20000, 
+                 n.burnin = 10000, 
                  n.chains = 3,
                  n.thin = 2,
-                 inits = init_func_fin2)
+                 inits = init_func)
 beep()
 ```
 
 ```{R save model, eval = FALSE}
-saveRDS(habdet_f2,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/DetSubModel_Final2.Rdata")
-habdet_f2 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/DetSubModel_Final2.Rdata")
+saveRDS(habdet,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/DetSubModel_Final4.Rdata")
+habdet <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Detection_Submodel/Models_Ran_Outputs/Actual_Data/DetSubModel_Final4.Rdata")
 ```
 
 ### Examine Outputs and Model Convergence: 
@@ -327,48 +348,53 @@ $$\beta_4: \text{survey start date}$$
 
 $$\beta_{4Q}: \text{quadratic effect of start date}$$ 
 
+$$\beta_5: \text{ARU type}$$  
+
 ```{R}
-summary(habdet_f2)
-tracedens_jags(habdet_f2, parmfrow = c(2,3))
+summary(habdet)
+tracedens_jags(habdet, parmfrow = c(2,3))
 ```
 
 ### Examine Model Fit:
 
 ```{R Make Inference on P Value}
-plot(habdet_f2$sims.list$SSEobs,habdet_f2$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
+plot(habdet$sims.list$SSEobs,habdet$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
 abline(0,1,lwd = 2, col = "red")
-print(paste0("P value is:",round(habdet_f2$mean$p_val, 2)))
+print(paste0("P value is:",round(habdet$mean$p_val, 2)))
 ```
 
 ### Median Effect Sizes: 
 
 ```{R Transform Parameter Estimates}
 # Transform median values from posterior distribution into probability 
-psi <- round(plogis(habdet_f2$q50$a0), 3)
+psi <- round(plogis(habdet$q50$a0), 3)
 print(paste0("psi:", psi))
 
-p_hat <- round(plogis(habdet_f2$q50$b0), 3)
+p_hat <- round(plogis(habdet$q50$b0), 3)
 print(paste0("p hat:", p_hat))
 
-b1 <- round(plogis(habdet_f2$q50$b1), 3)
+b1 <- round(plogis(habdet$q50$b1), 3)
 print(paste0("veg density:", b1))
 
-b2 <- round(plogis(habdet_f2$q50$b2), 3)
+b2 <- round(plogis(habdet$q50$b2), 3)
 print(paste0("background noise:", b2))
 
-b3 <- round(plogis(habdet_f2$q50$b3), 3)
+b3 <- round(plogis(habdet$q50$b3), 3)
 print(paste0("survey effort:", b3))
 
-b4 <- round(plogis(habdet_f2$q50$b4), 3)
+b4 <- round(plogis(habdet$q50$b4), 3)
 print(paste0("date:", b4))
 
-b4Q <- round(plogis(habdet_f2$q50$b4Q), 3)
+b4Q <- round(plogis(habdet$q50$b4Q), 3)
 print(paste0("quadratic effect of date:", b4Q))
+
+b5 <- round(plogis(habdet$q50$b5), 3)
+print(paste0("aru type:", b5))
 ```
 
 
 ```{R Cumulative Detection Probability}
-p <- round(plogis(habdet_f2$q50$b0),4)
+p <- round(plogis(habdet$q50$b0),4)
 print(paste0("Estimate for detection probability of a single ARU survey:",p))
 
 n <- 6
@@ -382,32 +408,36 @@ print(paste0("Estimate for cumulative ARU detection probability:",p_star))
 ```{R Create Plots of Posterior Distribution}
 # plotting with ggdist: https://mjskay.github.io/ggdist/
 # Plot posterior distribution
-chains_f2 <- jags_df(habdet_f2)
-# Select the chains for our covariates of interest
-chains_viol <- chains_f2 %>% select(b1,b2,b3,b4, b4Q)
+chains <- jags_df(habdet)
+# Select he chains for our covariates of interest
+chains_viol <- chains %>% select(b1,b2,b3,b4,b4Q, b5)
 # Rename them to be more interpretable
 colnames(chains_viol) <- c("veg density",
                            "background noise",
                            "effort",
                            "date", 
-                           "quadratic date")
+                           "quadratic date",
+                           "aru type")
 # Pivot this longer so that we can visualize it
 chains_viol_long <- chains_viol %>% pivot_longer(cols = c("veg density",
                                                           "background noise",
                                                           "effort",
                                                           "date", 
-                                                          "quadratic date"),names_to = "parameter", values_to = "values")
+                                                          "quadratic date",
+                                                          "aru type"),names_to = "parameter", values_to = "values")
 
 f_stat <- data.frame(
   parameter = c("veg density",
                 "background noise",
                 "effort","date", 
-                "quadratic date"),
-  median_value = c(paste0("F: ", round(habdet_f2$f$b1,2)), 
-                   paste0("F: ",round(habdet_f2$f$b2,2)), 
-                   paste0("F: ",round(habdet_f2$f$b3,2)), 
-                   paste0("F: ",round(habdet_f2$f$b4,2)), 
-                   paste0("F: ",round(habdet_f2$f$b4Q,2)))
+                "quadratic date",
+                "aru type"),
+  median_value = c(paste0("F: ", round(habdet$f$b1,2)), 
+                   paste0("F: ",round(habdet$f$b2,2)), 
+                   paste0("F: ",round(habdet$f$b3,2)), 
+                   paste0("F: ",round(habdet$f$b4,2)), 
+                   paste0("F: ",round(habdet$f$b4Q,2)),
+                   paste0("F: ",round(habdet$f$b5,2)))
 )
 
 # Create the slab interval plot
@@ -419,7 +449,8 @@ ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)
                                "background noise" = palette_5[2],
                                "effort"=palette_5[3], 
                                "date" = palette_5[4], 
-                               "quadratic date" = palette_5[5])) +
+                               "quadratic date" = palette_5[5],
+                               "aru type" = palette_8[1])) +
   # Add a line for 0 to show overlap of posterior
   geom_vline(xintercept = 0) +
   # Remove background color from plots
@@ -435,11 +466,11 @@ ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)
 
 ### WAIC: compare with other models
 
-I'm extracting the WAIC for this model to compare it to versions of the detection model that don't include a quadratic effect of date (Detection Model Final 1) and that have a quadratic effect on other covariates (Detection Model Final 3).
+I'm extracting the WAIC for this model to compare it to versions of the detection model that don't include ARU type as a covariat (Detection Model Final 2).
 
 ```{R Extract WAIC}
 # Extract samples from the posterior
-f2_s <- jags.samples(habdet_f2$model,
+f4_s <- jags.samples(habdet$model,
                            c("WAIC","deviance"),
                            type = "mean",
                            n.iter = 5000,
@@ -447,18 +478,18 @@ f2_s <- jags.samples(habdet_f2$model,
                            n.thin = 2)
 beep()
 # Duplicate WAIC samples - the WAIC is the posterior mean for that sample?
-f2_s$p_waic <- f2_s$WAIC
+f4_s$p_waic <- f4_s$WAIC
 # Calculate a new waic by adding the waic plus the deviance
-f2_s$waic_calc <- f2_s$deviance + f2_s$p_waic
+f4_s$waic_calc <- f4_s$deviance + f4_s$p_waic
 # Create a new vector of the sum across each array (sum WAIC, sum deviance, sum p_waic, and sum waic_calc)
-tmp <- sapply(f2_s, sum)
+tmp <- sapply(f4_s, sum)
 # Pull out the sum of the WAIC we calculated and the p_waic we duplicated
-waic_f2 <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
+waic_f4 <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
 # Calculate the standard error for WAIC
-f2_waic_se <- sd(f2_s$waic_calc)/(sqrt(length(f2_s$waic_calc)))
+f4_waic_se <- sd(f4_s$waic_calc)/(sqrt(length(f4_s$waic_calc)))
 
-waic_f2
-f2_waic_se
+waic_f4
+f4_waic_se
 ```
 
 
@@ -478,3 +509,6 @@ f2_waic_se
 
 * Background noise: There is an 80% chance that the true effect of the average decibels in the band of cuckoo calling (I think it's 200  -3500?) is negative. The median estimate for the effect of background noise on detection probability is 0.451, which means for every 1 sd increase in background noise above the mean (4 dB increase above mean of -61 dB), the probability of detecting a BBCU given they are present decreases by 45.1%. 
 
+**Unsuppported covariates (F < 0.70)**
+
+* ARU type (1 for SongMeter present, 0 for only AudioMoths used): There is a 58% chance that the true effect of SongMeter presence on detection at a site is negative. This is not strong enough evidence to say that there is an effect. 
