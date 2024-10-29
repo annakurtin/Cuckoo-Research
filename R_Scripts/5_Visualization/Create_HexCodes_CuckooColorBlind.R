@@ -37,6 +37,19 @@ palette_8 <- c("#332288","#117733","#44AA99","#88CCEE","#DDCC77","#CC6677","#AA4
 palette_5 <- c("#88CCEE","#785EF0","#DC267F","#FE6100","#FFB000")
 
 
+# Detection palette
+dp_all <- colorRampPalette(c("#863300","#EA5900","#FFCBAB"))
+d_palette <- dp_all(10)
+# Landscape palette
+lp_all <- colorRampPalette(c("#531534","#882255","#EFBFD7"))
+l_palette <- lp_all(10)
+# Core area palette
+cp_all <- colorRampPalette(c("#115475","#88CCEE","#CCE9F8"))
+c_palette <- cp_all(10)
+# Point palette
+pp_all <- colorRampPalette(c("#0C5424","#169A42","#C0F6D2"))
+p_palette <- pp_all(10)
+
 
 # Could add on YBCU if wanted
 

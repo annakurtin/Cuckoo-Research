@@ -8,8 +8,9 @@
 library(tidyverse)
 
 
-
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ORIGINAL: all days #####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Read in percent days with calls
 calls_22 <- read.csv("./Data/Detection_History/2022_All_ARUs/Outputs/2022_Sites_DayswCalling_8-15.csv")
 calls_23 <- read.csv("./Data/Detection_History/2023_All_ARUs/Outputs/2023_Sites_DayswCalling_8-15.csv")
@@ -46,8 +47,9 @@ all_scaled <- cbind(dat1,dat2)
 #write.csv(all_scaled, "./Data/Habitat_Model_Covariates/Linear_Model/HabChap_22-23_DaysCalls_HabCovs_9-12.csv", row.names = FALSE)
 
 
-
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # VERSION 1: july 1-15 period ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 calls_23 <- read.csv("./Data/Detection_History/2023_All_ARUs/Outputs/2023_Sites_DayswCalling_July1-15_9-26.csv")
 # make a year column and a site_year column
 calls_23$year <- "23"
@@ -61,6 +63,13 @@ calls_22 <- calls_22 %>% unite(site_yr,c("site_id", "year"),sep = "_",remove = F
 habcovs_22 <- read.csv("./Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2022Veg_Covariates_9-4.csv")
 habcovs_23 <- read.csv("./Data/Habitat_Model_Covariates/Occupancy_Covariates/All_2023Veg_Covariates_9-4.csv") %>% select(-grts_grouped)
 
+# Read in background dB data
+backdb <- read.csv("./Data/Habitat_Model_Covariates/Detection_Covariates/BackNoiseBandpass_22-23_14DayPer.csv")
+
+# Read in veg density data
+veg_dense <- "./Data/Habitat_Model_Covariates/Detection_Covariates/ShrubTreeDensityComposite_2023_ARUPoints.csv"
+
+# LEFT OFF: COMBINE VEG DENSE AND BACKGROUND DB *****
 # Join each year
 dat_22 <- left_join(calls_22, habcovs_22, by = "site_id")
 dat_23 <- left_join(calls_23, habcovs_23, by = "site_id")
@@ -72,16 +81,16 @@ dat_23 <- left_join(calls_23, habcovs_23, by = "site_id")
 lm_dat <- rbind(dat_22,dat_23)
 
 # pull out the mean and sd values for use in linear model (LMMod11_GamPois)
-mean(lm_dat$veg_sd_resid, na.rm = TRUE)
-sd(lm_dat$veg_sd_resid, na.rm = TRUE)
-mean(lm_dat$pct_openshrub_landsc, na.rm = TRUE)
-sd(lm_dat$pct_openshrub_landsc, na.rm = TRUE)
-mean(lm_dat$pct_can_landsc, na.rm = TRUE)
-sd(lm_dat$pct_can_landsc, na.rm = TRUE)
-mean(lm_dat$pct_openshrub_core, na.rm = TRUE)
-sd(lm_dat$pct_openshrub_core, na.rm = TRUE)
-mean(lm_dat$combined_days_rec,na.rm = TRUE)
-sd(lm_dat$combined_days_rec,na.rm = TRUE)
+# mean(lm_dat$veg_sd_resid, na.rm = TRUE)
+# sd(lm_dat$veg_sd_resid, na.rm = TRUE)
+# mean(lm_dat$pct_openshrub_landsc, na.rm = TRUE)
+# sd(lm_dat$pct_openshrub_landsc, na.rm = TRUE)
+# mean(lm_dat$pct_can_landsc, na.rm = TRUE)
+# sd(lm_dat$pct_can_landsc, na.rm = TRUE)
+# mean(lm_dat$pct_openshrub_core, na.rm = TRUE)
+# sd(lm_dat$pct_openshrub_core, na.rm = TRUE)
+# mean(lm_dat$combined_days_rec,na.rm = TRUE)
+# sd(lm_dat$combined_days_rec,na.rm = TRUE)
 
 # Scale relevant covariates
 dat1 <- lm_dat[,1:13]
