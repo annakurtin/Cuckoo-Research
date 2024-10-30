@@ -87,7 +87,8 @@ hist(pos_dat$pct_days_wcall)
 # Format days with calls 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Establish the cutoffs for the sub period you're looking at 
-start_period <- as.Date("2022-06-25")
+# Old: start_period <- as.Date("2022-06-25")
+start_period <- as.Date("2022-07-01")
 end_period <- as.Date("2022-07-15")
 
 #### Extract number of days with calls from cleaned annotation data 
@@ -171,7 +172,7 @@ hist(pos_dat$days_wcall)
 
 # write this to csv
 # two week period
-#write.csv(dat_fin, "./Data/Detection_History/2022_All_ARUs/Outputs/2022_Sites_DayswCalling_July1-15_9-26.csv", row.names = FALSE)
+#write.csv(dat_fin, "./Data/Detection_History/2022_All_ARUs/Outputs/2022_Sites_DayswCalling_July1-15_10-30.csv", row.names = FALSE)
 # 20 day period
 # write.csv(dat_fin, "./Data/Detection_History/2022_All_ARUs/Outputs/2022_Sites_DayswCalling_Jun25-Jul15_9-26.csv", row.names = FALSE)
 

@@ -38,15 +38,27 @@ palette_5 <- c("#88CCEE","#785EF0","#DC267F","#FE6100","#FFB000")
 
 
 # Detection palette
+# Base palette around this color:
+# d_col <- "#FE6100"
+# d_cols <- c("#863300","#B44500","#EA5900","#FE6100","#FF8B43","#FFAF7D","#FFCBAB") 
 dp_all <- colorRampPalette(c("#863300","#EA5900","#FFCBAB"))
 d_palette <- dp_all(10)
 # Landscape palette
+# Use palette based around this color: 
+# lcol <- "#882255"
+# l_palette <- c("#751D49","#882255","#A32966","#CD3782","#D9659F","#E391BA","#EFBFD7")
 lp_all <- colorRampPalette(c("#531534","#882255","#EFBFD7"))
 l_palette <- lp_all(10)
 # Core area palette
+# # Base around this color:
+# ccol <- "#88CCEE"
+# c_palette <- c("#115475","#1A83B8","#24A1E0","#44AFE4","#88CCEE","#B9E1F5","#CCE9F8")
 cp_all <- colorRampPalette(c("#115475","#88CCEE","#CCE9F8"))
 c_palette <- cp_all(10)
 # Point palette
+# # Base around this color: 
+# pcol <- "#117733"
+# p_palette <- c("#0C5424","#117733","#169A42","#1DC956","#36E26F","#8DEFAE","#C0F6D2")
 pp_all <- colorRampPalette(c("#0C5424","#169A42","#C0F6D2"))
 p_palette <- pp_all(10)
 

@@ -1,13 +1,13 @@
 ---
-title: "Hab Chap Linear Model Version 14: Gamma-Poisson Paramterization on Two-Week Period During Peak Calling"
+title: "Hab Chap Linear Model Version 15: Gamma-Poisson Paramterization on Two-Week Period During Peak Calling"
 author: "Anna Kurtin"
 date: "10/30/2024"
 output: html_document
 ---
 
-This is the fourteenth iteration of the linear model I will be using to test strength of habitat use across sites. Using the gamma-poisson distribution to parameterize the response variable to account for not only how many days with calling but also how many days there are for each site. Trying to include all of the data including the zeros and all of the covariates of interest. Only looking at data from the period between July 1st and July 15th so that standardizing effort, adding in covariate for the number of days recorded at a site.
+This is the fifteenth iteration of the linear model I will be using to test strength of habitat use across sites. Using the gamma-poisson distribution to parameterize the response variable to account for not only how many days with calling but also how many days there are for each site. Trying to include all of the data including the zeros and all of the covariates of interest. Only looking at data from the period between July 1st and July 15th so that standardizing effort, adding in covariate for the number of days recorded at a site.
 
-This current version includes more covariates that affect the number of calls detected, including the signal to noise ratio (background dB - I checked my emails with Tessa from April 23rd ish 2024 and found that the way I calculated background dB is sound, I left the default which was the calculate the dB relative to the loudest sound within the file) and veg density
+This current version includes more covariates that affect the number of calls detected, including the signal to noise ratio (background dB - I checked my emails with Tessa from April 23rd ish 2024 and found that the way I calculated background dB is sound, I left the default which was the calculate the dB relative to the loudest sound within the file) and veg. I realized that at some point during model iteration I stopped including conifer species richness so I'm going to go back and include this.
 
 *Current version of the model*
 
@@ -30,11 +30,14 @@ $$ \beta_2: \text{Percent shrub/early successional cover at landscape scale} $$
 $$ \beta_3: \text{Vegetation sd residuals at core area scale} $$
 
 $$ \beta_4: \text{Percent shrub/early successional cover at core area scale} $$
-$$ \beta_5: \text{Combined days of recording}$$
+$$ \beta_5: \text{Native Conifer Spp Richness} $$
 
-$$ \beta_6: \text{SNR of Sound Files} $$
 
-$$ \beta_7: \text{vegetation density} $$
+$$ \beta_6: \text{Combined days of recording}$$
+
+$$ \beta_7: \text{SNR of Sound Files} $$
+
+$$ \beta_8: \text{vegetation density} $$
 
 **Handling of NAs (only occur in habitat covs):** Imputation for habitat covariates (sites with no LiDAR data), no missing data for call counts
 
@@ -57,13 +60,11 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 
 ```{R Read in Data}
 full_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Linear_Model/DaysCalls_14DayPer_HabCovsSCALED_22-23_10-30.csv")
-# Old: "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/Linear_Model/DaysCalls_14DayPer_HabCovsSCALED_22-23_9-26.csv")
-#mean(full_dat$days_wcall)
+
 hist(full_dat$days_wcall, main = "Number of Days with Calling Across Sites", xlab = "Total Days with Calling", col = cuckoo_palette[1])
-#full_dat %>% filter(days_wcall >0) # 23 sites with a call, 110 without calling
 ```
 
-***PICK UP HERE ***
+
 ```{R Visualize Calls Over Dates, message = FALSE, warning = FALSE}
 # From Plot_BBCU_calls_per_date_22-23.R
 cnn_23 <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Classifier_Results/Model2.0/Outputs/2023_AllCollab_topclips_filteredPBYBCU_5-27.csv")
@@ -136,6 +137,12 @@ dat_us %>% ggplot() +
   labs(x = "% Shrub/Early Successional Cover at Core Scale", y = "Count of Days with Calls") +
   scale_y_continuous(limits = c(0,10), breaks = seq(0,10, by = 2)) +
   theme_minimal()
+# Conifer Spp Richness
+dat_us %>% ggplot() +
+  geom_point(aes(x = ctree_spp_rich, y = days_wcall), col = palette_8[1])+
+  labs(x = "Conifer Tree Species Richness", y = "Count of Days with Calls") +
+  scale_y_continuous(limits = c(0,10), breaks = seq(0,10, by = 2)) +
+  theme_minimal()
 # Combined days of recording palette_5[1]
 dat_us %>% ggplot() +
   geom_point(aes(x = combined_days_rec, y = days_wcall), col = palette_5[1])+
@@ -159,7 +166,7 @@ dat_us %>% ggplot() +
 *Ignore the warnings below*
 
 ```{R, warnings = FALSE, message = FALSE}
-corrdat <- full_dat %>% select(pct_can_landsc, pct_openshrub_landsc, veg_sd_resid, pct_openshrub_core, combined_days_rec, avg_db, avg_vegdense)
+corrdat <- full_dat %>% select(pct_can_landsc, pct_openshrub_landsc, veg_sd_resid, pct_openshrub_core, ctree_spp_rich, combined_days_rec, avg_db, avg_vegdense)
 corrgram(corrdat, order=FALSE, lower.panel=panel.cor,
          upper.panel=panel.pts, text.panel=panel.txt,
          main="Correlations in Habitat Metrics")
@@ -180,12 +187,14 @@ jags_data <- list(
   cov3 = full_dat$veg_sd_resid,
   # % open shrub core
   cov4 = full_dat$pct_openshrub_core,
+  # Conifer spp richness
+  cov5 = full_dat$ctree_spp_rich,
   # Recording days at site
-  cov5 = full_dat$combined_days_rec,
+  cov6 = full_dat$combined_days_rec,
   # background db
-  cov6 = full_dat$avg_db,
+  cov7 = full_dat$avg_db,
   # vegetation density
-  cov7 = full_dat$avg_vegdense,
+  cov8 = full_dat$avg_vegdense,
   # number of days recorded at each site
   n = nrow(full_dat)
 )
@@ -200,13 +209,14 @@ init_func <- function(){
     beta4 = rnorm(1, 0, 1),
     beta5 = rnorm(1, 0, 1),
     beta6 = rnorm(1, 0, 1),
-    beta7 = rnorm(1, 0, 1)
+    beta7 = rnorm(1, 0, 1),
+    beta8 = rnorm(1, 0, 1)
   )
 }
 ```
 
 ```{R Create Model Structure, eval = FALSE, echo = TRUE}
-sink("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLMod14_GamPois.jags")
+sink("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLMod15_GamPois.jags")
 cat("
     model {
     for (i in 1:n){
@@ -216,11 +226,12 @@ cat("
       cov2[i] ~ dnorm(0, 1)
       cov3[i] ~ dnorm(0, 1)
       cov4[i] ~ dnorm(0, 1)
-      cov7[i] ~ dnorm(0, 1)
+      cov5[i] ~ dnorm(0, 1)
+      cov8[i] ~ dnorm(0, 1)
     
       # Method 2: gamma-poisson (this is equivalent to a negative binomial)
       # In this approach, the parameter of interest is the count of days with calls but we're also feeding it the number of days that we recorded 
-      log(gamma[i]) = beta0 + beta1 * cov1[i] + beta2 * cov2[i] + beta3 * cov3[i] + beta4 * cov4[i] + beta5 * cov5[i] + beta6 * cov6[i] + beta7 * cov7[i]  
+      log(gamma[i]) = beta0 + beta1 * cov1[i] + beta2 * cov2[i] + beta3 * cov3[i] + beta4 * cov4[i] + beta5 * cov5[i] + beta6 * cov6[i] + beta7 * cov7[i] + beta8 * cov8[i] 
       h[i] ~ dgamma(theta, theta) # Variance in rate parameter
       y[i] ~ dpois(gamma[i] * h[i]) # count drawn from poisson distribution with adjusted rate parameter
     
@@ -242,6 +253,7 @@ cat("
     beta5 ~ dnorm(0, 0.01)
     beta6 ~ dnorm(0, 0.01) 
     beta7 ~ dnorm(0, 0.01)
+    beta8 ~ dnorm(0, 0.01)
     
     # Derived values
     SSEobs <- sum(presi[])
@@ -258,7 +270,7 @@ sink()
 
 ```{R, results = FALSE, eval = FALSE, echo = TRUE}
 fit_gpois <- jags(data = jags_data, 
-                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLMod14_GamPois.jags",
+                 model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Model_Structure_Files/JAGS_HabLMod15_GamPois.jags",
                  parameters.to.save = c("beta0",
                                         "beta1",
                                         "beta2",
@@ -266,7 +278,8 @@ fit_gpois <- jags(data = jags_data,
                                         "beta4", 
                                         "beta5",
                                         "beta6",
-                                        "beta7", 
+                                        "beta7",
+                                        "beta8",
                                         "SSEobs",
                                         "SSEsim", 
                                         "p_val"),
@@ -276,10 +289,10 @@ fit_gpois <- jags(data = jags_data,
                  n.thin = 10,
                  inits = init_func)
 beep()
-saveRDS(fit_gpois,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Models_Ran_Outputs/LMod14_GamPois_14Day.Rdata")
+saveRDS(fit_gpois,"C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Models_Ran_Outputs/LMod15_GamPois_14Day.Rdata")
 ```
 ```{R Read in Model}
-fit_gpois <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Models_Ran_Outputs/LMod14_GamPois_14Day.Rdata")
+fit_gpois <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Models_Ran_Outputs/LMod15_GamPois_14Day.Rdata")
 ```
 
 ```{R Evaluate Model}
@@ -300,12 +313,13 @@ print(paste0("P value is: ",round(fit_gpois$mean$p_val, 2)))
 # Plot posterior distribution
 chains_gpois <- jags_df(fit_gpois)
 # Select the chains for our covariates of interest
-chains_viol <- chains_gpois %>% select(beta1,beta2,beta3,beta4, beta5, beta6, beta7)
+chains_viol <- chains_gpois %>% select(beta1,beta2,beta3,beta4, beta5, beta6, beta7, beta8)
 # Rename them to be more interpretable
 colnames(chains_viol) <- c("Percent Canopy Landscape",
                            "Percent SES Landscape",
                            "Veg SD Residuals",
                            "Percent SES Core",
+                           "Conifer Spp Richness",
                            "Recording Days at Site",
                            "Background Noise",
                            "Veg Density")
@@ -314,6 +328,7 @@ chains_viol_long <- chains_viol %>% pivot_longer(cols = c("Percent Canopy Landsc
                            "Percent SES Landscape",
                            "Veg SD Residuals",
                            "Percent SES Core",
+                           "Conifer Spp Richness",
                            "Recording Days at Site",
                            "Background Noise",
                            "Veg Density"),names_to = "parameter", values_to = "values")
@@ -324,6 +339,7 @@ f_stat <- data.frame(
                            "Percent SES Landscape",
                            "Veg SD Residuals",
                            "Percent SES Core",
+                            "Conifer Spp Richness",
                            "Recording Days at Site",
                            "Background Noise",
                            "Veg Density"),
@@ -334,7 +350,8 @@ f_stat <- data.frame(
     paste0("F:",round(fit_gpois$f$beta4,2)),
     paste0("F:",round(fit_gpois$f$beta5,2)),
     paste0("F:",round(fit_gpois$f$beta6,2)),
-    paste0("F:",round(fit_gpois$f$beta7,2)))
+    paste0("F:",round(fit_gpois$f$beta7,2)),
+    paste0("F:",round(fit_gpois$f$beta8,2)))
 )
 
 # Create the slab interval plot
@@ -346,6 +363,7 @@ ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)
                                "Percent SES Landscape" = palette_8[6],
                                "Veg SD Residuals"=palette_8[7], 
                                "Percent SES Core" = palette_5[5],
+                               "Conifer Spp Richness"=palette_8[1],
                                "Recording Days at Site" = palette_5[1],
                                "Background Noise" = palette_5[2],
                                "Veg Density" = palette_5[3])) +
@@ -377,13 +395,16 @@ b4 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta4), 3)
 print(paste0("Percent Shrub/Early Successional Core: ", b4))
 
 b5 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta5), 3)
-print(paste0("Recording Days at Site: ", b5))
+print(paste0("Conifer Spp Richness: ", b5))
 
-b6 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta6), 3)
-print(paste0("Background Noise at Site: ", b6))
+b6 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta5), 3)
+print(paste0("Recording Days at Site: ", b6))
 
-b7 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta7), 3)
-print(paste0("Veg Density at Site: ", b7))
+b7 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta6), 3)
+print(paste0("Background Noise at Site: ", b7))
+
+b8 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta7), 3)
+print(paste0("Veg Density at Site: ", b8))
 ```
 
 ```{R}
@@ -395,7 +416,8 @@ mat <- cbind(fit_gpois$sims.list$beta0,
              fit_gpois$sims.list$beta4,
              fit_gpois$sims.list$beta5,
              fit_gpois$sims.list$beta6,
-             fit_gpois$sims.list$beta7)
+             fit_gpois$sims.list$beta7,
+             fit_gpois$sims.list$beta8)
 # run a correlation test on the chains - here, I'm looking for values that are larger than other values
 r <- cor(mat)
 #r
@@ -404,6 +426,7 @@ colnames(mat) <- c("psi",
                    "% shrub/early successional cover landscape", 
                    "veg sd residual", 
                    "shrub/early successional cover core",
+                   "conifer spp rich",
                    "recording days at site",
                    "background noise",
                    "veg density")
@@ -433,6 +456,8 @@ corrgram(mat, order=FALSE, lower.panel=panel.cor,
 * Percent canopy cover at landscape scale: We are 76% sure that the true effect of percent canopy cover at the landscape scale on intensity of use is positive (F = .76). The median estimate for the effect of canopy cover at the landsdcape scale is 0.185, which means that for every 1 sd increase in canopy cover above the mean (6.8% increase over mean of 8.6%), the number of calls at a site increases by 0.185.
 
 * Background Noise: We are 79% sure that the true effect of background noise on intensity of use is negative (F = 0.79). The median estimate for the effect of background noise on intensity of use is 0.108, which means that for every 1 sd increase in background noise (3.57 dB increase over mean of -61.46), the number of calls increases by 0.081. 
+
+* Native Conifer Species Richness: We are 89% sure that the effect of conifer species richness on intensity of use is negative (F = 0.89). The median estimate for the effect of background noise on intensity of use is 0.065, which means that for every 1 sd increase in conifer species richness (0.51 species increase over mean of 0.19 species), the number of calls increases by 0.081.
 
 **Lingering thoughts and questions:**
 

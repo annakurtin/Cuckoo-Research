@@ -93,8 +93,9 @@ hist(pos_dat$pct_days_wcall)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Format days with calls 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Establish the cutoffs for the sub period you're looking at 
-start_period <- as.Date("2023-06-25")
+# Establish the cutoffs for the sub period you're looking at
+# Old: start_period <- as.Date("2022-06-25")
+start_period <- as.Date("2023-07-01")
 end_period <- as.Date("2023-07-15")
 
 # Extract number of days with calls from cleaned annotation data 

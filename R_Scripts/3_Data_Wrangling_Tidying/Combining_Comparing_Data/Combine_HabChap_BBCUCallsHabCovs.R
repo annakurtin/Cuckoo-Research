@@ -6,6 +6,7 @@
 # last edited 9/26/2023
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 library(tidyverse)
+source("./R_Scripts/6_Function_Scripts/Create_Site_SamplingColumn_fromPointID.R")
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -54,7 +55,7 @@ calls_23 <- read.csv("./Data/Detection_History/2023_All_ARUs/Outputs/2023_Sites_
 # make a year column and a site_year column
 calls_23$year <- "23"
 calls_23 <- calls_23 %>% unite(site_yr,c("site_id", "year"),sep = "_",remove = FALSE)
-calls_22 <- read.csv("./Data/Detection_History/2022_All_ARUs/Outputs/2022_Sites_DayswCalling_July1-15_9-26.csv")
+calls_22 <- read.csv("./Data/Detection_History/2022_All_ARUs/Outputs/2022_Sites_DayswCalling_July1-15_10-30.csv")
 # make a year column and a site_year column
 calls_22$year <- "22"
 calls_22 <- calls_22 %>% unite(site_yr,c("site_id", "year"),sep = "_",remove = FALSE)
@@ -65,20 +66,24 @@ habcovs_23 <- read.csv("./Data/Habitat_Model_Covariates/Occupancy_Covariates/All
 
 # Read in background dB data
 backdb <- read.csv("./Data/Habitat_Model_Covariates/Detection_Covariates/BackNoiseBandpass_22-23_14DayPer.csv")
+backdb_22 <- backdb %>% filter(year == "22")
+backdb_23 <- backdb %>% filter(year == "23")
 
 # Read in veg density data
-veg_dense <- "./Data/Habitat_Model_Covariates/Detection_Covariates/ShrubTreeDensityComposite_2023_ARUPoints.csv"
+veg_dense <- read.csv("./Data/Habitat_Model_Covariates/Detection_Covariates/ShrubTreeDensityComposite_2023_ARUPoints.csv") %>% create_site_col() %>% group_by(site_id) %>% summarize(avg_vegdense= round(mean(composite_dense),2))
 
 # LEFT OFF: COMBINE VEG DENSE AND BACKGROUND DB *****
 # Join each year
-dat_22 <- left_join(calls_22, habcovs_22, by = "site_id")
-dat_23 <- left_join(calls_23, habcovs_23, by = "site_id")
+dat_22 <- left_join(calls_22, habcovs_22, by = "site_id") %>% left_join(backdb_22, by = "site_id") %>% left_join(veg_dense, by = "site_id")
+dat_23 <- left_join(calls_23, habcovs_23, by = "site_id") %>% left_join(backdb_23, by = "site_id") %>% left_join(veg_dense, by = "site_id")
+
 
 # Check that they are the same columns and uniquely identifyable
 # looks good
 
 # Rbind them into one dataframe
 lm_dat <- rbind(dat_22,dat_23)
+lm_dat <- lm_dat %>% select(-year.y) %>% rename(year = year.x)
 
 # pull out the mean and sd values for use in linear model (LMMod11_GamPois)
 # mean(lm_dat$veg_sd_resid, na.rm = TRUE)
@@ -93,17 +98,19 @@ lm_dat <- rbind(dat_22,dat_23)
 # sd(lm_dat$combined_days_rec,na.rm = TRUE)
 
 # Scale relevant covariates
+# pull out detection, site data, and binary data
 dat1 <- lm_dat[,1:13]
-dat2 <- round(scale(lm_dat[,14:26]),2)
-# also scale combined recording days
+# pull out numeric data and scale it (including background dB and vegdense)
+dat2 <- round(scale(lm_dat[,14:28]),2)
+# Combine them again
 all_scaled <- cbind(dat1,dat2)
 scale_alldays <- scale(all_scaled$combined_days_rec)
 all_scaled$combined_days_rec <- round(scale_alldays[,1],2)
 
 # Export for use in linear model 
-#write.csv(all_scaled, "./Data/Habitat_Model_Covariates/Linear_Model/DaysCalls_14DayPer_HabCovsSCALED_22-23_9-26.csv", row.names = FALSE)
+#write.csv(all_scaled, "./Data/Habitat_Model_Covariates/Linear_Model/DaysCalls_14DayPer_HabCovsSCALED_22-23_10-30.csv", row.names = FALSE)
 # Export unscaled data for other uses
-#write.csv(lm_dat, "./Data/Habitat_Model_Covariates/Linear_Model/DaysCalls_14DayPer_HabCovsUNSCALED_22-23_9-26.csv", row.names = FALSE)
+#write.csv(lm_dat, "./Data/Habitat_Model_Covariates/Linear_Model/DaysCalls_14DayPer_HabCovsUNSCALED_22-23_10-30.csv", row.names = FALSE)
 
 
 

@@ -9,6 +9,8 @@ This is a document to visualize the predicted effects of canopy cover, open shru
 
 Going off of the code from [Kevin Shoemaker's Github](https://kevintshoemaker.github.io/NRES-746/Occupancy.html)
 
+This was the original code I made, now I'm using CreatePlots_PredictedEffects_OccLinMod.R to run it as a script
+
 
 ```{R, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE)

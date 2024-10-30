@@ -52,6 +52,7 @@ for (i in 1:nrow_pb) {
   } 
 }
 ```
+
 ```{R}
 # Get the value for the cumulative detection probability across the season for PAM
 # Pull out detection probability
@@ -80,12 +81,12 @@ create_ci <- function(x){
 
 # Create the violin plot using ggplot2
 ggplot(data = pb_pstars_long, aes(x = num_surveys, y = cumulative_p)) + 
-  geom_violin(fill = cuckoo_palette[1]) +  # Violin plot with your custom color
-  geom_hline(yintercept = aru_p_star, linetype = "dashed", size = 1.5, color = "gray") +  # Dashed line for pstar
+  geom_violin(fill = "gray80") +  # Violin plot with your custom color
+  geom_hline(yintercept = aru_p_star, linetype = "dashed", size = 1.5, color = cuckoo_palette[1]) +  # Dashed line for pstar
   labs(x = "Number of Surveys", y = "Cumulative Detection Probability") +  # Axis labels
   theme_minimal() +  # Minimal theme for a clean look
   theme(axis.text.x = element_text(angle = 0, hjust = 1)) + # Adjust text angle and position
-  stat_summary(fun.y="median", geom="point", color = "black", size = 2)
+  stat_summary(fun.y="median", geom="point", color = "black", size = 5)
 ```
 
 
