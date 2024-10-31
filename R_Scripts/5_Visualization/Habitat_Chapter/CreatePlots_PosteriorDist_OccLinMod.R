@@ -117,8 +117,8 @@ chains_viol_long$parameter <- factor(chains_viol_long$parameter,
 f_stat <- data.frame(
   parameter = c("% Canopy Cover",
                 "% SES Cover"),
-  median_value = c(paste0("F: ",round(fit_B$f$a1,2)),
-                   paste0("F: ",round(fit_B$f$a2,2)))
+  median_value = c(round(fit_B$f$a1,2),
+                   round(fit_B$f$a2,2))
 )
 
 # Create the slab interval plot
@@ -173,10 +173,10 @@ f_stat <- data.frame(
                 "Canopy Height", 
                 "SES Height", 
                 "Veg Complexity"),
-  median_value = c(paste0("F: ",round(fit_C$f$a1,2)),
-                   paste0("F: ",round(fit_C$f$a2,2)),
-                   paste0("F: ",round(fit_C$f$a3,2)), 
-                   paste0("F: ",round(fit_C$f$a4,2)))
+  median_value = c(round(fit_C$f$a1,2),
+                   round(fit_C$f$a2,2),
+                   round(fit_C$f$a3,2), 
+                   round(fit_C$f$a4,2))
 )
 
 # Create the slab interval plot
