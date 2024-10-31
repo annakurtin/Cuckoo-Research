@@ -1,0 +1,21 @@
+
+      model {
+
+      alpha ~ dnorm(0, 1)
+      beta ~ dnorm(0, 0.1)
+      sigma ~ dgamma(1,1)
+      tau = 1/(sigma * sigma)
+      
+      for (i in 1:n){
+      
+        # model
+        y[i] ~ dnorm(alpha + beta * x[i], tau)
+        
+        # calculate log-likelihood
+        logL[i] <- log(dnorm(y[i], beta * x[i], tau))
+        
+      }
+
+      
+      }
+      

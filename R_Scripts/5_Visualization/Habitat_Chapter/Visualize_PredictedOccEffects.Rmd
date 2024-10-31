@@ -58,7 +58,7 @@ vis_effect <- function(covariate, dataframe, model, model_cov, xlabel, color_pal
   pd_scale <- (predict_dat - mean_cov)/sd_cov
   # Pull the covariate effect from the model 
   cov_effect <- plogis(model$q50$a0 + model$q50[[model_cov]] * pd_scale)
-  
+  # change this to be all the samples not just 200, then pull out the 2.5 to 97.5 intervals here
   # Initialize an empty array for the predicted effects of the generated data
   pred_array <- array(NA, dim = c(length(pd_scale), num_samples))
   # Iterate through each mcmc sample and take the predicted effects
