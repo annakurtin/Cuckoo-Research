@@ -122,7 +122,7 @@ f_stat <- data.frame(
 )
 
 # Create the slab interval plot
-lanscocc_dense <- ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)) + 
+dense_lanscocc <- ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)) + 
   # Plot posterior distributions
   stat_slabinterval(height = 1.5) +
   # Establish colors
