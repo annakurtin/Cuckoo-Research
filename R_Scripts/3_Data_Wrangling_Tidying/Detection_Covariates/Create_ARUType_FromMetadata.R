@@ -51,6 +51,10 @@ fwp22 <- met22fwp %>% group_by(site_id) %>% summarize(num_arutype = n_distinct(a
 
 # join umbel and fwp 22
 met22all <- rbind(met22fwp, met22umbel)
+# add year
+met22all$year <- '2022'
+# write this data
+#write.csv(met22all, "./Data/Habitat_Model_Covariates/Detection_Covariates/ARUModelByPoint_22_11-4.csv", row.names = FALSE)
 
 # how many sites had songmeters?
 # summarize by site
@@ -85,6 +89,10 @@ met23d <- met23d %>% mutate(aru_mbinary = case_when(aru_model == "AM1.2.0" ~ 0,
                                                     aru_model == "SMM" ~ 1))
 met23d <- met23d %>% create_site_col()
 met23d <- met23d %>% select(site_id, point_id, aru_model, aru_mbinary)
+# add year
+met23d$year <- "2023"
+# write this to csv
+#write.csv(met23d, "./Data/Habitat_Model_Covariates/Detection_Covariates/ARUModelByPoint_23_11-4.csv", row.names = FALSE)
 
 # how many sites had songmeters?
 # summarize by site
@@ -111,7 +119,7 @@ met23_SM$year <- "2023"
 
 #### Combine to export #####
 aru_type <- rbind(met23_SM,met22all_SM)
-write.csv(aru_type, "./Data/Habitat_Model_Covariates/Detection_Covariates/ARUtype_22-23.csv", row.names = FALSE)
+#write.csv(aru_type, "./Data/Habitat_Model_Covariates/Detection_Covariates/ARUtype_22-23.csv", row.names = FALSE)
 
 
 

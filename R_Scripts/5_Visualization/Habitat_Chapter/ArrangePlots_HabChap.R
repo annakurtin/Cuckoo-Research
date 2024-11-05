@@ -4,7 +4,7 @@ library(patchwork)
 source("./R_Scripts/5_Visualization/Habitat_Chapter/CreatePlots_PosteriorDist_OccLinMod.R")
 source("./R_Scripts/5_Visualization/Habitat_Chapter/CreatePlots_PredictedEffects_OccLinMod.R")
 
-# 10/31/2024: adding in all of the poisterior effects
+# 10/31/2024: adding in all of the posterior effects
 
 dense_detocc
 ggsave("./Deliverables/HabChap_ModelVisualizations/DensityPlot_DetSubmod.jpg", width=8, height=6)
