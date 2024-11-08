@@ -1,3 +1,5 @@
+# Other resources
+# Making a GIF in R: https://www.nagraj.net/notes/gifs-in-r/
 
 # libraries
 library(tidyverse)
