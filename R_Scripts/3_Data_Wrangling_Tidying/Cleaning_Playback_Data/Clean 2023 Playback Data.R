@@ -85,6 +85,7 @@ an_umbel <- an_umbel %>% mutate(visual = case_when(how1 == "V" ~ "Y",
                                                  how1 == "S" ~ "Y",
                                                  how1 == NA ~ NA),
                                 bearing = NA)
+# For the 82#1.5 survey, I just combined it with the first survey - the dates are close together and the difference of one date is unlikely to affect the inference
 # Select only the columns we want to match the other datasets
 an_umbel <- an_umbel <- an_umbel %>% select(obs,date,
                                             survey_id,

@@ -236,7 +236,7 @@ cat("
 ```{R Run Model, results = FALSE}
 fit_1 <- jags(data = jags_data, 
                  model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/Playback_Model/Model_Structure_Files/JAGS_PBMod1.txt",
-                 parameters.to.save = c("a0", "b0", "b1", "b1Q", "b3", "b4", "b5", "b6", "p_val"),
+                 parameters.to.save = c("a0", "b0", "b1", "b1Q", "b3", "b4", "b5", "b6", "SSEobs","SSEsim", "p_val"),
                  n.iter = 10000, 
                  n.burnin = 5000, 
                  n.chains = 3,
@@ -274,6 +274,11 @@ summary(fit_1)
 tracedens_jags(fit_1, parmfrow = c(3,4))
 ```
 
+```{R Make Inference on P Value, echo = FALSE}
+#plot(fit_1$sims.list$SSEobs,fit_1$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
+#abline(0,1,lwd = 2, col = "red")
+print(paste0("P value is:",round(fit_1$mean$p_val, 2)))
+```
 
 ```{R Create Violin Plots, echo = FALSE}
 chains_1 <- jags_df(fit_1)

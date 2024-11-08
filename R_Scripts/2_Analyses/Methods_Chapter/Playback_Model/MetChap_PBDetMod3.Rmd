@@ -6,7 +6,7 @@ output: html_document
 ---
 
 This is the third version of the detection submodel for the playback data. I'm going through other studies and looking at what affected detection of BBCU or YBCU. 
-Covariattes to include: 
+Covariates to include: 
 
 * date, temperature (Based on Johnson and Benson 2022)
 * noise (Johnson and Benson 2023)
@@ -30,8 +30,6 @@ Detection model with six covariates:
 
 * b1: date
 
-* b2: quadratic effect of date
-
 * b3: wind condition
 
 * b4: starting temperature
@@ -43,7 +41,7 @@ y_{ij} \sim Bernoulli(p_{ij} * z_i)
 $$
 
 $$
-logit(p_{ij}) = \beta_0 + \beta_{1}*date + \beta_{2}^2*date + \beta_3*wind + \beta_4*temp
+logit(p_{ij}) = \beta_0 + \beta_{1}*date + \beta_3*wind + \beta_4*temp
 $$
 
 **Handling of NAs:** omission for detections, imputation for habitat covariates
@@ -167,7 +165,7 @@ cat("
       for(j in 1:miss[i]){
   
       # Just detection model from StrofUseLM10
-      #mu[i] <- beta0 + beta1 * cov1[i] + beta1Q * (cov1[i]*cov1[i]) + beta2 * cov2[i] + beta3 * cov3[i] + beta4 * cov4[i]
+      #mu[i] <- beta0 + beta1 * cov1[i] + beta1Q * (cov1[i]*cov1[i]) + beta2 * cov2[i] + beta3 * cov3[i] + beta4 * cov4[i] # where is this coming from?????
       #prob[i] <- ilogit(mu[i])
       #y[i] ~ dbin(prob[i], s[i])
   
@@ -267,7 +265,7 @@ plot(fit_3$sims.list$b0,)
 ```
 
 ```{R Look at Detection Prob Estimates}
-p <- round(plogis(fit_2$q50$b0),4)
+p <- round(plogis(fit_3$q50$b0),4)
 print(paste0("Detection probability for one survey:",p*100))
 
 n <- 3
@@ -280,31 +278,31 @@ print(paste0("Cumulative estimated detection probability:",p_star*100))
 ```{R}
 # empty array for storing detection probability
 #array: same number of rows as MCMC samples, same columns as number of surveys you want to investigate
-nrow <- fit_2$mcmc.info$n.samples
-max_surveys <- 10
-pstar <- array(NA, dim = c(nrow, max_surveys))
-
-# Set up x values with the same number of rows as your array
-# x values will allow plotting of box values
-x <-  cbind(rep(1, nrow), rep(2, nrow), rep(3, nrow), 
-          rep(4, nrow), rep(5, nrow), rep(6, nrow), 
-          rep(7, nrow), rep(8, nrow), rep(9, nrow), 
-          rep(10, nrow))
-
-#Set up a for-loop that will run the same amount of iterations as the samples produced in the MCMC
-for (i in 1:nrow) { 
-  # fills in data for each row 
-  for (j in 1:max_surveys){ 
-    # Fills in data for each column (i.e. number of columns)
-    pstar[i,j] <- 1 - (1 - plogis(fit_2$sims.list$b0[i]))^j #Calculate estimated maximum detection probability for each survey using mean probability calculated in the MCMC 
-  } 
-}
-
-#Plot the probability of detection for each survey, along with associated confidence intervals 
-boxplot(pstar ~ x, col = cuckoo_palette[1], las = 1, ylab = "Cumulative Detection Probability", 
-        xlab = "Number of surveys", outline = FALSE)
-#Add an abline that represents the 95% CI cutoff 
-abline(h = 0.95, lty = 2, lwd = 2)
+# nrow <- fit_2$mcmc.info$n.samples
+# max_surveys <- 10
+# pstar <- array(NA, dim = c(nrow, max_surveys))
+# 
+# # Set up x values with the same number of rows as your array
+# # x values will allow plotting of box values
+# x <-  cbind(rep(1, nrow), rep(2, nrow), rep(3, nrow), 
+#           rep(4, nrow), rep(5, nrow), rep(6, nrow), 
+#           rep(7, nrow), rep(8, nrow), rep(9, nrow), 
+#           rep(10, nrow))
+# 
+# #Set up a for-loop that will run the same amount of iterations as the samples produced in the MCMC
+# for (i in 1:nrow) { 
+#   # fills in data for each row 
+#   for (j in 1:max_surveys){ 
+#     # Fills in data for each column (i.e. number of columns)
+#     pstar[i,j] <- 1 - (1 - plogis(fit_2$sims.list$b0[i]))^j #Calculate estimated maximum detection probability for each survey using mean probability calculated in the MCMC 
+#   } 
+# }
+# 
+# #Plot the probability of detection for each survey, along with associated confidence intervals 
+# boxplot(pstar ~ x, col = cuckoo_palette[1], las = 1, ylab = "Cumulative Detection Probability", 
+#         xlab = "Number of surveys", outline = FALSE)
+# #Add an abline that represents the 95% CI cutoff 
+# abline(h = 0.95, lty = 2, lwd = 2)
 ```
 
 Does this mean that we would need a minimum of 5 surveys to even begin having some informed estimate of uncertainty?
