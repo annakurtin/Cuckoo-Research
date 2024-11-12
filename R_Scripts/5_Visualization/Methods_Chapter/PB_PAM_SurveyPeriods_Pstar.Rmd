@@ -5,6 +5,8 @@ date: "9/30/2024"
 output: html_document
 ---
 
+This is the old version of this visualization. Current version is in CreatePlots_PBDetProb_NumSurveys.R and CreatePlots_PAMDetProb_NumSurveys.R 
+
 [Violin plot resource](http://www.sthda.com/english/wiki/ggplot2-violin-plot-quick-start-guide-r-software-and-data-visualization)
 
 ```{R Setup}

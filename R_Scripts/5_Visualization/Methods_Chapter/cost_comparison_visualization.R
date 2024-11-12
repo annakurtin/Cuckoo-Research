@@ -13,8 +13,8 @@ v1 <- cost_dat %>% group_by(org, method, year) %>% summarize(total = sum(value))
 # Try this with facet_wrap
 plot1 <- ggplot(data = v1) +
   geom_bar(aes(x = year, y = total, fill = org), position = "dodge", stat= "identity") +
-  scale_fill_manual(values = c("agency"=palette_8[1],
-                               "univ_lab" = palette_8[6]),
+  scale_fill_manual(values = c("agency"=palette_8[3],
+                               "univ_lab" = palette_8[8]),
                     labels = c("agency" = "Wildlife Agency",
                                "univ_lab" = "University Lab"),
                     name = "Organization") +
@@ -30,21 +30,37 @@ plot1 <- ggplot(data = v1) +
 # old graphics for v1 ####
 v1_pam <- cost_dat %>% filter(method == "pam") %>% group_by(org, year) %>% summarize(total = sum(value))
 v1_pb <- cost_dat %>% filter(method == "pb") %>% group_by(org, year) %>% summarize(total = sum(value))
-ggplot(data = v1_pam) +
-  geom_bar(aes(x = year, y = total, fill = org), position = "dodge", stat= "identity") +
-  scale_fill_manual(values = c("agency"=palette_8[1],
-                               "univ_lab" = palette_8[6])) +
-  theme_minimal() +
-  labs(title = "PAM Costs")
-
-ggplot(data = v1_pb) +
+plot1_pam <- ggplot(data = v1_pam) +
   geom_bar(aes(x = year, y = total, fill = org), position = "dodge", stat= "identity") +
   theme_minimal() +
-  scale_fill_manual(values = c("agency"=palette_8[1],
-                               "univ_lab" = palette_8[6])) +
-  labs(title = "Playback Costs")
+  scale_fill_manual(values = c("agency"=d_palette[5],
+                               "univ_lab" = d_palette[8]),
+                    labels = c("agency" = "Wildlife Agency",
+                               "univ_lab" = "University Lab"),
+                    name = "Organization") +
+  theme(axis.text.y = element_text(size = 13),
+        axis.title.y = element_text(size = 13),
+        axis.text.x = element_text(size = 13), 
+        axis.title.x = element_text(size = 13),
+        text = element_text(size = 13),
+        legend.position = "bottom")+
+  labs(title = "PAM",y = "Total ($/USD)", x = "Project Year")
 
-
+plot1_pb <- ggplot(data = v1_pb) +
+  geom_bar(aes(x = year, y = total, fill = org), position = "dodge", stat= "identity") +
+  theme_minimal() +
+  scale_fill_manual(values = c("agency"=pb_palette[5],
+                               "univ_lab" = pb_palette[8]),
+                    labels = c("agency" = "Wildlife Agency",
+                               "univ_lab" = "University Lab"),
+                    name = "Organization") +
+  theme(axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 13), 
+        axis.title.x = element_text(size = 13),
+        text = element_text(size = 13),
+        legend.position = "bottom")+
+  labs(title = "Playback", x = "Project Year")
 
 
 # Visualization 2: each method across years regardless of organization ####
@@ -58,8 +74,8 @@ v2 <- cost_dat %>% group_by(method, year) %>% summarize(total = sum(value))
 
 plot2 <- ggplot(data = v2) +
   geom_bar(aes(x = year, y = total, fill = method), position = "dodge", stat= "identity") +
-  scale_fill_manual(values = c("pb"=palette_8[3],
-                               "pam" = palette_8[2]),
+  scale_fill_manual(values = c("pb"=pb_palette[4],
+                               "pam" = d_palette[4]),
                     labels = c("pb" = "Playback",
                                "pam" = "PAM")) +
   theme_minimal() +
@@ -77,8 +93,8 @@ ggplot(data = v3) +
 # without facet wrapping
 plot_items <- ggplot(data = v3) +
   geom_bar(aes(x = item, y = total, fill = method), position = "dodge", stat = "identity") + 
-  scale_fill_manual(values = c("pb"=palette_8[3],
-                               "pam" = palette_8[2]),
+  scale_fill_manual(values = c("pb"=pb_palette[4],
+                               "pam" = d_palette[3]),
                     labels = c("pb" = "Playback",
                                "pam" = "PAM"),
                     guide = "none") +
@@ -92,8 +108,8 @@ plot_items <- ggplot(data = v3) +
 v4 <- cost_dat %>% filter(item == "hours") %>% group_by(method, year) %>% summarize(total = sum(value))
 plot_hours <- ggplot(data = v4) +
   geom_bar(aes(x = year, y = total, fill = method), position = "dodge", stat = "identity") +
-  scale_fill_manual(values = c("pb"=palette_8[3],
-                               "pam" = palette_8[2]),
+  scale_fill_manual(values = c("pb"=pb_palette[4],
+                               "pam" = d_palette[3]),
                     labels = c("pb" = "Playback",
                                "pam" = "PAM"),
                     name = "Method") +
@@ -109,12 +125,12 @@ plot_hours <- ggplot(data = v4) +
 
 
 #### Export graphics you want #####
-
-jpeg("./Deliverables/HabChap_CostVisualizations/Cost_byOrgMethod2.jpeg", width=600, height=400)
-plot1
+final1 <- plot1_pam | plot1_pb
+jpeg("./Deliverables/HabChap_CostVisualizations/Cost_byOrgMethod4.jpeg", width=600, height=400)
+final1
 dev.off()
 # Combine hours and split apart costs into one
 final2 <- plot_items | plot_hours
-jpeg("./Deliverables/HabChap_CostVisualizations/HrsYear_CostSupplies_byMethod.jpeg", width=600, height=400)
+jpeg("./Deliverables/HabChap_CostVisualizations/HrsYear_CostSupplies_byMethod3.jpeg", width=600, height=400)
 final2 
 dev.off()

@@ -227,7 +227,7 @@ cat("
   ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Model_Structure_Files/JAGS_ARUMod4.txt")
 ```
 
-```{R Run Model, eval= FALSE, results = FALSE}
+```{R Run Model, eval= TRUE, results = FALSE}
 fit_4 <- jags(data = jags_data, 
                  model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Model_Structure_Files/JAGS_ARUMod4.txt",
                  parameters.to.save = c("a0", "b0", "b1", "b1Q", "b3", "b4", "b5","b6", "SSEsim","SSEobs","p_val"),
@@ -239,12 +239,12 @@ fit_4 <- jags(data = jags_data,
 beep(sound = 3)
 ```
 
-```{R Save Model, eval = FALSE, echo = FALSE}
+```{R Save Model, eval = TRUE, echo = FALSE}
 saveRDS(fit_4, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Models_Ran_Outputs/MetChap_ARUMod4.Rdata")
 ```
 
 ### Model outputs: 
-```{R, echo = FALSE}
+```{R, eval = FALSE, echo = FALSE}
 fit_4 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Models_Ran_Outputs/MetChap_ARUMod4.Rdata")
 ```
 ```{R}
@@ -265,7 +265,7 @@ print(paste0("P value is:",round(fit_4$mean$p_val, 2)))
 
 ### Evaluate Posterior Distribution
 
-```{R Create Violin Plots, echo = FALSE}
+```{R Create Density Plots, echo = FALSE}
 # Plot posterior distribution
 chains_m <- jags_df(fit_4)
 # Select the chains for our covariates of interest
@@ -346,6 +346,36 @@ p_star <- round(1 - (1 - p)^n, 4)
 print(paste0("Estimate for cumulative ARU detection probability:",p_star))
 ```
 
+
+
+# Extract WAIC as a comparison
+
+```{R Extract WAIC}
+# Extract samples from the posterior
+f_s <- jags.samples(fit_4$model,
+                           c("WAIC","deviance"),
+                           type = "mean",
+                           n.iter = 5000,
+                           n.burnin = 1000,
+                           n.thin = 2)
+beep()
+# Duplicate WAIC samples - the WAIC is the posterior mean for that sample?
+f_s$p_waic <- f_s$WAIC
+# Calculate a new waic by adding the waic plus the deviance
+f_s$waic_calc <- f_s$deviance + f_s$p_waic
+# Create a new vector of the sum across each array (sum WAIC, sum deviance, sum p_waic, and sum waic_calc)
+tmp <- sapply(f_s, sum)
+# Pull out the sum of the WAIC we calculated and the p_waic we duplicated
+waic_f <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
+# Calculate the standard error for WAIC
+f_waic_se <- sd(f_s$waic_calc)/(sqrt(length(f_s$waic_calc)))
+
+waic_f
+f_waic_se
+```
+
+
+
 How does this compare with the sites that also had playback surveys?
 ```{R Double Observer Method}
 # how does this line up with our naive estimates of how many sites had detections on ARU vs PB?
@@ -377,4 +407,5 @@ print(paste0("Naive detection estimate (%) for ARU surveys:", naivedet_aru))
 print(paste0("Naive detection estimate (%) for playback surveys: ", naivedet_pb))
 # what would the value for occupancy with playbacks be if we corrected it by the detection?
 ```
+
 

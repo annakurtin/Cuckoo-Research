@@ -1,4 +1,4 @@
-##### Arrange Methods Chapter Plots ####
+##### Arrange Habitat Chapter Plots ####
 library(ggplot2)
 library(patchwork)
 source("./R_Scripts/5_Visualization/Habitat_Chapter/CreatePlots_PosteriorDist_OccLinMod.R")

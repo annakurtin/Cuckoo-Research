@@ -13,7 +13,7 @@ Covariates to include:
 
 I'm going to try to remove the state submodel and only focus on the detection process. 
 
-Should I add the quadratic effect of date?
+Change for this model: No quadratic effect of date!!! 
 
 *Effective sample size for this data* 33 * 3 = 66. So we can have a maximum of about 5-6 parameters to fit the model. 
 

@@ -11,8 +11,7 @@ Covariattes to include:
 * date, temperature (Based on Johnson and Benson 2022)
 * noise (Johnson and Benson 2023)
 
-I'm going to try to remove the state submodel and only focus on the detection process. Last model had a very poor p value so I'm going to try to remove the quadratic effect of date and see if this performs better.
-
+This is the same model structure as model 3 I'm pretty sure - no quadratic effect of date. 
 
 
 *Effective sample size for this data* 33 * 3 = 66. So we can have a maximum of about 5-6 parameters to fit the model. 

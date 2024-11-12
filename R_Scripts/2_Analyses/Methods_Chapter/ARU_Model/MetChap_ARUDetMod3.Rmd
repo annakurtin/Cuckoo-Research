@@ -63,7 +63,7 @@ get_na <- function(x){(max(which(!is.na(x))))}
 miss <- apply(detections, 1, get_na)
 ```
 
-```{R Look at Covariance, warnings = FALSE, eval =FALSE, echo = FALSE}
+```{R Look at Covariance, warnings = FALSE, eval = TRUE, echo = FALSE}
 # Pivot this data long to be able to compare 
 dates <- select(det_dat, site_id, 21:26)
 dates_long <- dates %>% pivot_longer(cols = c(start_date_s1,
@@ -122,7 +122,7 @@ corrgram(covs_long, order=TRUE, lower.panel=panel.cor,
 # Reformat your long data
 lon2 <- covs_long %>% separate(site_survey, into = c("site_id","survey"), sep = "_") %>% select(-survey) %>% group_by(site_id) %>% summarize(date_avg = mean(date, na.rm = TRUE), db_avg = mean(db, na.rm = TRUE), effort_avg = mean(effort, na.rm = TRUE))
 # pull out veg values
-veg <- select(det_dat, site_id, veg_density_avg_scaled)
+veg <- select(det_dat, site_id, veg_density_avg_scaled, aru)
 # combine them for comparison
 covs2 <- left_join(lon2, veg, by = "site_id")
 covs2 <- covs2 %>% select(-date_avg)
@@ -217,10 +217,10 @@ cat("
   ", file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Model_Structure_Files/JAGS_ARUMod3.txt")
 ```
 
-```{R Run Model, eval= FALSE, results = FALSE}
+```{R Run Model, eval= TRUE, results = FALSE}
 fit_3 <- jags(data = jags_data, 
                  model.file = "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Model_Structure_Files/JAGS_ARUMod3.txt",
-                 parameters.to.save = c("a0", "b0", "b1", "b3", "b4", "b5", "p_val"),
+                 parameters.to.save = c("a0", "b0", "b1", "b3", "b4", "b5", "SSEsim","SSEobs","p_val"),
                  n.iter = 10000, 
                  n.burnin = 5000, 
                  n.chains = 3,
@@ -229,12 +229,15 @@ fit_3 <- jags(data = jags_data,
 beep(sound = 3)
 ```
 
-```{R Save Model, eval = FALSE, echo = FALSE}
+```{R Save Model, eval = TRUE, echo = FALSE}
 saveRDS(fit_3, "C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Models_Ran_Outputs/MetChap_ARUMod3.Rdata")
 ```
 
-```{R}
+```{R, eval = FALSE}
 fit_3 <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Methods_Chapter/ARU_Model/Models_Ran_Outputs/MetChap_ARUMod3.Rdata")
+```
+
+```{R Look at Model Outputs}
 summary(fit_3)
 tracedens_jags(fit_3, parmfrow = c(3,3))
 ```
@@ -242,3 +245,34 @@ tracedens_jags(fit_3, parmfrow = c(3,3))
 This is giving the same results as detection model 4 for the habitat chapter. So it looks like it was the effect of adding the quadratic effect. Why are these affecting each other? Could it be because the parameters are colinear??
 
 
+```{R Make Inference on P Value, echo = FALSE}
+plot(fit_3$sims.list$SSEobs,fit_3$sims.list$SSEsim,xlab="SSEobs",ylab="SSEsim")
+abline(0,1,lwd = 2, col = "red")
+print(paste0("P value is:",round(fit_3$mean$p_val, 2)))
+```
+
+# Extract WAIC as a comparison
+
+```{R Extract WAIC}
+# Extract samples from the posterior
+f_s <- jags.samples(fit_3$model,
+                           c("WAIC","deviance"),
+                           type = "mean",
+                           n.iter = 5000,
+                           n.burnin = 1000,
+                           n.thin = 2)
+beep()
+# Duplicate WAIC samples - the WAIC is the posterior mean for that sample?
+f_s$p_waic <- f_s$WAIC
+# Calculate a new waic by adding the waic plus the deviance
+f_s$waic_calc <- f_s$deviance + f_s$p_waic
+# Create a new vector of the sum across each array (sum WAIC, sum deviance, sum p_waic, and sum waic_calc)
+tmp <- sapply(f_s, sum)
+# Pull out the sum of the WAIC we calculated and the p_waic we duplicated
+waic_f <- round(c(waic = tmp[["waic_calc"]], p_waic = tmp[["p_waic"]]),1)
+# Calculate the standard error for WAIC
+f_waic_se <- sd(f_s$waic_calc)/(sqrt(length(f_s$waic_calc)))
+
+waic_f
+f_waic_se
+```

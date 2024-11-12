@@ -62,7 +62,10 @@ c_palette <- cp_all(10)
 pp_all <- colorRampPalette(c("#0C5424","#169A42","#C0F6D2"))
 p_palette <- pp_all(10)
 
-
+# Playback palette
+#pb_col <- c("#23175D","#2A1B70","#312083", "#422FA0", "#5641C1", "#725ED7", "#9586E1", "#B3A9EA", "#C2B9EE", "#D1CAF2")
+pb_all <- colorRampPalette(c("#23175D","#332288","#614AD2","#B0A5E9","#D1CAF2"))
+pb_palette <- pb_all(10)
 # Could add on YBCU if wanted
 
 
