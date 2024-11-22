@@ -67,7 +67,7 @@ pb_pnumsurveys <- ggplot(data = pb_pstars_long, aes(x = num_surveys, y = cumulat
   theme_minimal() +  
   theme(axis.text.x = element_text(angle = 0, hjust = 1)) + # Adjust text angle and position
   stat_summary(fun.y="median", geom="point", color = pb_palette[1], size = 5) +
-  annotate("label", x = 9.5, y = 0.1, label = "C", 
+  annotate("label", x = 9.5, y = 0.1, label = "", 
            size = 6, color = "black", fill = "white", 
            label.size = 0) +
   # Adjust axis labels
@@ -78,9 +78,13 @@ pb_pnumsurveys <- ggplot(data = pb_pstars_long, aes(x = num_surveys, y = cumulat
 
 
 #pb_pnumsurveys
-
-
-
+# Old color: 
+"#B75F4A"
+"#B24300"
+"#23175D"
+"#B3A9EA"
+"#23175D" "#2A1B70" "#312083" "#422FA0" "#5641C1" "#725ED7" "#9586E1" "#B3A9EA" "#C2B9EE"
+[10] "#D1CAF2"
 
 
 # Gravy yard (spooky) ######

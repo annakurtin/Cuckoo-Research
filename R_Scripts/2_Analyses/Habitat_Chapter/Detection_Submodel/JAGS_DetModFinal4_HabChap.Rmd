@@ -373,22 +373,22 @@ print(paste0("psi:", psi))
 p_hat <- round(plogis(habdet$q50$b0), 3)
 print(paste0("p hat:", p_hat))
 
-b1 <- round(plogis(habdet$q50$b1), 3)
+b1 <- round(plogis(habdet$q50$b0 + habdet$q50$b1), 3)
 print(paste0("veg density:", b1))
 
-b2 <- round(plogis(habdet$q50$b2), 3)
+b2 <- round(plogis(habdet$q50$b0 + habdet$q50$b2), 3)
 print(paste0("background noise:", b2))
 
-b3 <- round(plogis(habdet$q50$b3), 3)
+b3 <- round(plogis(habdet$q50$b0 + habdet$q50$b3), 3)
 print(paste0("survey effort:", b3))
 
-b4 <- round(plogis(habdet$q50$b4), 3)
+b4 <- round(plogis(habdet$q50$b0 + habdet$q50$b4), 3)
 print(paste0("date:", b4))
 
-b4Q <- round(plogis(habdet$q50$b4Q), 3)
+b4Q <- round(plogis(habdet$q50$b0 + habdet$q50$b4Q), 3)
 print(paste0("quadratic effect of date:", b4Q))
 
-b5 <- round(plogis(habdet$q50$b5), 3)
+b5 <- round(plogis(habdet$q50$b0 + habdet$q50$b5), 3)
 print(paste0("aru type:", b5))
 ```
 

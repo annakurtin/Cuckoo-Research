@@ -152,7 +152,7 @@ dense_int_pb <- ggplot(data = posterior_b0, aes(x = b0)) +
         axis.text.y = element_blank(),
         axis.title.x = element_text(size = 13),
         axis.title.y = element_text(size = 13)) +
-  annotate("label", x = -5, y = 1, label = "A", 
+  annotate("label", x = -5, y = 1, label = "C", 
            size = 6, color = "black", fill = "white", 
            label.size = 0) +
   # Adjust axis titles
@@ -211,7 +211,7 @@ dense_det_pb <- ggplot(data = chains_beta_l, aes(x = values, y = parameter, fill
   annotate("label", x = 4, y = 5, label = "F Statistic:", 
            size = 6, color = "black", fill = "white", 
            label.size = 0) +
-  annotate("label", x = -5, y = 5, label = "B", 
+  annotate("label", x = -5, y = 5, label = "D", 
            size = 6, color = "black", fill = "white", 
            label.size = 0) +
   # Turn off the legend

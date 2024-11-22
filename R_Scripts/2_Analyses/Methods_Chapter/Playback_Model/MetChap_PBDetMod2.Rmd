@@ -43,7 +43,7 @@ y_{ij} \sim Bernoulli(p_{ij} * z_i)
 $$
 
 $$
-p_{ij} = \beta_0 + \beta_{1}*date + \beta_{2}^2*date + \beta_3*wind + \beta_4*temp
+p_{ij} = \beta_0 + \beta_{1}*date + \beta_{2}*date^2 + \beta_3*wind + \beta_4*temperature
 $$
 
 **Handling of NAs:** omission for detections, imputation for habitat covariates
@@ -331,6 +331,16 @@ ggplot(data = chains_beta_l, aes(x = values, y = parameter, fill = parameter)) +
   # Add median values as text labels
   geom_text(data = f_stat, aes(x = 3.5, y = parameter, label = median_value), color = "black", hjust = -3) 
 ```
+
+```{R Posterior Estimates}
+b1 <- round(plogis(fit_2$q50$b0 + fit_2$q50$b4), 3)
+print(paste0("date:", b1))
+
+b1Q <- round(plogis(fit_2$q50$b0 + fit_2$q50$b1Q), 3)
+print(paste0("quadratic effect of date:", b1Q))
+```
+
+Detection probability estimates:
 
 ```{R Look at Detection Prob Estimates, echo = FALSE}
 p <- round(plogis(fit_2$q50$b0),4)

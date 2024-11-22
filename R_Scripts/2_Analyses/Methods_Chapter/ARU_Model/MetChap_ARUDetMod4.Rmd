@@ -27,7 +27,7 @@ y_{ij} \sim Bernoulli(p_{ij} * z_i)
 $$
 
 $$
-p_{ij} = \beta_0 + \beta_{1}*date + \beta_{2}^2 * date + \beta_{3} * avg db + \beta_{4}*effort + \beta_{5}*vegdense + \beta_{6}*aru model
+p_{ij} = \beta_0 + \beta_{1}*date + \beta_{2} * date^2 + \beta_{3} * avg db + \beta_{4}*effort + \beta_{5}*vegdense + \beta_{6}*aru model
 $$
 
 **Handling of NAs:** Skip for missing detections, imputate missing covariates.
@@ -333,7 +333,13 @@ ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)
   geom_text(data = f_stat, aes(x = 3.5, y = parameter, label = median_value), color = "black", hjust = 2) 
 ```
 
+```{R Posterior Estimates}
+b1 <- round(plogis(fit_4$q50$b0 + fit_4$q50$b4), 3)
+print(paste0("date:", b1))
 
+b1Q <- round(plogis(fit_4$q50$b0 + fit_4$q50$b1Q), 3)
+print(paste0("quadratic effect of date:", b1Q))
+```
 
 Detection probability estimates:
 
