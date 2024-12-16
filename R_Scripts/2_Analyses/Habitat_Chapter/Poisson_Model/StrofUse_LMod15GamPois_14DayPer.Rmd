@@ -397,13 +397,13 @@ print(paste0("Percent Shrub/Early Successional Core: ", b4))
 b5 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta5), 3)
 print(paste0("Conifer Spp Richness: ", b5))
 
-b6 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta5), 3)
+b6 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta6), 3)
 print(paste0("Recording Days at Site: ", b6))
 
-b7 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta6), 3)
+b7 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta7), 3)
 print(paste0("Background Noise at Site: ", b7))
 
-b8 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta7), 3)
+b8 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta8), 3)
 print(paste0("Veg Density at Site: ", b8))
 ```
 

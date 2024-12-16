@@ -7,9 +7,9 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 # read in data
 cost_dat <- read.csv("./Data/Cost_Analysis/Cost_Summary_Totals_v4.csv")
 
-
 # Visualization 1: bar graph with year on x axis, cost on y, bar by organization for each method ####
 v1_pam <- cost_dat %>% filter(method == "pam") %>% filter(! item == "hours") %>% group_by(org, year) %>% summarize(total = sum(value))
+
 v1_pb <- cost_dat %>% filter(method == "pb") %>% filter(! item == "hours")%>% group_by(org, year) %>% summarize(total = sum(value))
 plot1_pam <- ggplot(data = v1_pam) +
   geom_bar(aes(x = year, y = total, fill = org), position = "dodge", stat= "identity") +
@@ -92,7 +92,6 @@ sites_total <- 40
 years <- 3
 combined_sites <- sites_total * years
 by_site <- v3 %>% group_by(method) %>% summarize(cost_persite = sum(total)/combined_sites)
-
 
 # without facet wrapping
 plot_items <- ggplot(data = v3) +
