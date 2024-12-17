@@ -378,14 +378,23 @@ ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)
 ```
 
 ```{R}
+# Just median value not plogis 
+
 # Transform median values from posterior distribution into probability 
 c <- round(plogis(fit_gpois$q50$beta0), 3)
 print(paste0("Baseline number of calls during breeding season: ", c))
 
 b1 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta1), 3)
+# test
+#b1 <- round(plogis(fit_gpois$q50$beta0) + plogis(fit_gpois$q50$beta1), 3)
 print(paste0("Percent Canopy Landscape: ", b1))
 
 b2 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta2), 3)
+# difference between just plogis of interecept and plogis of intercept and covariate 
+# just raw median values give us the info we want 
+# test
+hist(fit_gpois$sims.list$beta2)
+b2 <- round(plogis(fit_gpois$q50$beta0) + plogis(fit_gpois$q50$beta2), 3)
 print(paste0("Percent Shrub/Early Successional Landscape: ", b2))
 
 b3 <- round(plogis(fit_gpois$q50$beta0 + fit_gpois$q50$beta3), 3)

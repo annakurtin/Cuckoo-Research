@@ -39,6 +39,9 @@ $$
 
 
 **Detection Model**: with 5 covariates
+$$
+y_{ij} \sim Bernoulli(p_{ij} * Z_i)
+$$
 
 $$
 y_{ij} \sim Bernoulli(p_{ij}| \beta_1, \beta_2, \beta_3, \beta_4, \beta_{4Q}, \beta_{5})
