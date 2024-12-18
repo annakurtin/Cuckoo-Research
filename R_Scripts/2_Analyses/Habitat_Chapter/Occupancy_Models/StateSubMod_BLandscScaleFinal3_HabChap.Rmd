@@ -31,6 +31,10 @@ $$
 $$ \alpha_1: \text{Landscape percent canopy cover}$$
 
 $$ \alpha_2: \text{Landscape percent cover of shrub/early successional area}$$
+Formula for manuscript
+$$ 
+logit(\psi_i) = \alpha_0 + \alpha_1 * \text{% canopy cover}_i + \alpha_2 * \text{% SES cover}_i
+$$
 
 **Detection Model**: with 5 covariates (from detection submodel final 2)
 

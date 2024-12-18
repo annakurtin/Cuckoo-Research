@@ -1,4 +1,4 @@
-#### Create Function to Plot Predicted Effects ####
+#### Create Function to Plot Predicted Effects - Occupancy Model ####
 
 # Inputs:
 # covariate: the name of the covariate of interest within the dataframe you're using (character)
@@ -10,7 +10,7 @@
 # ylabel: the label to write on the y axis, created with a default so it can be removed if wanted for the multipanel figures
 # color_pal: the color palette and the color within the palette to use to visualize 
 
-vis_effect <- function(covariate, dataframe, model,intercept, model_cov, xlabel,ylabel = "Intensity of Use", color_pal){
+vis_effect_occ <- function(covariate, dataframe, model,intercept, model_cov, xlabel,ylabel = "Probability of Use", color_pal){
   ## Test
   # covariate <- "pct_can_landsc"
   # dataframe <- us_dat_occ
@@ -27,10 +27,11 @@ vis_effect <- function(covariate, dataframe, model,intercept, model_cov, xlabel,
   mean_cov <- mean(dataframe[[covariate]], na.rm = TRUE)
   #return(mean_cov)
   sd_cov <- sd(dataframe[[covariate]], na.rm = TRUE)
+  min_cov <- min(dataframe[[covariate]], na.rm = TRUE)
   max_cov <- max(dataframe[[covariate]], na.rm = TRUE)
   
   # Generate data within the range of the covariate
-  predict_dat <- seq(0, max_cov, length.out = 30)
+  predict_dat <- seq(min_cov, max_cov, length.out = 30)
   # Scale generated data
   pd_scale <- (predict_dat - mean_cov)/sd_cov
   
@@ -63,7 +64,7 @@ vis_effect <- function(covariate, dataframe, model,intercept, model_cov, xlabel,
     # Labels and theme adjustments
     labs(x = xlabel, y = ylabel) +
     theme_minimal() +
-    coord_cartesian(ylim = c(0, 1.5)) +
+    coord_cartesian(ylim = c(0, 1)) +
     theme(axis.line = element_line(color = "black", size = 0.8),
           axis.text.x = element_text(size = 13), 
           axis.text.y = element_text(size = 13),

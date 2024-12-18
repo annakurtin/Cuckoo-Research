@@ -4,7 +4,8 @@
 library(tidyverse)
 library(ggplot2)
 source("./R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
-source("./R_Scripts/6_Function_Scripts/Create_Function_Visualize_Predicted_Effects.R")
+source("./R_Scripts/6_Function_Scripts/Create_Function_Visualize_OccPredicted_Effects.R")
+source("./R_Scripts/6_Function_Scripts/Create_Function_Visualize_LMPredicted_Effects.R")
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -31,20 +32,20 @@ us_dat_occ <- read.csv("./Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_U
 us_dat_lm <- read.csv("./Data/Habitat_Model_Covariates/Linear_Model/DaysCalls_14DayPer_HabCovsUNSCALED_22-23_10-30.csv")
 
 #### Detection ####
-pe_detaru <- vis_effect(covariate = "SM_present",
+pe_detaru <- vis_effect_occ(covariate = "SM_present",
                                dataframe = us_dat_occ,
                                model = habdet,
                                intercept = "b0",
                                model_cov = "b5",
-                               xlabel = "SongMeter Present (1/0)",
+                               xlabel = "ARU Type",
                                color_pal = d_palette[10])
 
-pe_detveg <- vis_effect(covariate = "veg_density_avg",
+pe_detveg <- vis_effect_occ(covariate = "veg_density_avg",
                                dataframe = us_dat_occ,
                                model = habdet,
                                 intercept = "b0",
                                model_cov = "b1",
-                               xlabel = "Composite Veg Density",
+                               xlabel = "Vegetation Density",
                                ylabel = NULL,
                                color_pal = d_palette[8])
 #### How to do this with covariates that vary by survey???
@@ -58,34 +59,34 @@ pe_detveg <- vis_effect(covariate = "veg_density_avg",
 
 
 #### Landscape ####
-pe_canlandsc <- vis_effect(covariate = "pct_can_landsc",
+pe_canlandsc <- vis_effect_occ(covariate = "pct_can_landsc",
                               dataframe = us_dat_occ,
                               model = fit_B,
                               intercept = "a0",
                               model_cov = "a1",
-                              xlabel = "% Canopy",
+                              xlabel = "% Canopy Cover",
                               color_pal = l_palette[7])
 
-pe_seslandsc <- vis_effect(covariate = "pct_openshrub_landsc",
+pe_seslandsc <- vis_effect_occ(covariate = "pct_openshrub_landsc",
                               dataframe = us_dat_occ,
                               model = fit_B,
                               intercept = "a0",
                               model_cov = "a2",
-                              xlabel = "% SES",
+                              xlabel = "% SES Cover",
                               ylabel = NULL,
                               color_pal = l_palette[5])
 
 
 #### Core Area ####
-pe_vegcom <- vis_effect(covariate = "veg_sd_resid",
+pe_vegcom <- vis_effect_occ(covariate = "veg_sd_resid",
                            dataframe = us_dat_occ,
                            model = fit_C,
                            intercept = "a0",
                            model_cov = "a4",
-                           xlabel = "Veg Complexity",
+                           xlabel = "Vegetation Complexity",
                            color_pal = c_palette[6])
 
-pe_sesheight <- vis_effect(covariate = "ht_subcan_core",
+pe_sesheight <- vis_effect_occ(covariate = "ht_subcan_core",
                             dataframe = us_dat_occ,
                             model = fit_C,
                             intercept = "a0",
@@ -94,7 +95,7 @@ pe_sesheight <- vis_effect(covariate = "ht_subcan_core",
                             ylabel = NULL,
                             color_pal = c_palette[4])
 
-pe_canheight <- vis_effect(covariate = "ht_can_core",
+pe_canheight <- vis_effect_occ(covariate = "ht_can_core",
                               dataframe = us_dat_occ,
                               model = fit_C,
                               intercept = "a0",
@@ -103,100 +104,101 @@ pe_canheight <- vis_effect(covariate = "ht_can_core",
                               ylabel = NULL,
                               color_pal = c_palette[3])
 
-pe_sescore <- vis_effect(covariate = "pct_openshrub_core",
+pe_sescore <- vis_effect_occ(covariate = "pct_openshrub_core",
                             dataframe = us_dat_occ,
                             model = fit_C,
                             intercept = "a0",
                             model_cov = "a1",
-                            xlabel = "% SES",
+                            xlabel = "% SES Cover",
                             ylabel = NULL,
                             color_pal = c_palette[1])
 
 
 
 ### Point ####
-pe_decid <- vis_effect(covariate = "dtree_spp_rich",
+pe_decid <- vis_effect_occ(covariate = "dtree_spp_rich",
                           dataframe = us_dat_occ,
                           model = fit_A,
                           intercept = "a0",
                           model_cov = "a1",
-                          xlabel = "Decid Spp Richness",
+                          xlabel = "Deciduous Tree Richness",
                           color_pal = p_palette[9])
 
-pe_conif <- vis_effect(covariate = "ctree_spp_rich",
+pe_conif <- vis_effect_occ(covariate = "ctree_spp_rich",
                           dataframe = us_dat_occ,
                           model = fit_A,
                           intercept = "a0",
                           model_cov = "a2",
-                          xlabel = "Conifer Spp Richness",
+                          xlabel = "Conifer Tree Richness",
                           ylabel = NULL,
                           color_pal = p_palette[7])
 
-pe_flood <- vis_effect(covariate = "floodplain_shrub",
+pe_flood <- vis_effect_occ(covariate = "floodplain_shrub",
                           dataframe = us_dat_occ,
                           model = fit_A,
                           intercept = "a0",
                           model_cov = "a3",
-                          xlabel = "Floodplain Shrub Dominated",
+                          xlabel = "Floodplain Shrub",
                           ylabel = NULL,
                           color_pal = p_palette[3])
 
-pe_broadl <- vis_effect(covariate = "broadleaf_shrub",
+pe_broadl <- vis_effect_occ(covariate = "broadleaf_shrub",
                           dataframe = us_dat_occ,
                           model = fit_A,
                           intercept = "a0",
                           model_cov = "a4",
-                          xlabel = "Broadleaf Shrub Dominated",
+                          xlabel = "Broadleaf Shrub",
                           ylabel = NULL,
                           color_pal = p_palette[5])
 
 
-# Add on linear model plots
-pe_lm_vegdense <- vis_effect(covariate = "avg_vegdense",
+
+#### Linear model ####
+pe_lm_vegdense <- vis_effect_lm(covariate = "avg_vegdense",
                                 dataframe = us_dat_lm,
                                 model = fit_gpois,
                                 intercept = "beta0",
                                 model_cov = "beta8",
-                                xlabel = "Composite Veg Density",
+                                xlabel = "Vegetation Density",
                                 color_pal = d_palette[8])
 
-pe_lm_noise <- vis_effect(covariate = "avg_db",
+pe_lm_noise <- vis_effect_lm(covariate = "avg_db",
                                    dataframe = us_dat_lm,
                                    model = fit_gpois,
                                    intercept = "beta0",
                                    model_cov = "beta7",
-                                   xlabel = "Avg Background Noise (dB)",
+                                   xlabel = "Background Noise (dB)",
                                    ylabel = NULL,
                                    color_pal = d_palette[4])
 # This looks weird????
 
-pe_lm_recdays <- vis_effect(covariate = "combined_days_rec",
+pe_lm_recdays <- vis_effect_lm(covariate = "combined_days_rec",
                                   dataframe = us_dat_lm,
                                   model = fit_gpois,
                                   intercept = "beta0",
                                   model_cov = "beta6",
-                                  xlabel = "Combined Days Recorded at Site",
+                                  xlabel = "Recording Days",
                                   ylabel = NULL,
                                   color_pal = d_palette[6])
 
-pe_lm_conif <- vis_effect(covariate = "ctree_spp_rich",
+pe_lm_conif <- vis_effect_lm(covariate = "ctree_spp_rich",
                                   dataframe = us_dat_lm,
                                   model = fit_gpois,
                                   intercept = "beta0",
                                   model_cov = "beta5",
-                                  xlabel = "Conifer Spp Richness",
+                                  xlabel = "Conifer Tree Richness",
                                   color_pal = p_palette[7])
 
-pe_lm_sescore <- vis_effect(covariate = "pct_openshrub_core",
+pe_lm_sescore <- vis_effect_lm(covariate = "pct_openshrub_core",
                                 dataframe = us_dat_lm,
                                 model = fit_gpois,
                                 intercept = "beta0",
                                 model_cov = "beta4",
-                                xlabel = "% SES Core Area",
+                                xlabel = "% SES Core",
                                 ylabel = NULL,
                                 color_pal = c_palette[1])
 
-pe_lm_vegcom <- vis_effect(covariate = "veg_sd_resid",
+pe_lm_vegcom <- vis_effect_lm(covariate = "veg_sd_resid",
                                   dataframe = us_dat_lm,
                                   model = fit_gpois,
                                   intercept = "beta0",
@@ -205,7 +207,7 @@ pe_lm_vegcom <- vis_effect(covariate = "veg_sd_resid",
                                   ylabel = NULL,
                                   color_pal = c_palette[6])
 
-pe_lm_seslansc <- vis_effect(covariate = "pct_openshrub_landsc",
+pe_lm_seslansc <- vis_effect_lm(covariate = "pct_openshrub_landsc",
                                  dataframe = us_dat_lm,
                                  model = fit_gpois,
                                  intercept = "beta0",
@@ -213,7 +215,7 @@ pe_lm_seslansc <- vis_effect(covariate = "pct_openshrub_landsc",
                                  xlabel = "% SES Landscape",
                                  color_pal = l_palette[5])
 
-pe_lm_canlansc <- vis_effect(covariate = "pct_can_landsc",
+pe_lm_canlansc <- vis_effect_lm(covariate = "pct_can_landsc",
                                    dataframe = us_dat_lm,
                                    model = fit_gpois,
                                    intercept = "beta0",

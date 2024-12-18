@@ -59,6 +59,15 @@ $$\beta_4Q: \text{quadratic effect of start date}$$
 
 $$\beta_5: \text{aru type present at site}$$
 
+Formula for paper:
+
+$$
+logit(p_{ij}) = \beta_0 + \beta_1*\text{vegetation density}_i + \beta_2 * \text{background noise}_i + \beta_3 * \text{survey effort}_{ij} + \beta_4 * \text{Julian date}_{ij} + \beta_5 * \text{Julian date}^2_{ij} + \beta_6 * \text{ARU type}_i
+$$
+
+$$
+logit(\psi_i) = \alpha_0
+$$
 
 
 **Handling of NAs:** imputation for missing habitat parameters, skipping missing detection data

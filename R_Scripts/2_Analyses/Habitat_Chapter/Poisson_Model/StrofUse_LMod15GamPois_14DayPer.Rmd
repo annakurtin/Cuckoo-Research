@@ -38,7 +38,9 @@ $$ \beta_6: \text{Combined days of recording}$$
 $$ \beta_7: \text{SNR of Sound Files} $$
 
 $$ \beta_8: \text{vegetation density} $$
-
+$$ 
+\log(\gamma_i) = \beta_0 + \beta_1 * \text{% canopy cover landscape}_i + \beta_2 * \text{% SES cover landscape}_i + \beta_3 * \text{vegetation complexity core}_i + \beta_4 * \text{% SES cover core}_i + \beta_5 * \text{conifer tree richness point}_i + \beta_6 * \text{recording days}_i + \beta_7 * \text{background noise}_i + \beta_8 * \text{vegetation density}
+$$
 **Handling of NAs (only occur in habitat covs):** Imputation for habitat covariates (sites with no LiDAR data), no missing data for call counts
 
 
