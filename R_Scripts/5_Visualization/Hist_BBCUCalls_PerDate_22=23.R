@@ -30,7 +30,7 @@ all23 %>% ggplot() +
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 60,hjust = 1))
 # Save plot
-ggsave("./Deliverables/MetChap_ModelVisualizations/Hist_2023_CallsOverTime.jpg", width=10, height=6)
+#ggsave("./Deliverables/MetChap_ModelVisualizations/Hist_2023_CallsOverTime.jpg", width=10, height=6)
 
 
 # How can I also represent the number of the total that were on?

@@ -26,10 +26,10 @@ fit_A <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace
 # Linear model
 fit_gpois <- readRDS("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/2_Analyses/Habitat_Chapter/Poisson_Model/Models_Ran_Outputs/LMod15_GamPois_14Day.Rdata")
 
-
 # Read in unscaled data
 us_dat_occ <- read.csv("./Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_UNSCALED_10-25.csv")
 us_dat_lm <- read.csv("./Data/Habitat_Model_Covariates/Linear_Model/DaysCalls_14DayPer_HabCovsUNSCALED_22-23_10-30.csv")
+
 
 #### Detection ####
 pe_detaru <- vis_effect_occ(covariate = "SM_present",

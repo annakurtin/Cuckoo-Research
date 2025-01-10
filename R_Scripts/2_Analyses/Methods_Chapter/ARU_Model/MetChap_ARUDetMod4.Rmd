@@ -27,7 +27,7 @@ y_{ij} \sim Bernoulli(p_{ij} * z_i)
 $$
 
 $$
-p_{ij} = \beta_0 + \beta_{1}*date + \beta_{2} * date^2 + \beta_{3} * avg db + \beta_{4}*effort + \beta_{5}*vegdense + \beta_{6}*aru model
+logit(p_{ij}) = \beta_0 + \beta_{1}*\text{Julian date}_{ij} + \beta_{2} * \text{Julian date}^2_{ij} + \beta_{3} * \text{backgound noise}_{i} + \beta_{4}*\text{survey effort}_{ij} + \beta_{5}* \text{vegetation density}_{i} + \beta_{6}* \text{ARU model}_i
 $$
 
 **Handling of NAs:** Skip for missing detections, imputate missing covariates.

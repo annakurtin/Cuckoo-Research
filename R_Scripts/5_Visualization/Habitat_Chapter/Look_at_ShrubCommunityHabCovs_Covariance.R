@@ -2,13 +2,13 @@
 
 packages <- c("tidyverse","janitor","ggplot2","corrgram","ggpubr")
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/6_Function_Scripts/Install_Load_Packages.R")
+library(ggpubr)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 
 # Read in data
 all_dat <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Habitat_Model_Covariates/HabChap_DetOccCovsFull_SCALED_7-30.csv")
 
 
-palette_5[2]
 
 create_shrub_fig <- function(dataframe, shrub, ylab){
   # % Canopy Cover
@@ -71,6 +71,7 @@ plot(all_dat)
 
 
 # Look at the spatial distribuiton of these covariates
+source("./R_Scripts/6_Function_Scripts/Create_Site_SamplingColumn_fromPointID.R")
 coords <- read.csv("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/Data/Monitoring_Points/2023_AllMonitoringPoints_forLiDARExtractions.csv")
 coords <- coords %>% filter(aru == "Y", point_loc == "actual") %>% create_site_col() %>% group_by(site_id) %>% summarize(long = mean(long), lat = mean((lat)))
 all_dat <- all_dat %>% mutate(bbcu = if_any(2:7,  ~ replace_na(. == 1, FALSE))) %>% mutate(bbcu = as.numeric(bbcu))

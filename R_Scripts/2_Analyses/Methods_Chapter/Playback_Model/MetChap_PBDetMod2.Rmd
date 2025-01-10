@@ -41,11 +41,15 @@ Detection model with six covariates:
 $$
 y_{ij} \sim Bernoulli(p_{ij} * z_i)
 $$
-
+Equation for manuscript
 $$
 p_{ij} = \beta_0 + \beta_{1}*date + \beta_{2}*date^2 + \beta_3*wind + \beta_4*temperature
 $$
 
+Formula for manuscript
+$$
+logit(p_{ij}) = \beta_0 + \beta_1 * \text{Julian date}_{ij} + \beta_2 * \text{Julian date}^2_{ij} + \beta_3 * \text{wind}_{ij} + \beta_4 * \text{temperature}_{ij}
+$$
 **Handling of NAs:** omission for detections, imputation for habitat covariates
 
 ```{r setup, include=FALSE}
