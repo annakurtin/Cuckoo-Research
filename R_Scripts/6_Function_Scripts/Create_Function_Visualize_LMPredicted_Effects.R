@@ -12,13 +12,13 @@
 
 vis_effect_lm <- function(covariate, dataframe, model,intercept, model_cov, xlabel,ylabel = "Intensity of Use", color_pal){
   ## Test
-  # covariate <- "pct_can_landsc"
+  # covariate <- "veg_sd_resid"
   # dataframe <- us_dat_lm
   # model <-  fit_gpois
-  # model_cov <- "beta1"
+  # model_cov <- "beta3"
   # intercept <- "beta0"
   # ylabel <- "Intensity of Use"
-  # xlabel <- "% Canopy Landscape"
+  # xlabel <- "Veg Complexity"
   # color_pal <- l_palette[7]
   ##
   # Pull out the number of samples from the model
@@ -43,12 +43,12 @@ vis_effect_lm <- function(covariate, dataframe, model,intercept, model_cov, xlab
   for(i in 1:length(pd_scale)){
     # Predict the effect (including the effect of the intercept) of a covariate at a given value
     # we want this to output values between 0 and 14 ish
-    #pred_array[,i] <- plogis(model$sims.list[[intercept]] + model$sims.list[[model_cov]]*pd_scale[i])
+    #pred_array[,i] <- plogis(model$sims.list[[intercept]] + model$sims.list[[model_cov]]*pd_scale[i]) # occupancy 
     pred_array[,i] <- exp(model$sims.list[[intercept]] + model$sims.list[[model_cov]]*pd_scale[i])
     # Pull out the quantiles from the sims list 
     quant_array[,i] <- quantile(pred_array[,i], c(0.025, 0.5,0.975))
   }
-  
+
   # Create a data frame for ggplot
   plot_data <- data.frame(
     predict_dat = predict_dat, # original unscaled data
@@ -66,7 +66,7 @@ vis_effect_lm <- function(covariate, dataframe, model,intercept, model_cov, xlab
     # Labels and theme adjustments
     labs(x = xlabel, y = ylabel) +
     theme_minimal() +
-    scale_y_continuous(limits = c(0,14))+
+    scale_y_continuous(limits = c(0,5))+
     #coord_cartesian(ylim = c(0, 1.5)) +
     theme(axis.line = element_line(color = "black", size = 0.8),
           axis.text.x = element_text(size = 13), 
@@ -75,6 +75,7 @@ vis_effect_lm <- function(covariate, dataframe, model,intercept, model_cov, xlab
           axis.title.y = element_text(size = 13))
 }
 
+# if we're plotting num calls by veg complexity, make max 10 if not leave whatever displays best
 
 #### Old Functions #####
 # Create a function for visualization
