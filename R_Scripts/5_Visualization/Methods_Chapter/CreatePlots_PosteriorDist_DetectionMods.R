@@ -52,14 +52,14 @@ dense_int_aru <- ggplot(data = posterior_b0, aes(x = b0)) +
 
 # Rename them to be more interpretable
 colnames(chains_viol) <- c("Date",
-                           "Date*Date",
+                           "Date²",
                            "Noise",
                            "Effort",
                            "Veg Density",
                            "SM Present")
 # Pivot this longer so that we can visualize it
 chains_viol_long <- chains_viol %>% pivot_longer(cols = c("Date",
-                                                          "Date*Date",
+                                                          "Date²",
                                                           "Noise",
                                                           "Effort",
                                                           "Veg Density",
@@ -67,7 +67,7 @@ chains_viol_long <- chains_viol %>% pivot_longer(cols = c("Date",
 # Order values
 chains_viol_long$parameter <- factor(chains_viol_long$parameter, 
                                      levels = c("Date",
-                                                "Date*Date",
+                                                "Date²",
                                                 "Noise",
                                                 "Effort",
                                                 "Veg Density",
@@ -75,7 +75,7 @@ chains_viol_long$parameter <- factor(chains_viol_long$parameter,
 # Pull out f statistics 
 f_stat <- data.frame(
   parameter = c("Date",
-                "Date*Date",
+                "Date²",
                 "Noise",
                 "Effort",
                 "Veg Density",
@@ -97,7 +97,7 @@ dense_det_aru <- ggplot(data = chains_viol_long, aes(x = values, y = parameter, 
                                "Noise" = d_palette[4],
                                "Effort"=d_palette[6], 
                                "Date" = d_palette[1], 
-                               "Date*Date" = d_palette[3],
+                               "Date²" = d_palette[3],
                                "SM Present" = d_palette[10])) +
   # Remove background color from plots
   theme_minimal() +
@@ -159,21 +159,21 @@ dense_int_pb <- ggplot(data = posterior_b0, aes(x = b0)) +
   labs(y = "Intercept", x = "Posterior Estimate") 
 
 colnames(chains_beta) <- c("Date", 
-                           "Date*Date",
+                           "Date²",
                            "Wind Strength",
                            "Temperature")
 chains_beta_l <- chains_beta %>% pivot_longer(cols = c("Date", 
-                                                       "Date*Date",
+                                                       "Date²",
                                                        "Wind Strength",
                                                        "Temperature"),names_to = "parameter", values_to = "values")
 chains_beta_l$parameter <- factor(chains_beta_l$parameter,levels = c("Date",
-                                                                     "Date*Date",
+                                                                     "Date²",
                                                                      "Wind Strength",
                                                                      "Temperature"))
 
 f_stat <- data.frame(
   parameter = c("Date", 
-                "Date*Date",
+                "Date²",
                 "Wind Strength",
                 "Temperature"),
   median_value = c(round(fit_pb$f$b1,2), 
@@ -188,7 +188,7 @@ dense_det_pb <- ggplot(data = chains_beta_l, aes(x = values, y = parameter, fill
   stat_slabinterval(height = 1.5) +
   # Establish colors
   scale_fill_manual(values = c("Date" = pb_palette[3], 
-                               "Date*Date" = pb_palette[5],
+                               "Date²" = pb_palette[5],
                                "Wind Strength" = pb_palette[7],
                                "Temperature" = pb_palette[9])) +
   # Remove background color from plots

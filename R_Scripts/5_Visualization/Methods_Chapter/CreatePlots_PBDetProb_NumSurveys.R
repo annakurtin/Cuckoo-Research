@@ -78,13 +78,13 @@ pb_pnumsurveys <- ggplot(data = pb_pstars_long, aes(x = num_surveys, y = cumulat
 
 
 #pb_pnumsurveys
-# Old color: 
-"#B75F4A"
-"#B24300"
-"#23175D"
-"#B3A9EA"
-"#23175D" "#2A1B70" "#312083" "#422FA0" "#5641C1" "#725ED7" "#9586E1" "#B3A9EA" "#C2B9EE"
-[10] "#D1CAF2"
+# # Old color: 
+# "#B75F4A"
+# "#B24300"
+# "#23175D"
+# "#B3A9EA"
+# "#23175D" "#2A1B70" "#312083" "#422FA0" "#5641C1" "#725ED7" "#9586E1" "#B3A9EA" "#C2B9EE"
+# [10] "#D1CAF2"
 
 
 # Gravy yard (spooky) ######
