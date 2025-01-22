@@ -39,7 +39,7 @@ $$ \beta_7: \text{SNR of Sound Files} $$
 
 $$ \beta_8: \text{vegetation density} $$
 $$ 
-\log(\gamma_i) = \beta_0 + \beta_1 * \text{% canopy cover landscape}_i + \beta_2 * \text{% SES cover landscape}_i + \beta_3 * \text{vegetation complexity core}_i + \beta_4 * \text{% SES cover core}_i + \beta_5 * \text{conifer tree richness point}_i + \beta_6 * \text{recording days}_i + \beta_7 * \text{background noise}_i + \beta_8 * \text{vegetation density}
+\log(\gamma_i) = \beta_0 + \beta_1 * \text{% canopy cover landscape}_i + \beta_2 * \text{% SES cover landscape}_i + \beta_3 * \text{vegetation complexity core}_i + \beta_4 * \text{% SES cover core}_i + \beta_5 * \text{conifer tree richness point}_i + \beta_6 * \text{recording days}_i + \beta_7 * \text{background noise}_i + \beta_8 * \text{vegetation density}_i
 $$
 **Handling of NAs (only occur in habitat covs):** Imputation for habitat covariates (sites with no LiDAR data), no missing data for call counts
 
@@ -379,9 +379,28 @@ ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)
   geom_text(data = f_stat, aes(x = 3.5, y = parameter, label = median_value), color = "black", hjust = .6) 
 ```
 
-```{R}
+## Median effects
+```{R median effect sizes}
 # Just median value not plogis 
+print(paste0("Percent Canopy Landscape: ", fit_gpois$q50$beta1))
 
+print(paste0("Percent Shrub/Early Successional Landscape: ", fit_gpois$q50$beta2))
+
+print(paste0("Veg SD Residuals: ", fit_gpois$q50$beta3))
+
+print(paste0("Percent Shrub/Early Successional Core: ", fit_gpois$q50$beta4))
+
+print(paste0("Conifer Spp Richness: ", fit_gpois$q50$beta5))
+
+print(paste0("Recording Days at Site: ", fit_gpois$q50$beta6))
+
+print(paste0("Background Noise at Site: ", fit_gpois$q50$beta7))
+
+print(paste0("Veg Density at Site: ", fit_gpois$q50$beta8))
+```
+
+
+```{R Median effects OLD, include = FALSE}
 # Transform median values from posterior distribution into probability 
 c <- round(plogis(fit_gpois$q50$beta0), 3)
 print(paste0("Baseline number of calls during breeding season: ", c))

@@ -321,7 +321,16 @@ ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)
 
 ### Median Effect Sizes: 
 
-```{R Transform Parameter Estimates}
+When you transform it to the probability scale and add the effect of the intercept, you are reporting it for interpretation in the real world scale. To just report the output from the model, you can report just the median value from the model. For reporting the results in my manuscript, I used the medians directly from the model like below. 
+
+```{R Report Effect Sizes}
+print(paste0("% Canopy landscape:", fit_BF2$q50$a1))
+
+print(paste0("% Shrub/Early Successional Cover:", fit_BF2$q50a2))
+
+```
+
+```{R Transform Parameter Estimates OLD, include =FALSE}
 # Transform median values from posterior distribution into probability 
 psi <- round(plogis(fit_BF2$q50$a0), 3)
 print(paste0("psi:", psi))
@@ -333,6 +342,7 @@ a1 <- round(plogis(fit_BF2$q50$a0 + fit_BF2$q50$a1), 3)
 print(paste0("% Canopy landscape:", a1))
 # hist(plogis(fit_BF2$sims.list$a0 + fit_BF2$sims.list$a1), col = palette_8[8], main = "Posterior Dist for Canopy Cover", xlab = "Occupancy probability", xlim = c(0, 1))
 # abline(v = a1)
+# fit_BF2$q50$a1
 
 a2 <- round(plogis(fit_BF2$q50$a0 + fit_BF2$q50$a2), 3)
 print(paste0("% Shrub/Early Successional Cover:", a2))
