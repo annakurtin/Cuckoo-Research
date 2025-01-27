@@ -1,9 +1,9 @@
 ##### Arrange Methods Chapter Plots ####
 library(ggplot2)
 library(patchwork)
-source("./R_Scripts/5_Visualization/Methods_Chapter/CreatePlots_PosteriorDist_DetectionMods.R")
-source("./R_Scripts/5_Visualization/Methods_Chapter/CreatePlots_PBDetProb_NumSurveys.R")
-source("./R_Scripts/5_Visualization/Methods_Chapter/CreatePlots_PAMDetProb_NumSurveys.R")
+source("./R_Scripts/5_Visualization/Methods_Chapter/CreatePlots_PosteriorDist_DetectionMods_Manuscript.R")
+source("./R_Scripts/5_Visualization/Methods_Chapter/CreatePlots_PBDetProb_NumSurveys_Manuscript.R")
+source("./R_Scripts/5_Visualization/Methods_Chapter/CreatePlots_PAMDetProb_NumSurveys_Manuscript.R")
 
 
 # Arrange ARU plots

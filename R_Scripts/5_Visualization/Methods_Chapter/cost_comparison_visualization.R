@@ -62,13 +62,19 @@ plot1_pb <- ggplot(data = v1_pb) +
 #         legend.position = "bottom")
 
 # Visualization 2: each method across years regardless of organization ####
-#v2 <- cost_dat %>% group_by(method, year) %>% summarize(total = sum(value))
+v2 <- cost_dat %>% group_by(method, year) %>% summarize(total = sum(value))
 # Try this with facet_wrap
-# ggplot(data = v2) +
-#   geom_bar(aes(x = year, y = total), fill = cuckoo_palette[1], stat= "identity") +
-#   theme_minimal() +
-#   labs(y = "Total (USD)") + 
-#   facet_wrap(~ method, ncol = 2)
+costperyear_fortalk <- ggplot(data = v2) +
+  geom_bar(aes(x = year, y = total,fill = method), stat= "identity") +
+  facet_wrap(~ method, ncol = 2, labeller = as_labeller(c("pb" = "Playback", "pam" = "PAM"))) +
+  scale_fill_manual(values = c("pb"=pb_palette[4],
+                               "pam" = d_palette[4]),
+                    labels = c("pb" = "Playback",
+                               "pam" = "PAM"),
+                    guide = "none") +
+   theme_minimal() +
+   labs(y = "Total (USD)", x = "Year") +
+  theme(text = element_text(size = 20))
 
 # plot2 <- ggplot(data = v2) +
 #   geom_bar(aes(x = year, y = total, fill = method), position = "dodge", stat= "identity") +
@@ -77,7 +83,8 @@ plot1_pb <- ggplot(data = v1_pb) +
 #                     labels = c("pb" = "Playback",
 #                                "pam" = "PAM")) +
 #   theme_minimal() +
-#   labs(y = "Total (USD $)", x = "Project Year") 
+#   labs(y = "Total (USD $)", x = "Project Year") +
+#   theme(text = element_text(size = 20))
 
 
 
@@ -104,7 +111,20 @@ plot_items <- ggplot(data = v3) +
   theme_minimal()+
   labs(y = "Total (USD $)", x = NULL) +
   theme(text = element_text(size = 15))
-
+# Create a version of this for the talk
+plot_items_fortalk <- ggplot(data = v3) +
+  geom_bar(aes(x = method, y = total, fill = item), position = "stack", stat = "identity") + 
+  # use palette_8 3,5 ,6 
+  scale_fill_manual(values = c("salary"=palette_8[3],
+                               "supplies" = palette_8[5],
+                               "transportation" = palette_8[6]),
+                    labels = c("salary" = "Salary",
+                               "supplies" = "Supplies",
+                               "transportation" = "Transportation")) +
+  scale_x_discrete(labels = c("pam" = "PAM", "pb" = "Playback"))+
+  theme_minimal()+
+  labs(y = "Total (USD $)", x = NULL, fill = "Cost Type") +
+  theme(text = element_text(size = 20))
 
 
 # Visualization 4: hours by method and year
@@ -140,4 +160,17 @@ ggsave("./Deliverables/MetChap_CostVisualizations/Cost_byOrgMethod_v4_11-21.jpeg
 final2 <- plot_items | plot_hours
 jpeg("./Deliverables/MetChap_CostVisualizations/HrsYear_CostSupplies_byMethod_v4_11-21.jpeg", width=800, height=400)
 final2 
+dev.off()
+
+# Export image for thesis talk
+final3 <- plot_items_fortalk
+jpeg("./Deliverables/MetChap_CostVisualizations/CostSuppliesStacked_byMethod_1-27.jpeg", width=800, height=400)
+final3
+dev.off()
+
+final4 <- costperyear_fortalk
+# Trying to make the graphic cleaner - this didn't seem to make a difference
+# ggsave("./Deliverables/MetChap_CostVisualizations/CostCombined_byYear_1-27.jpg", width=12, height=8)
+jpeg("./Deliverables/MetChap_CostVisualizations/CostCombined_byYear_1-27.jpeg", width=800, height=400)
+final4
 dev.off()
