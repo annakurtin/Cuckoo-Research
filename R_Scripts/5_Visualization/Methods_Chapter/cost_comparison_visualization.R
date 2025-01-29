@@ -76,6 +76,30 @@ costperyear_fortalk <- ggplot(data = v2) +
    labs(y = "Total (USD)", x = "Year") +
   theme(text = element_text(size = 20))
 
+v_pam <- v2 %>% filter(method == "pam")
+costperyear_PAM <- ggplot(data = v_pam) +
+  geom_bar(aes(x = factor(year), y = total), fill = d_palette[4], stat= "identity") +
+  theme_minimal() +  
+  scale_y_continuous(limits = c(0,35000))+
+  scale_x_discrete(labels = c("1","2","3"))+
+  labs(y = "Total (USD)", x = "Year",title = "PAM") +
+  theme(text = element_text(size = 20))
+jpeg("./Deliverables/MetChap_CostVisualizations/CostByYear_PAM_1-28.jpeg", width=800, height=400)
+costperyear_PAM
+dev.off()
+
+v_pb <- v2 %>% filter(method == "pb")
+costperyear_PB <- ggplot(data = v_pb) +
+  geom_bar(aes(x = factor(year), y = total), fill = pb_palette[4], stat= "identity") +
+  theme_minimal() +
+  scale_y_continuous(limits = c(0,35000))+
+  scale_x_discrete(labels = c("1","2","3"))+
+  labs(y = "Total (USD)", x = "Year", title = "Playback") +
+  theme(text = element_text(size = 20))
+jpeg("./Deliverables/MetChap_CostVisualizations/CostByYear_PB_1-28.jpeg", width=800, height=400)
+costperyear_PB
+dev.off()
+
 # plot2 <- ggplot(data = v2) +
 #   geom_bar(aes(x = year, y = total, fill = method), position = "dodge", stat= "identity") +
 #   scale_fill_manual(values = c("pb"=pb_palette[4],
