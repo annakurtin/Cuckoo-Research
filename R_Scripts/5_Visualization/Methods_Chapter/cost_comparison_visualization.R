@@ -7,6 +7,7 @@ source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Re
 # read in data
 cost_dat <- read.csv("./Data/Cost_Analysis/Cost_Summary_Totals_v4.csv")
 
+
 # Visualization 1: bar graph with year on x axis, cost on y, bar by organization for each method ####
 v1_pam <- cost_dat %>% filter(method == "pam") %>% filter(! item == "hours") %>% group_by(org, year) %>% summarize(total = sum(value))
 
@@ -45,21 +46,6 @@ plot1_pb <- ggplot(data = v1_pb) +
   scale_y_continuous(limits = c(0,20000), breaks = c(0,5000,10000,15000,20000))+
   labs(title = "Playback", x = "Project Year")
 
-#v1 <- cost_dat %>% group_by(org, method, year) %>% summarize(total = sum(value))
-# #OLD: Try this with facet_wrap
-# plot1 <- ggplot(data = v1) +
-#   geom_bar(aes(x = year, y = total, fill = org), position = "dodge", stat= "identity") +
-#   scale_fill_manual(values = c("agency"=palette_8[3],
-#                                "univ_lab" = palette_8[8]),
-#                     labels = c("agency" = "Wildlife Agency",
-#                                "univ_lab" = "University Lab"),
-#                     name = "Organization") +
-#   theme_minimal() +
-#   labs(y = "Total (USD $)", x = "Project Year") +  
-#   facet_wrap(~ method, ncol = 2, labeller =  labeller(method = c("pam" = "PAM",
-#                                                                  "pb" = "Playback")))+
-#   theme(text = element_text(size = 15),
-#         legend.position = "bottom")
 
 # Visualization 2: each method across years regardless of organization ####
 v2 <- cost_dat %>% group_by(method, year) %>% summarize(total = sum(value))
@@ -82,9 +68,9 @@ costperyear_PAM <- ggplot(data = v_pam) +
   theme_minimal() +  
   scale_y_continuous(limits = c(0,35000))+
   scale_x_discrete(labels = c("1","2","3"))+
-  labs(y = "Total (USD)", x = "Year",title = "PAM") +
-  theme(text = element_text(size = 20))
-jpeg("./Deliverables/MetChap_CostVisualizations/CostByYear_PAM_1-28.jpeg", width=800, height=400)
+  labs(y = "Total (USD $)", x = "Year",title = "PAM") +
+  theme(text = element_text(size = 25))
+jpeg("./Deliverables/MetChap_CostVisualizations/CostByYear_PAM_1-28.jpeg", width=400, height=500)
 costperyear_PAM
 dev.off()
 
@@ -94,31 +80,17 @@ costperyear_PB <- ggplot(data = v_pb) +
   theme_minimal() +
   scale_y_continuous(limits = c(0,35000))+
   scale_x_discrete(labels = c("1","2","3"))+
-  labs(y = "Total (USD)", x = "Year", title = "Playback") +
-  theme(text = element_text(size = 20))
-jpeg("./Deliverables/MetChap_CostVisualizations/CostByYear_PB_1-28.jpeg", width=800, height=400)
+  labs(y = "Total (USD $)", x = "Year", title = "Playback") +
+  theme(text = element_text(size = 25))
+jpeg("./Deliverables/MetChap_CostVisualizations/CostByYear_PB_1-28.jpeg", width=400, height=500)
 costperyear_PB
 dev.off()
 
-# plot2 <- ggplot(data = v2) +
-#   geom_bar(aes(x = year, y = total, fill = method), position = "dodge", stat= "identity") +
-#   scale_fill_manual(values = c("pb"=pb_palette[4],
-#                                "pam" = d_palette[4]),
-#                     labels = c("pb" = "Playback",
-#                                "pam" = "PAM")) +
-#   theme_minimal() +
-#   labs(y = "Total (USD $)", x = "Project Year") +
-#   theme(text = element_text(size = 20))
 
+# Visualization 3: components of each method ####
+v3 <- cost_dat %>% filter(!item == "hours") %>% group_by(method, item) %>% summarize(total = sum(value))%>%
+  mutate(item = tools::toTitleCase(item))
 
-
-# Visualization 3: components of each method
-v3 <- cost_dat %>% filter(!item == "hours") %>% group_by(method, item) %>% summarize(total = sum(value))
-# ggplot(data = v3) +
-#   geom_bar(aes(x = item, y = total), fill = cuckoo_palette[1], stat = "identity") + 
-#   labs(y = "Total (USD $)") + 
-#   facet_wrap(~ method, nrow = 2)
-# Trying another visualization - cost per site
 sites_total <- 40
 years <- 3
 combined_sites <- sites_total * years
@@ -131,27 +103,27 @@ plot_items <- ggplot(data = v3) +
                                "pam" = d_palette[3]),
                     labels = c("pb" = "Playback",
                                "pam" = "PAM"),
-                    guide = "none") +
+                    name = "Method",) +
   theme_minimal()+
-  labs(y = "Total (USD $)", x = NULL) +
-  theme(text = element_text(size = 15))
+  labs(y = "Total (USD $)", x = "Cost Type") +
+  theme(text = element_text(size = 13),
+        legend.position = "bottom",
+        legend.justification = "right")
+
 # Create a version of this for the talk
 plot_items_fortalk <- ggplot(data = v3) +
   geom_bar(aes(x = method, y = total, fill = item), position = "stack", stat = "identity") + 
   # use palette_8 3,5 ,6 
-  scale_fill_manual(values = c("salary"=palette_8[3],
-                               "supplies" = palette_8[5],
-                               "transportation" = palette_8[6]),
-                    labels = c("salary" = "Salary",
-                               "supplies" = "Supplies",
-                               "transportation" = "Transportation")) +
+  scale_fill_manual(values = c("Salary"=palette_8[3],
+                               "Supplies" = palette_8[5],
+                               "Transportation" = palette_8[6])) +
   scale_x_discrete(labels = c("pam" = "PAM", "pb" = "Playback"))+
   theme_minimal()+
   labs(y = "Total (USD $)", x = NULL, fill = "Cost Type") +
   theme(text = element_text(size = 20))
 
 
-# Visualization 4: hours by method and year
+# Visualization 4: hours by method and year ####
 v4 <- cost_dat %>% filter(item == "hours") %>% group_by(method, year) %>% summarize(total = sum(value))
 plot_hours <- ggplot(data = v4) +
   geom_bar(aes(x = year, y = total, fill = method), position = "dodge", stat = "identity") +
@@ -159,10 +131,10 @@ plot_hours <- ggplot(data = v4) +
                                "pam" = d_palette[3]),
                     labels = c("pb" = "Playback",
                                "pam" = "PAM"),
-                    name = "Method") +
+                    name = "Method", guide = "none") +
   theme_minimal() +
   labs(y = "Personnel Hours", x = "Project Year")  +
-  theme(text = element_text(size = 15),
+  theme(text = element_text(size = 13),
         legend.position = "bottom",
         legend.justification = "left")
 
@@ -177,12 +149,14 @@ plot_hours <- ggplot(data = v4) +
 # Why are these not high quality?????
 #### Export graphics you want #####
 final1 <- plot1_pam | plot1_pb
+jpeg("./Deliverables/MetChap_CostVisualizations/Cost_byOrgMethod_v4_2-27.jpeg", width=800, height=400)
 final1
-ggsave("./Deliverables/MetChap_CostVisualizations/Cost_byOrgMethod_v4_11-21.jpeg", width=800, height=400)
+dev.off()
+#ggsave("./Deliverables/MetChap_CostVisualizations/Cost_byOrgMethod_v4_2-27.jpeg", width=800, height=400)
 
 # Combine hours and split apart costs into one
 final2 <- plot_items | plot_hours
-jpeg("./Deliverables/MetChap_CostVisualizations/HrsYear_CostSupplies_byMethod_v4_11-21.jpeg", width=800, height=400)
+jpeg("./Deliverables/MetChap_CostVisualizations/HrsYear_CostSupplies_byMethod_v4_2-27.jpeg", width=800, height=400)
 final2 
 dev.off()
 
@@ -198,3 +172,42 @@ final4 <- costperyear_fortalk
 jpeg("./Deliverables/MetChap_CostVisualizations/CostCombined_byYear_1-27.jpeg", width=800, height=400)
 final4
 dev.off()
+
+
+
+
+#### Gravy graveyard (for code)#####
+#v1 <- cost_dat %>% group_by(org, method, year) %>% summarize(total = sum(value))
+# #OLD: Try this with facet_wrap
+# plot1 <- ggplot(data = v1) +
+#   geom_bar(aes(x = year, y = total, fill = org), position = "dodge", stat= "identity") +
+#   scale_fill_manual(values = c("agency"=palette_8[3],
+#                                "univ_lab" = palette_8[8]),
+#                     labels = c("agency" = "Wildlife Agency",
+#                                "univ_lab" = "University Lab"),
+#                     name = "Organization") +
+#   theme_minimal() +
+#   labs(y = "Total (USD $)", x = "Project Year") +  
+#   facet_wrap(~ method, ncol = 2, labeller =  labeller(method = c("pam" = "PAM",
+#                                                                  "pb" = "Playback")))+
+#   theme(text = element_text(size = 15),
+#         legend.position = "bottom")
+
+# plot2 <- ggplot(data = v2) +
+#   geom_bar(aes(x = year, y = total, fill = method), position = "dodge", stat= "identity") +
+#   scale_fill_manual(values = c("pb"=pb_palette[4],
+#                                "pam" = d_palette[4]),
+#                     labels = c("pb" = "Playback",
+#                                "pam" = "PAM")) +
+#   theme_minimal() +
+#   labs(y = "Total (USD $)", x = "Project Year") +
+#   theme(text = element_text(size = 20))
+
+
+## After line creating v3
+# Rename the items in this data to be capitalized
+# ggplot(data = v3) +
+#   geom_bar(aes(x = item, y = total), fill = cuckoo_palette[1], stat = "identity") + 
+#   labs(y = "Total (USD $)") + 
+#   facet_wrap(~ method, nrow = 2)
+# Trying another visualization - cost per site

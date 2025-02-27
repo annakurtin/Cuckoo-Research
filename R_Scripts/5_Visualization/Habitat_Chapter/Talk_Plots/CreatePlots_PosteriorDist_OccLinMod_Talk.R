@@ -275,14 +275,17 @@ dense_pointocc <- ggplot(data = chains_viol_long, aes(x = values, y = parameter,
 
 
 
+
+
+
 ## Linear Model 
 # Plot posterior distribution
 chains_gpois <- jags_df(fit_gpois)
 # Select the chains for our covariates of interest
 chains_viol <- chains_gpois %>% select(beta1,beta2,beta3,beta4, beta5, beta6, beta7, beta8)
 # Rename them to be more interpretable
-colnames(chains_viol) <- c("% Canopy Landscape",
-                           "% SES Landscape",
+colnames(chains_viol) <- c("% Canopy Cover",
+                           "% Open Shrub (Landscape)",
                            "Vegetation Complexity Core",
                            "% SES Core",
                            "Conifer Tree Richness Point",

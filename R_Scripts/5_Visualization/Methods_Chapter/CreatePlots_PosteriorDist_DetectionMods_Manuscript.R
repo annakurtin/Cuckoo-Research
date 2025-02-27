@@ -139,7 +139,7 @@ posterior_b0 <- chains_2 %>% select(b0)
 # Create the slab interval plot
 dense_int_pb <- ggplot(data = posterior_b0, aes(x = b0)) + 
   # Plot posterior distributions
-  stat_slabinterval(fill = pb_palette[2]) +
+  stat_slabinterval(fill = pb_palette[4]) +
   # Add a line for 0 to show overlap of posterior
   geom_vline(xintercept = 0) +
   # Remove background color from plots
@@ -186,11 +186,11 @@ f_stat <- data.frame(
 dense_det_pb <- ggplot(data = chains_beta_l, aes(x = values, y = parameter, fill = parameter)) + 
   # Plot posterior distributions
   stat_slabinterval(height = 1.5) +
-  # Establish colors
-  scale_fill_manual(values = c("Julian Date" = pb_palette[3], 
-                               "Julian Date²" = pb_palette[5],
+  # Establish colors - originally 3,5,7,9
+  scale_fill_manual(values = c("Julian Date" = pb_palette[4], 
+                               "Julian Date²" = pb_palette[6],
                                "Wind Strength" = pb_palette[7],
-                               "Temperature" = pb_palette[9])) +
+                               "Temperature" = pb_palette[8])) +
   # Remove background color from plots
   theme_minimal() +
   # Adjust axis titles

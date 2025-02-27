@@ -128,7 +128,8 @@ text(x = par("usr")[2] - 0.1, y = par("usr")[4] - 0.4, "B", col = "white", cex =
 dev.off()
 
 # Multipanel figure - white background for talk
-jpeg("./Deliverables/Spectrograms/TalkMultiFig_RattleCoo_XC241134.jpg", width=700, height=400)
+# Added in labels to this for use in manuscript
+jpeg("./Deliverables/Spectrograms/PBPAMD2_MultiFig_RattleCoo_XC241134.jpg", width=700, height=400)
 # Make a multipanel figure
 par(mfrow = c(2,1))
 par(mar = c(2, 4.1, 3, 1))
@@ -147,6 +148,8 @@ spectro(bbcu,
         cexlab = 1.25,
         cexaxis = 1,
         palette=reverse.gray.colors.1) 
+# Add A label
+text(x = par("usr")[2] - 0.1, y = par("usr")[4] - 0.4, "A", col = "black", cex = 1.5)
 # set margins
 par(mar = c(4, 4.1, 1, 1))
 spectro(bbcu,
@@ -163,4 +166,6 @@ spectro(bbcu,
         cexlab = 1.25,
         cexaxis = 1,
         palette=reverse.gray.colors.1)
+# add B label
+text(x = par("usr")[2] - 0.1, y = par("usr")[4] - 0.4, "B", col = "black", cex = 1.5)
 dev.off()

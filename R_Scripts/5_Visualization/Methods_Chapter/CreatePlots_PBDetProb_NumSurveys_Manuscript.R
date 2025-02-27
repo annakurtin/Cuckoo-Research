@@ -63,7 +63,7 @@ pb_pstars_long$num_surveys <- as.factor(pb_pstars_long$num_surveys)
 pb_pnumsurveys <- ggplot(data = pb_pstars_long, aes(x = num_surveys, y = cumulative_p)) + 
   geom_violin(fill = pb_palette[8]) +  # Violin plot with your custom color
   geom_hline(yintercept = aru_p_star, linetype = "dashed", linewidth = 1.5, color = d_palette[3]) +  # Dashed line for pstar
-  labs(x = "Number of Surveys", y = "Cumulative Detection Probability") + 
+  labs(x = "Number of Playback Survey Rounds", y = "Cumulative Detection Probability") + 
   theme_minimal() +  
   theme(axis.text.x = element_text(angle = 0, hjust = 1)) + # Adjust text angle and position
   stat_summary(fun.y="median", geom="point", color = pb_palette[1], size = 5) +

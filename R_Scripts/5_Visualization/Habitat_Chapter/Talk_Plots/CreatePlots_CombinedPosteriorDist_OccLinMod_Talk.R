@@ -154,58 +154,49 @@ ggsave("./Deliverables/HabChap_ModelVisualizations/DensityPlot_AllOccMods.jpg", 
 
 
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Linear Model #####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-
-
-
-
-
-
-
-
-
-## Linear Model 
-# Plot posterior distribution
 chains_gpois <- jags_df(fit_gpois)
 # Select the chains for our covariates of interest
 chains_viol <- chains_gpois %>% select(beta1,beta2,beta3,beta4, beta5, beta6, beta7, beta8)
 # Rename them to be more interpretable
-colnames(chains_viol) <- c("% Canopy Landscape",
-                           "% SES Landscape",
-                           "Vegetation Complexity Core",
-                           "% SES Core",
-                           "Conifer Tree Richness Point",
+colnames(chains_viol) <- c("% Canopy Cover",
+                           "% Open Shrub (Landscape)",
+                           "Vegetation Complexity",
+                           "% Open Shrub (Core Area)",
+                           "Conifer Tree Richness",
                            "Recording Days",
                            "Background Noise",
                            "Vegetation Density")
 # Pivot this longer so that we can visualize it
-chains_viol_long <- chains_viol %>% pivot_longer(cols = c("% Canopy Landscape",
-                                                          "% SES Landscape",
-                                                          "Vegetation Complexity Core",
-                                                          "% SES Core",
-                                                          "Conifer Tree Richness Point",
+chains_viol_long <- chains_viol %>% pivot_longer(cols = c("% Canopy Cover",
+                                                          "% Open Shrub (Landscape)",
+                                                          "Vegetation Complexity",
+                                                          "% Open Shrub (Core Area)",
+                                                          "Conifer Tree Richness",
                                                           "Recording Days",
                                                           "Background Noise",
                                                           "Vegetation Density"),names_to = "parameter", values_to = "values")
 # Specify the desired order of the y-axis values
 chains_viol_long$parameter <- factor(chains_viol_long$parameter, 
-                                     levels = c("% Canopy Landscape",
-                                                "% SES Landscape",
-                                                "Vegetation Complexity Core",
-                                                "% SES Core",
-                                                "Conifer Tree Richness Point",
+                                     levels = c("% Canopy Cover",
+                                                "% Open Shrub (Landscape)",
+                                                "Vegetation Complexity",
+                                                "% Open Shrub (Core Area)",
+                                                "Conifer Tree Richness",
                                                 "Recording Days",
                                                 "Background Noise",
                                                 "Vegetation Density"))
 
 f_stat <- data.frame(
   parameter = c(
-    "% Canopy Landscape",
-    "% SES Landscape",
-    "Vegetation Complexity Core",
-    "% SES Core",
-    "Conifer Tree Richness Point",
+    "% Canopy Cover",
+    "% Open Shrub (Landscape)",
+    "Vegetation Complexity",
+    "% Open Shrub (Core Area)",
+    "Conifer Tree Richness",
     "Recording Days",
     "Background Noise",
     "Vegetation Density"),
@@ -225,22 +216,22 @@ dense_lm <- ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill 
   # Plot posterior distributions
   stat_slabinterval(height = 1.5) +
   # Establish colors
-  scale_fill_manual(values = c("% Canopy Landscape"=l_palette[7], 
-                               "% SES Landscape" = l_palette[5],
-                               "Vegetation Complexity Core"=c_palette[6], 
-                               "% SES Core" = c_palette[1],
-                               "Conifer Tree Richness Point" = p_palette[7],
+  scale_fill_manual(values = c("% Canopy Cover"=l_palette[7], 
+                               "% Open Shrub (Landscape)" = l_palette[5],
+                               "Vegetation Complexity"=c_palette[6], 
+                               "% Open Shrub (Core Area)" = c_palette[1],
+                               "Conifer Tree Richness" = p_palette[7],
                                "Recording Days" = d_palette[6],
                                "Background Noise" = d_palette[4],
-                               "Vegetation Density" = d_palette[8])) +
+                               "Vegetation Density" = d_palette[8])) + 
   # Remove background color from plots
   theme_minimal() +
   # Adjust axis titles
   labs(y = NULL, x = "Posterior Estimate") +
   # Adjust axis labels
-  theme(axis.text.x = element_text(size = 13), 
-        axis.text.y = element_text(size = 13), hjust = 1,
-        axis.title.x = element_text(size = 13)) +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 20), hjust = 1,
+        axis.title.x = element_text(size = 20)) +
   # Adjust x axis
   scale_x_continuous(limits = c(-3.5,3), breaks = seq(-3,2, by = 1)) +
   # Add a line for 0 to show overlap of posterior
@@ -254,72 +245,9 @@ dense_lm <- ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill 
            size = 6, color = "black", fill = "white", 
            label.size = 0) +
   # Turn off the legend
-  guides(fill = FALSE)
+  guides(fill = "none")
 
 
-
-#### gRAVE YARD #####
-# Create the slab interval plot
-dense_coreocc <- ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)) + 
-  # Plot posterior distributions
-  stat_slabinterval(height = 1.5) +
-  # Establish colors
-  scale_fill_manual(values = c("% SES Cover"= c_palette[1], 
-                               "Canopy Height" = c_palette[3], 
-                               "SES Height" = c_palette[4], 
-                               "Vegetation Complexity" = c_palette[6])) +
-  # Remove background color from plots
-  theme_minimal() +
-  # Adjust axis titles
-  labs(y = NULL, x = "Posterior Estimate") +
-  # Adjust axis labels
-  theme(axis.text.x = element_text(size = 13), 
-        axis.text.y = element_text(size = 13), hjust = 1,
-        axis.title.x = element_text(size = 13)) +
-  # Adjust x axis
-  scale_x_continuous(limits = c(-3.5,3), breaks = seq(-3,2, by = 1)) +
-  # Add a line for 0 to show overlap of posterior
-  geom_vline(xintercept = 0, color = "gray12", linetype = "dashed") +
-  # Add median values as text labels
-  geom_label(data = f_stat, 
-             aes(x = 2.75, y = parameter, label = median_value),
-             size = 6, color = "black", 
-             hjust = .6, label.size = 0) +
-  annotate("label", x = 2.75, y = 4.75, label = "F Statistic:", 
-           size = 6, color = "black", fill = "white", 
-           label.size = 0) +
-  # Turn off the legend
-  guides(fill = FALSE)
-
-
-# Create the slab interval plot
-dense_pointocc <- ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill = parameter)) + 
-  # Plot posterior distributions
-  stat_slabinterval(height = 1.5) +
-  # Establish colors
-  scale_fill_manual(values = c("Deciduous Tree Richness"=p_palette[9], 
-                               "Conifer Tree Richness" = p_palette[7],
-                               "Floodplain Shrub"=p_palette[3], 
-                               "Broadleaf Shrub" = p_palette[5])) +
-  # Remove background color from plots
-  theme_minimal() +
-  # Adjust axis titles
-  labs(y = NULL, x = "Posterior Estimate") +
-  # Adjust axis labels
-  theme(axis.text.x = element_text(size = 13), 
-        axis.text.y = element_text(size = 13), hjust = 1,
-        axis.title.x = element_text(size = 13)) +
-  # Adjust x axis
-  scale_x_continuous(limits = c(-3.5,3), breaks = seq(-3,2, by = 1)) +
-  # Add a line for 0 to show overlap of posterior
-  geom_vline(xintercept = 0, color = "gray12", linetype = "dashed") +
-  # Add median values as text labels
-  geom_label(data = f_stat, 
-             aes(x = 2.75, y = parameter, label = median_value),
-             size = 6, color = "black", 
-             hjust = .6, label.size = 0) +
-  annotate("label", x = 2.75, y = 4.75, label = "F Statistic:", 
-           size = 6, color = "black", fill = "white", 
-           label.size = 0) +
-  # Turn off the legend
-  guides(fill = FALSE)
+# Save this
+dense_lm
+ggsave("./Deliverables/HabChap_ModelVisualizations/DensityPlot_LinMod_forTalk.jpg", width=8, height=6)
