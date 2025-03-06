@@ -274,8 +274,9 @@ dense_pointocc <- ggplot(data = chains_viol_long, aes(x = values, y = parameter,
   guides(fill = FALSE)
 
 
-
-## Linear Model 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Linear Model Density Plots ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Plot posterior distribution
 chains_gpois <- jags_df(fit_gpois)
 # Select the chains for our covariates of interest
@@ -285,7 +286,7 @@ colnames(chains_viol) <- c("% Canopy Landscape",
                            "% SES Landscape",
                            "Vegetation Complexity Core",
                            "% SES Core",
-                           "Conifer Tree Richness Point",
+                           "Conifer Tree Richness Core",
                            "Recording Days",
                            "Background Noise",
                            "Vegetation Density")
@@ -294,7 +295,7 @@ chains_viol_long <- chains_viol %>% pivot_longer(cols = c("% Canopy Landscape",
                                                           "% SES Landscape",
                                                           "Vegetation Complexity Core",
                                                           "% SES Core",
-                                                          "Conifer Tree Richness Point",
+                                                          "Conifer Tree Richness Core",
                                                           "Recording Days",
                                                           "Background Noise",
                                                           "Vegetation Density"),names_to = "parameter", values_to = "values")
@@ -304,7 +305,7 @@ chains_viol_long$parameter <- factor(chains_viol_long$parameter,
                                                 "% SES Landscape",
                                                 "Vegetation Complexity Core",
                                                 "% SES Core",
-                                                "Conifer Tree Richness Point",
+                                                "Conifer Tree Richness Core",
                                                 "Recording Days",
                                                 "Background Noise",
                                                 "Vegetation Density"))
@@ -315,7 +316,7 @@ f_stat <- data.frame(
     "% SES Landscape",
     "Vegetation Complexity Core",
     "% SES Core",
-    "Conifer Tree Richness Point",
+    "Conifer Tree Richness Core",
     "Recording Days",
     "Background Noise",
     "Vegetation Density"),
@@ -339,7 +340,7 @@ dense_lm <- ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill 
                                "% SES Landscape" = l_palette[5],
                                "Vegetation Complexity Core"=c_palette[6], 
                                "% SES Core" = c_palette[1],
-                               "Conifer Tree Richness Point" = p_palette[7],
+                               "Conifer Tree Richness Core" = p_palette[7],
                                "Recording Days" = d_palette[6],
                                "Background Noise" = d_palette[4],
                                "Vegetation Density" = d_palette[8])) +

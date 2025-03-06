@@ -53,6 +53,8 @@ fwpr7_recper <- combine_csv_files("./Data/ARU_Recording_Periods/2023_FWPR7_Acous
 umbel_recper <- combine_csv_files("./Data/ARU_Recording_Periods/2023_UMBEL_Acoustic_Files")
 # combine them into one dataframe
 recper_23 <- rbind(fwpr5_recper,fwpr6_recper,fwpr7_recper,umbel_recper) %>% clean_names()
+# write this
+#write.csv(recper_23, "./Data/ARU_Recording_Periods/2023_AllCollabs_Acoustic_Files.csv", row.names = FALSE)
 recper_23_used <- recper_23 %>% filter(correct_size == "Y")
 unique(recper_23_used$time) # This still has the MISO-032 points in it
 # Clean this up a bit

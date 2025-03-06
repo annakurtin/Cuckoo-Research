@@ -186,7 +186,7 @@ pe_lm_conif <- vis_effect_lm(covariate = "ctree_spp_rich",
                                   model = fit_gpois,
                                   intercept = "beta0",
                                   model_cov = "beta5",
-                                  xlabel = "Conifer Tree Richness",
+                                  xlabel = "Conifer Tree Richness Core",
                                   color_pal = p_palette[7])
 
 pe_lm_sescore <- vis_effect_lm(covariate = "pct_openshrub_core",
@@ -203,7 +203,7 @@ pe_lm_vegcom <- vis_effect_lm(covariate = "veg_sd_resid",
                                   model = fit_gpois,
                                   intercept = "beta0",
                                   model_cov = "beta3",
-                                  xlabel = "Vegetation Complexity",
+                                  xlabel = "Vegetation Complexity Core",
                                   ylabel = NULL,
                                   color_pal = c_palette[6])
 
