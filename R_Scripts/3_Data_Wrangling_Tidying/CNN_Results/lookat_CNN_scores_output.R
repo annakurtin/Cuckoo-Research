@@ -10,4 +10,4 @@ load_packages(packages)
 ##### Input Which Site and Working Directory ####################
 ##### 2020 Model 1.0 #####
 # load in the 2020 classifier scores
-cnn_23 <- fread("./Data/Classifier_Results/Raw_Data/2023_UMBEL_topclips_petSiteperPeriod_annotations_v2_FINAL_AK_4-11.csv")
+cnn_23 <- fread("F:/CNN_Classifier_Files/Model_2.0/Model_Scores/predictions_epoch-10_opso-0-10-1-2023_UMBEL_Audio.csv")
