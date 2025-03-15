@@ -1,8 +1,8 @@
 #### Create Function to Plot Predicted Effects - Occupancy Model ####
 
 # Inputs:
-# covariate: the name of the covariate of interest within the dataframe you're using (character)
-# datafram: the unscaled data to use to plot the predicted effects (dataframe)
+# covariate: the name of the covariate of interest within the dataframe you're using (character of a column name)
+# dataframe: the unscaled data to use to plot the predicted effects (dataframe)
 # model: the JAGS model from which to pull predicted effects (model file)
 # intercept: the name of the intercept within the model
 # model_cov: the name of the parameter within the model that corresponds to the covaraite (character)
