@@ -45,7 +45,7 @@ dense_int_aru <- ggplot(data = posterior_b0, aes(x = b0)) +
         axis.title.x = element_text(size = 13),
         axis.title.y = element_text(size = 13)) +
   # Adjust axis titles
-  labs(y = "Intercept", x = "Posterior Estimate") +
+  labs(y = "Intercept - PAM", x = "Posterior Estimate") +
   annotate("label", x = -5, y = 1, label = "A", 
            size = 6, color = "black", fill = "white", 
            label.size = 0) 
@@ -156,7 +156,7 @@ dense_int_pb <- ggplot(data = posterior_b0, aes(x = b0)) +
            size = 6, color = "black", fill = "white", 
            label.size = 0) +
   # Adjust axis titles
-  labs(y = "Intercept", x = "Posterior Estimate") 
+  labs(y = "Intercept - Playback", x = "Posterior Estimate") 
 
 colnames(chains_beta) <- c("Julian Date", 
                            "Julian Date²",
