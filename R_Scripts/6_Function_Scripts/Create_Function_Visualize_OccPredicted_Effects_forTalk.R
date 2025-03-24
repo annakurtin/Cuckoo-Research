@@ -69,7 +69,8 @@ vis_effect_occ <- function(covariate, dataframe, model,intercept, model_cov, xla
           axis.text.x = element_text(size = 20), 
           axis.text.y = element_text(size = 20),
           axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20))
+          axis.title.y = element_text(size = 20),
+          panel.grid= element_blank())
 }
 
 

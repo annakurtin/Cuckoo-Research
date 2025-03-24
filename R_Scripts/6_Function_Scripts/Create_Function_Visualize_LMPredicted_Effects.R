@@ -72,7 +72,9 @@ vis_effect_lm <- function(covariate, dataframe, model,intercept, model_cov, xlab
           axis.text.x = element_text(size = 13), 
           axis.text.y = element_text(size = 13),
           axis.title.x = element_text(size = 13),
-          axis.title.y = element_text(size = 13))
+          axis.title.y = element_text(size = 13),
+          panel.grid.major= element_blank(),
+          panel.grid.minor = element_blank())
 }
 
 # if we're plotting num calls by veg complexity, make max 10 if not leave whatever displays best
