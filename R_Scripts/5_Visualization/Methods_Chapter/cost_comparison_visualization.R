@@ -12,6 +12,7 @@ cost_dat <- read.csv("./Data/Cost_Analysis/Cost_Summary_Totals_v4.csv")
 v1_pam <- cost_dat %>% filter(method == "pam") %>% filter(! item == "hours") %>% group_by(org, year) %>% summarize(total = sum(value))
 
 v1_pb <- cost_dat %>% filter(method == "pb") %>% filter(! item == "hours")%>% group_by(org, year) %>% summarize(total = sum(value))
+
 plot1_pam <- ggplot(data = v1_pam) +
   geom_bar(aes(x = year, y = total, fill = org), position = "dodge", stat= "identity") +
   theme_minimal() +
@@ -20,11 +21,11 @@ plot1_pam <- ggplot(data = v1_pam) +
                     labels = c("agency" = "Wildlife Agency",
                                "univ_lab" = "University Lab"),
                     name = "Organization") +
-  theme(axis.text.y = element_text(size = 13),
-        axis.title.y = element_text(size = 13),
-        axis.text.x = element_text(size = 13), 
-        axis.title.x = element_text(size = 13),
-        text = element_text(size = 13),
+  theme(axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        axis.text.x = element_text(size = 20), 
+        axis.title.x = element_text(size = 20),
+        text = element_text(size = 15),
         legend.position = "bottom")+
   scale_y_continuous(limits = c(0,20000), breaks = c(0,5000,10000,15000,20000))+
   labs(title = "PAM",y = "Total (USD $)", x = "Project Year")
@@ -39,9 +40,9 @@ plot1_pb <- ggplot(data = v1_pb) +
                     name = "Organization") +
   theme(axis.text.y = element_blank(),
         axis.title.y = element_blank(),
-        axis.text.x = element_text(size = 13), 
-        axis.title.x = element_text(size = 13),
-        text = element_text(size = 13),
+        axis.text.x = element_text(size = 20), 
+        axis.title.x = element_text(size = 20),
+        text = element_text(size = 15),
         legend.position = "bottom")+
   scale_y_continuous(limits = c(0,20000), breaks = c(0,5000,10000,15000,20000))+
   labs(title = "Playback", x = "Project Year")
@@ -106,7 +107,11 @@ plot_items <- ggplot(data = v3) +
                     name = "Method",) +
   theme_minimal()+
   labs(y = "Total (USD $)", x = "Cost Type") +
-  theme(text = element_text(size = 13),
+  theme(axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        axis.text.x = element_text(size = 18), 
+        axis.title.x = element_text(size = 20),
+        text = element_text(size = 20),
         legend.position = "bottom",
         legend.justification = "right")
 
@@ -134,7 +139,11 @@ plot_hours <- ggplot(data = v4) +
                     name = "Method", guide = "none") +
   theme_minimal() +
   labs(y = "Personnel Hours", x = "Project Year")  +
-  theme(text = element_text(size = 13),
+  theme(axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        axis.text.x = element_text(size = 20), 
+        axis.title.x = element_text(size = 20),
+        text = element_text(size = 20),
         legend.position = "bottom",
         legend.justification = "left")
 
@@ -149,14 +158,14 @@ plot_hours <- ggplot(data = v4) +
 # Why are these not high quality?????
 #### Export graphics you want #####
 final1 <- plot1_pam | plot1_pb
-jpeg("./Deliverables/MetChap_CostVisualizations/Cost_byOrgMethod_v4_2-27.jpeg", width=800, height=400)
+jpeg("./Deliverables/MetChap_CostVisualizations/Cost_byOrgMethod_v5_6-18.jpeg", width=800, height=400)
 final1
 dev.off()
 #ggsave("./Deliverables/MetChap_CostVisualizations/Cost_byOrgMethod_v4_2-27.jpeg", width=800, height=400)
 
 # Combine hours and split apart costs into one
 final2 <- plot_items | plot_hours
-jpeg("./Deliverables/MetChap_CostVisualizations/HrsYear_CostSupplies_byMethod_v4_2-27.jpeg", width=800, height=400)
+jpeg("./Deliverables/MetChap_CostVisualizations/HrsYear_CostSupplies_byMethod_v5_6-18.jpeg", width=800, height=400)
 final2 
 dev.off()
 

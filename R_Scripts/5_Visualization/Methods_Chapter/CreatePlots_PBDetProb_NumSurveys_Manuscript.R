@@ -68,13 +68,13 @@ pb_pnumsurveys <- ggplot(data = pb_pstars_long, aes(x = num_surveys, y = cumulat
   theme(axis.text.x = element_text(angle = 0, hjust = 1)) + # Adjust text angle and position
   stat_summary(fun.y="median", geom="point", color = pb_palette[1], size = 5) +
   annotate("label", x = 9.5, y = 0.1, label = "", 
-           size = 6, color = "black", fill = "white", 
+           size = 10, color = "black", fill = "white", 
            label.size = 0) +
   # Adjust axis labels
-  theme(axis.text.x = element_text(size = 13), 
-        axis.text.y = element_text(size = 13),
-        axis.title.x = element_text(size = 13),
-        axis.title.y = element_text(size = 13)) 
+  theme(axis.text.x = element_text(size = 25), 
+        axis.text.y = element_text(size = 25),
+        axis.title.x = element_text(size = 25),
+        axis.title.y = element_text(size = 25)) 
 
 
 #pb_pnumsurveys

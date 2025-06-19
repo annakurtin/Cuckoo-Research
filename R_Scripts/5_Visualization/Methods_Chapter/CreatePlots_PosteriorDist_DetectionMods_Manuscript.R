@@ -40,10 +40,10 @@ dense_int_aru <- ggplot(data = posterior_b0, aes(x = b0)) +
   guides(fill = "none") +
   scale_x_continuous(limits = c(-8,8)) +
   # Adjust axis labels
-  theme(axis.text.x = element_text(size = 13), 
+  theme(axis.text.x = element_text(size = 20), 
         axis.text.y = element_blank(),
-        axis.title.x = element_text(size = 13),
-        axis.title.y = element_text(size = 13)) +
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20)) +
   # Adjust axis titles
   labs(y = "Intercept - PAM", x = "Posterior Estimate") +
   annotate("label", x = -5, y = 1, label = "A", 
@@ -104,9 +104,9 @@ dense_det_aru <- ggplot(data = chains_viol_long, aes(x = values, y = parameter, 
   # Adjust axis titles
   labs(y = NULL, x = "Posterior Estimate") +
   # Adjust axis labels
-  theme(axis.text.x = element_text(size = 13), 
-        axis.text.y = element_text(size = 13), hjust = 1,
-        axis.title.x = element_text(size = 13)) +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 20), hjust = 1,
+        axis.title.x = element_text(size = 20)) +
   # Adjust x axis
   scale_x_continuous(limits = c(-5,5), breaks = seq(-5,5, by = 1)) +
   # Add a line for 0 to show overlap of posterior
@@ -148,10 +148,10 @@ dense_int_pb <- ggplot(data = posterior_b0, aes(x = b0)) +
   guides(fill = "none") +
   scale_x_continuous(limits = c(-8,8)) +
   # Adjust axis labels
-  theme(axis.text.x = element_text(size = 13), 
+  theme(axis.text.x = element_text(size = 20), 
         axis.text.y = element_blank(),
-        axis.title.x = element_text(size = 13),
-        axis.title.y = element_text(size = 13)) +
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20)) +
   annotate("label", x = -5, y = 1, label = "C", 
            size = 6, color = "black", fill = "white", 
            label.size = 0) +
@@ -196,9 +196,9 @@ dense_det_pb <- ggplot(data = chains_beta_l, aes(x = values, y = parameter, fill
   # Adjust axis titles
   labs(y = NULL, x = "Posterior Estimate") +
   # Adjust axis labels
-  theme(axis.text.x = element_text(size = 13), 
-        axis.text.y = element_text(size = 13), hjust = 1,
-        axis.title.x = element_text(size = 13)) +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 20), hjust = 1,
+        axis.title.x = element_text(size = 20)) +
   # Adjust x axis
   scale_x_continuous(limits = c(-5,5), breaks = seq(-5,5, by = 1)) +
   # Add a line for 0 to show overlap of posterior

@@ -24,7 +24,7 @@ z_i \sim Bernoulli(\psi_i)
 $$ 
 
 $$
-\psi_i = \alpha_0
+\text{logit}(\psi_i) = \alpha_0
 $$ 
 Detection model with six covariates:  
 
@@ -43,7 +43,7 @@ y_{ij} \sim Bernoulli(p_{ij} * z_i)
 $$
 Equation for manuscript
 $$
-p_{ij} = \beta_0 + \beta_{1}*date + \beta_{2}*date^2 + \beta_3*wind + \beta_4*temperature
+\text{logit}(p_{ij}) = \beta_0 + \beta_{1}*date + \beta_{2}*date^2 + \beta_3*wind + \beta_4*temperature
 $$
 
 Formula for manuscript

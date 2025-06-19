@@ -21,10 +21,10 @@ ggsave("./Deliverables/MetChap_ModelVisualizations/PB_Posterior_PNumSurveys.jpg"
 ## Trying out a different format
 (dense_int_aru | dense_det_aru ) / (dense_int_pb | dense_det_pb )
 #ggsave("./Deliverables/MetChap_ModelVisualizations/PAM_PB_Posteriors.jpg", width=12, height=8)
-ggsave("./Deliverables/MetChap_ModelVisualizations/PAM_PB_Posteriors_lighterPBPalette.jpg", width=12, height=8)
+ggsave("./Deliverables/MetChap_ModelVisualizations/PAM_PB_Posteriors_lighterPBPalette_largerfont.jpg", width=12, height=8)
 
 aru_pnumsurveys/ pb_pnumsurveys
 ggsave("./Deliverables/MetChap_ModelVisualizations/PAM_PB_NumSurveys.jpg", width=12, height=8)
 
 pb_pnumsurveys
-ggsave("./Deliverables/MetChap_ModelVisualizations/PB_NumSurveys.jpg", width=12, height=6)
+ggsave("./Deliverables/MetChap_ModelVisualizations/PB_NumSurveys_largerfont.jpg", width=12, height=6)
