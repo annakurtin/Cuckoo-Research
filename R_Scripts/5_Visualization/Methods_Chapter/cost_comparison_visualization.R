@@ -5,7 +5,7 @@ library(patchwork)
 source("C:/Users/annak/OneDrive/Documents/UM/Research/Coding_Workspace/Cuckoo-Research/R_Scripts/5_Visualization/Create_HexCodes_CuckooColorBlind.R")
 
 # read in data
-cost_dat <- read.csv("./Data/Cost_Analysis/Cost_Summary_Totals_v4.csv")
+cost_dat <- read.csv("./Data/Cost_Analysis/Cost_Summary_Totals_v5.csv")
 
 
 # Visualization 1: bar graph with year on x axis, cost on y, bar by organization for each method ####
@@ -27,7 +27,7 @@ plot1_pam <- ggplot(data = v1_pam) +
         axis.title.x = element_text(size = 20),
         text = element_text(size = 15),
         legend.position = "bottom")+
-  scale_y_continuous(limits = c(0,20000), breaks = c(0,5000,10000,15000,20000))+
+  scale_y_continuous(limits = c(0,20500), breaks = c(0,5000,10000,15000,20000))+
   labs(title = "PAM",y = "Total (USD $)", x = "Project Year")
 
 plot1_pb <- ggplot(data = v1_pb) +
@@ -44,7 +44,7 @@ plot1_pb <- ggplot(data = v1_pb) +
         axis.title.x = element_text(size = 20),
         text = element_text(size = 15),
         legend.position = "bottom")+
-  scale_y_continuous(limits = c(0,20000), breaks = c(0,5000,10000,15000,20000))+
+  scale_y_continuous(limits = c(0,20500), breaks = c(0,5000,10000,15000,20000))+
   labs(title = "Playback", x = "Project Year")
 
 
@@ -158,14 +158,14 @@ plot_hours <- ggplot(data = v4) +
 # Why are these not high quality?????
 #### Export graphics you want #####
 final1 <- plot1_pam | plot1_pb
-jpeg("./Deliverables/MetChap_CostVisualizations/Cost_byOrgMethod_v5_6-18.jpeg", width=800, height=400)
+jpeg("./Deliverables/MetChap_CostVisualizations/Cost_byOrgMethod_v5_6-21.jpeg", width=800, height=400)
 final1
 dev.off()
 #ggsave("./Deliverables/MetChap_CostVisualizations/Cost_byOrgMethod_v4_2-27.jpeg", width=800, height=400)
 
 # Combine hours and split apart costs into one
 final2 <- plot_items | plot_hours
-jpeg("./Deliverables/MetChap_CostVisualizations/HrsYear_CostSupplies_byMethod_v5_6-18.jpeg", width=800, height=400)
+jpeg("./Deliverables/MetChap_CostVisualizations/HrsYear_CostSupplies_byMethod_v5_6-21.jpeg", width=800, height=400)
 final2 
 dev.off()
 
