@@ -79,9 +79,9 @@ dense_detocc <- ggplot(data = chains_viol_long, aes(x = values, y = parameter, f
   # Adjust axis titles
   labs(y = NULL, x = "Posterior Estimate") +
   # Adjust axis labels
-  theme(axis.text.x = element_text(size = 13), 
-        axis.text.y = element_text(size = 13), hjust = 1,
-        axis.title.x = element_text(size = 13)) +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 20), hjust = 1,
+        axis.title.x = element_text(size = 20)) +
   # Adjust x axis
   scale_x_continuous(limits = c(-3.5,3), breaks = seq(-3,2, by = 1)) +
   # Add a line for 0 to show overlap of posterior
@@ -132,9 +132,9 @@ dense_lanscocc <- ggplot(data = chains_viol_long, aes(x = values, y = parameter,
   # Adjust axis titles
   labs(y = NULL, x = "Posterior Estimate") +
   # Adjust axis labels
-  theme(axis.text.x = element_text(size = 13), 
-        axis.text.y = element_text(size = 13), hjust = 1,
-        axis.title.x = element_text(size = 13)) +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 20), hjust = 1,
+        axis.title.x = element_text(size = 20)) +
   # Adjust x axis
   scale_x_continuous(limits = c(-3.5,3), breaks = seq(-3,2, by = 1)) +
   # Add a line for 0 to show overlap of posterior
@@ -192,9 +192,9 @@ dense_coreocc <- ggplot(data = chains_viol_long, aes(x = values, y = parameter, 
   # Adjust axis titles
   labs(y = NULL, x = "Posterior Estimate") +
   # Adjust axis labels
-  theme(axis.text.x = element_text(size = 13), 
-        axis.text.y = element_text(size = 13), hjust = 1,
-        axis.title.x = element_text(size = 13)) +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 20), hjust = 1,
+        axis.title.x = element_text(size = 20)) +
   # Adjust x axis
   scale_x_continuous(limits = c(-3.5,3), breaks = seq(-3,2, by = 1)) +
   # Add a line for 0 to show overlap of posterior
@@ -255,9 +255,9 @@ dense_pointocc <- ggplot(data = chains_viol_long, aes(x = values, y = parameter,
   # Adjust axis titles
   labs(y = NULL, x = "Posterior Estimate") +
   # Adjust axis labels
-  theme(axis.text.x = element_text(size = 13), 
-        axis.text.y = element_text(size = 13), hjust = 1,
-        axis.title.x = element_text(size = 13)) +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 20), hjust = 1,
+        axis.title.x = element_text(size = 20)) +
   # Adjust x axis
   scale_x_continuous(limits = c(-3.5,3), breaks = seq(-3,2, by = 1)) +
   # Add a line for 0 to show overlap of posterior
@@ -349,9 +349,9 @@ dense_lm <- ggplot(data = chains_viol_long, aes(x = values, y = parameter, fill 
   # Adjust axis titles
   labs(y = NULL, x = "Posterior Estimate") +
   # Adjust axis labels
-  theme(axis.text.x = element_text(size = 13), 
-        axis.text.y = element_text(size = 13), hjust = 1,
-        axis.title.x = element_text(size = 13)) +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 20), hjust = 1,
+        axis.title.x = element_text(size = 20)) +
   # Adjust x axis
   scale_x_continuous(limits = c(-3.5,3), breaks = seq(-3,2, by = 1)) +
   # Add a line for 0 to show overlap of posterior

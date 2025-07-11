@@ -69,10 +69,10 @@ vis_effect_lm <- function(covariate, dataframe, model,intercept, model_cov, xlab
     scale_y_continuous(limits = c(0,5))+
     #coord_cartesian(ylim = c(0, 1.5)) +
     theme(axis.line = element_line(color = "black", size = 0.8),
-          axis.text.x = element_text(size = 13), 
-          axis.text.y = element_text(size = 13),
-          axis.title.x = element_text(size = 13),
-          axis.title.y = element_text(size = 13),
+          axis.text.x = element_text(size = 20), 
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
           panel.grid.major= element_blank(),
           panel.grid.minor = element_blank())
 }

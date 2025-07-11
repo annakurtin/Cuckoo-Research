@@ -158,14 +158,14 @@ plot_hours <- ggplot(data = v4) +
 # Why are these not high quality?????
 #### Export graphics you want #####
 final1 <- plot1_pam | plot1_pb
-jpeg("./Deliverables/MetChap_CostVisualizations/Cost_byOrgMethod_v5_6-21.jpeg", width=800, height=400)
+jpeg("./Deliverables/MetChap_CostVisualizations/Cost_byOrgMethod_v5_6-22.jpeg", width=800, height=400)
 final1
 dev.off()
 #ggsave("./Deliverables/MetChap_CostVisualizations/Cost_byOrgMethod_v4_2-27.jpeg", width=800, height=400)
 
 # Combine hours and split apart costs into one
 final2 <- plot_items | plot_hours
-jpeg("./Deliverables/MetChap_CostVisualizations/HrsYear_CostSupplies_byMethod_v5_6-21.jpeg", width=800, height=400)
+jpeg("./Deliverables/MetChap_CostVisualizations/HrsYear_CostSupplies_byMethod_v5_6-22.jpeg", width=800, height=400)
 final2 
 dev.off()
 
