@@ -66,10 +66,10 @@ vis_effect_occ <- function(covariate, dataframe, model,intercept, model_cov, xla
     theme_minimal() +
     coord_cartesian(ylim = c(0, 1)) +
     theme(axis.line = element_line(color = "black", size = 0.8),
-          axis.text.x = element_text(size = 13), 
-          axis.text.y = element_text(size = 13),
-          axis.title.x = element_text(size = 13),
-          axis.title.y = element_text(size = 13),
+          axis.text.x = element_text(size = 15), 
+          axis.text.y = element_text(size = 15),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
           panel.grid = element_blank())
 }
 
